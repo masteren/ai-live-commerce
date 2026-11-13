@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理コンソール | AI Live Commerce</title>
+<style>
+  :root{
+    --ink:#1B2436; --muted:#6A7382; --pink:#233A5C; --bg:#F3F4F8; --line:#E5E8EF;
+    --gold:#B8860B; --accent:#D7263D;
+    --shadow-card:0 1px 2px rgba(20,30,50,.04), 0 10px 28px -14px rgba(20,30,50,.12);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    color:var(--ink); padding:28px 24px; max-width:1000px; margin:0 auto;
+    background:
+      radial-gradient(900px 480px at 88% -8%, #FBEEF0 0%, transparent 58%),
+      radial-gradient(820px 520px at -8% 2%, #ECF1F8 0%, transparent 55%),
+      var(--bg);
+    font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1{ font-size:20px; margin-bottom:2px; color:var(--pink); letter-spacing:.02em; } h1 span{ color:var(--accent); }
+  .sub{
+    color:var(--muted); font-size:12.5px; margin-bottom:22px; padding-bottom:14px; position:relative;
+  }
+  .sub::after{
+    content:""; position:absolute; left:0; bottom:0; height:2px; width:100%;
+    background:linear-gradient(90deg, var(--accent) 0%, #E8899A 22%, transparent 55%);
+  }
+  h2{ font-size:15px; margin:28px 0 12px; display:flex; align-items:center; gap:10px; }
+  .login{ display:flex; gap:8px; margin-bottom:20px; }
+  input,select{
+    border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-size:13.5px; background:#fff;
+    outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  input:focus{ border-color:var(--pink); box-shadow:0 0 0 3px rgba(35,58,92,.10); }
+  button{
+    border:none; border-radius:10px; padding:9px 16px; font-size:13.5px; font-weight:700; cursor:pointer;
+    background:linear-gradient(180deg,#2C4970,#1E3251); color:#fff;
+    box-shadow:0 3px 10px -4px rgba(35,58,92,.5);
+    transition:transform .12s ease, box-shadow .15s ease, background .15s ease;
+  }
+  button:hover{ transform:translateY(-1px); box-shadow:0 5px 14px -4px rgba(35,58,92,.55); }
+  button:active{ transform:translateY(0); }
+  button.ghost{ background:#fff; color:var(--pink); border:1.5px solid var(--pink); box-shadow:none; }
+  button.ghost:hover{ background:#F4F7FB; }
+  button.small{ padding:5px 11px; font-size:12px; border-radius:8px; }
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(142px,1fr)); gap:12px; }
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 15px;
+    box-shadow:var(--shadow-card);
+  }
+  .card .v{ font-size:23px; font-weight:900; color:var(--pink); font-feature-settings:"tnum"; letter-spacing:-.01em; }
+  .card .l{ font-size:11.5px; color:var(--muted); margin-top:1px; }
+  .cards .card:first-child .v{ color:var(--accent); }
+  table{
+    width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line);
+    border-radius:14px; overflow:hidden; font-size:13px; box-shadow:var(--shadow-card);
+  }
+  th,td{ padding:9px 10px; text-align:left; border-bottom:1px solid var(--line); }
+  th{ background:#F4F6FA; font-size:11.5px; color:var(--muted); letter-spacing:.03em; }
+  tbody tr{ transition:background .12s; }
+  tbody tr:hover{ background:#FAFBFD; }
+  tbody tr:last-child td{ border-bottom:none; }
+  td input{ width:100%; padding:5px 8px; font-size:12.5px; border-radius:7px; }
+  td input.num{ width:74px; }
+  .inactive{ opacity:.45; }
+  .row-new{ background:#F5F8FC; box-shadow:inset 3px 0 0 var(--pink); }
+  #msg{
+    position:fixed; top:16px; right:16px; z-index:9; background:var(--ink); color:#fff;
+    border-radius:10px; padding:10px 16px; font-size:13px; display:none;
+    box-shadow:0 10px 26px -8px rgba(15,25,45,.4); animation:slidein .22s ease;
+  }
+  @keyframes slidein{ from{opacity:0; transform:translateY(-6px)} to{opacity:1; transform:none} }
+  .wrap{ overflow-x:auto; scrollbar-width:thin; }
+</style>
+</head>
+<body>
+<h1>AI Live Commerce <span>管理コンソール</span></h1>
+<div class="sub">商品の登録・在庫管理・配信データ統計</div>
+
+<div class="login">
+  <input id="token" type="password" placeholder="管理者トークン(ADMIN_TOKEN)" style="flex:1;max-width:340px">
+  <button onclick="login()">ログイン</button>
+</div>
+
+<div id="panel" style="display:none">
+  <h2>📊 配信統計
+    <button class="small ghost" onclick="loadAll()">更新</button>
+    <button class="small" id="botBtn" onclick="toggleBot()">🤖 …</button>
+  </h2>
+  <div class="cards" id="stats"></div>
+
+  <h2>🛍️ 商品管理</h2>
+  <div class="wrap"><table id="ptable">
+    <thead><tr><th>ID</th><th>絵文字</th><th>商品名</th><th>説明</th><th>価格</th><th>通常価格</th><th>在庫</th><th>タグ</th><th>状態</th><th></th></tr></thead>
+    <tbody id="pbody"></tbody>
+  </table></div>
+
+  <h2>🧾 最近の注文</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>#</th><th>購入者</th><th>内容</th><th>合計</th><th>日時</th></tr></thead>
+    <tbody id="obody"></tbody>
+  </table></div>
+</div>
+
+<div id="msg"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let TOKEN = sessionStorage.getItem('admin_token') || '';
+const yen = (n) => '¥' + Number(n).toLocaleString('ja-JP');
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function msg(t){ const m=$('msg'); m.textContent=t; m.style.display='block'; clearTimeout(m._h); m._h=setTimeout(()=>m.style.display='none',2600); }
+
+async function api(path, opts={}){
+  const res = await fetch(path, { ...opts, headers:{ 'Content-Type':'application/json', 'X-Admin-Token': TOKEN, ...(opts.headers||{}) } });
+  if (res.status === 401){ msg('トークンが正しくありません'); throw new Error('401'); }
+  if (!res.ok){ const e = await res.json().catch(()=>({})); msg('⚠️ ' + (e.detail||res.status)); throw new Error(res.status); }
+  return res.json();
+}
+
+async function login(){
+  TOKEN = $('token').value.trim();
+  try{
+    await api('/api/admin/stats');
+    sessionStorage.setItem('admin_token', TOKEN);
+    $('panel').style.display = 'block';
+    loadAll();
+  }catch(e){}
+}
+
+let botEnabled = false;
+function renderBot(){ $('botBtn').textContent = botEnabled ? '🤖 賑やかしBOT: ON' : '🤖 賑やかしBOT: OFF'; $('botBtn').style.background = botEnabled ? '#2BA84A' : ''; }
+async function toggleBot(){
+  const r = await api('/api/admin/bot', { method:'POST', body: JSON.stringify({ enabled: !botEnabled }) });
+  botEnabled = r.enabled; renderBot();
+  msg(botEnabled ? '賑やかしBOTを開始しました(配信画面に自動コメントが流れます)' : '賑やかしBOTを停止しました');
+}
+
+async function loadAll(){
+  const [stats, prods, orders] = await Promise.all([
+    api('/api/admin/stats'), api('/api/admin/products'), api('/api/admin/orders'),
+  ]);
+  $('stats').innerHTML = [
+    ['売上合計', yen(stats.total_revenue)], ['注文数', stats.total_orders],
+    ['コメント数', stats.total_comments], ['登録ユーザー', stats.total_users],
+    ['現在の視聴者', stats.current_viewers], ['最大同時視聴', stats.peak_viewers],
+    ['販売中商品', stats.active_products],
+  ].map(([l,v])=>`<div class="card"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+  botEnabled = stats.bot_enabled; renderBot();
+  $('stats').innerHTML = $('stats').innerHTML
+  + (stats.top_products.length
+      ? `<div class="card" style="grid-column:1/-1"><div class="l">売れ筋TOP</div>${
+          stats.top_products.map(t=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${esc(t.name)}</span><b>${t.sold}点 / ${yen(t.revenue)}</b></div>`).join('')}</div>`
+      : '');
+
+  $('pbody').innerHTML = prods.map(p=>rowHtml(p)).join('') + rowHtml(null);
+  bindRows();
+
+  $('obody').innerHTML = orders.map(o=>`
+    <tr><td>#${o.id}</td><td>${esc(o.nickname)}</td>
+    <td>${o.items.map(i=>`${esc(i.product_name)}×${i.quantity}`).join('、')}</td>
+    <td>${yen(o.total)}</td><td>${new Date(o.created_at).toLocaleString('ja-JP')}</td></tr>`).join('')
+    || '<tr><td colspan="5" style="color:var(--muted)">注文はまだありません</td></tr>';
+}
+
+function rowHtml(p){
+  const n = p === null;
+  const v = (k,d='') => n ? d : esc(p[k]);
+  return `<tr class="${n?'row-new':(p.is_active?'':'inactive')}" data-id="${n?'':p.id}">
+    <td>${n?'新規':p.id}</td>
+    <td><input class="f-emoji" value="${v('emoji','🛍️')}" style="width:52px"></td>
+    <td><input class="f-name" value="${v('name')}" placeholder="商品名"></td>
+    <td><input class="f-description" value="${v('description')}"></td>
+    <td><input class="f-price num" type="number" value="${n?0:p.price}"></td>
+    <td><input class="f-original_price num" type="number" value="${n?0:p.original_price}"></td>
+    <td><input class="f-stock num" type="number" value="${n?0:p.stock}"></td>
+    <td><input class="f-tag" value="${v('tag')}" style="width:100px"></td>
+    <td>${n?'—':(p.is_active?'販売中':'停止')}</td>
+    <td style="white-space:nowrap">
+      ${n ? '<button class="small" data-act="create">登録</button>'
+          : `<button class="small" data-act="save">保存</button>
+             <button class="small ghost" data-act="toggle">${p.is_active?'停止':'再開'}</button>`}
+    </td></tr>`;
+}
+
+function collect(tr){
+  const g = (c) => tr.querySelector('.f-'+c).value;
+  return { emoji:g('emoji'), name:g('name'), description:g('description'),
+    price:+g('price')||0, original_price:+g('original_price')||0, stock:+g('stock')||0, tag:g('tag') };
+}
+
+function bindRows(){
+  document.querySelectorAll('#pbody [data-act]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const tr = btn.closest('tr'), id = tr.dataset.id, act = btn.dataset.act;
+      if (act === 'create'){
+        const body = collect(tr);
+        if (!body.name){ msg('商品名を入力してください'); return; }
+        await api('/api/admin/products', { method:'POST', body: JSON.stringify(body) });
+        msg('✅ 商品を登録しました');
+      } else if (act === 'save'){
+        await api(`/api/admin/products/${id}`, { method:'PATCH', body: JSON.stringify(collect(tr)) });
+        msg('✅ 保存しました');
+      } else if (act === 'toggle'){
+        const active = !tr.classList.contains('inactive');
+        await api(`/api/admin/products/${id}`, { method:'PATCH', body: JSON.stringify({ is_active: !active }) });
+        msg(active ? '販売を停止しました' : '販売を再開しました');
+      }
+      loadAll();
+    };
+  });
+}
+
+if (TOKEN){ $('token').value = TOKEN; login(); }
+</script>
+</body>
+</html>

@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AIライブコマース | LIVE配信中</title>
+<style>
+  :root{
+    --bg:#F3F4F8; --card:#FFFFFF; --line:#E5E8EF; --ink:#1B2436; --sub:#6A7382;
+    --accent:#D7263D;          /* 紅:LIVE・価格・CTA */
+    --accent-d:#B01E31;
+    --navy:#233A5C;            /* 墨紺:見出し・リンク */
+    --ok:#1E8E4E;
+    --radius:16px;
+    --shadow-card:0 1px 2px rgba(20,30,50,.04), 0 10px 28px -14px rgba(20,30,50,.12);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    min-height:100vh; color:var(--ink);
+    background:
+      radial-gradient(900px 480px at 88% -8%, #FBEEF0 0%, transparent 58%),
+      radial-gradient(820px 520px at -8% 2%, #ECF1F8 0%, transparent 55%),
+      var(--bg);
+    font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",-apple-system,sans-serif;
+    font-size:14px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{ color:var(--navy); }
+  button{ transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .12s ease; }
+  :focus-visible{ outline:2px solid var(--navy); outline-offset:2px; }
+
+  /* ---------- ヘッダー ---------- */
+  header{
+    background:rgba(255,255,255,.86);
+    -webkit-backdrop-filter:saturate(1.4) blur(12px); backdrop-filter:saturate(1.4) blur(12px);
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20;
+  }
+  header::after{
+    content:""; display:block; height:2px;
+    background:linear-gradient(90deg, var(--accent) 0%, #E8899A 26%, transparent 58%);
+  }
+  .hwrap{ max-width:1080px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; gap:14px; }
+  .brand{ font-weight:800; font-size:16px; letter-spacing:.04em; color:var(--navy); }
+  .brand span{ color:var(--accent); }
+  .livebadge{
+    display:inline-flex; align-items:center; gap:6px; background:linear-gradient(180deg,#E12F47,var(--accent-d)); color:#fff;
+    font-size:11px; font-weight:800; border-radius:6px; padding:3px 9px; letter-spacing:.06em;
+    box-shadow:0 2px 10px -2px rgba(215,38,61,.55);
+  }
+  .livedot{ width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.5s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.3} }
+  .hmeta{ margin-left:auto; display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--sub); }
+  .hmeta > span{ background:#F1F3F8; border:1px solid var(--line); border-radius:999px; padding:4px 12px; }
+  .hbtn{ border:1px solid var(--line); background:#fff; border-radius:9px; padding:6px 12px; font-size:12.5px; cursor:pointer; color:var(--ink); }
+  .hbtn:hover{ border-color:var(--navy); background:#F7F9FC; }
+
+  /* ---------- レイアウト ---------- */
+  .wrap{ max-width:1080px; margin:0 auto; padding:16px; display:grid; grid-template-columns:1fr 340px; gap:16px; align-items:start; }
+  @media (max-width: 880px){ .wrap{ grid-template-columns:1fr; } .comments-card{ height:380px !important; } }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow-card); }
+
+  /* ---------- 配信ステージ(スタジオ風) ---------- */
+  .stage{
+    position:relative; overflow:hidden; border-radius:var(--radius) var(--radius) 0 0;
+    background:radial-gradient(130% 100% at 50% -6%, #FEFEFF 0%, #EDF2F9 44%, #D8E2F0 100%);
+    aspect-ratio:16/10; display:flex; align-items:flex-end; justify-content:center;
+  }
+  @media (max-width:880px){ .stage{ aspect-ratio:4/3; } }
+  /* 角色身后的柔光聚光灯 */
+  .stage::before{
+    content:""; position:absolute; left:50%; top:6%; width:78%; aspect-ratio:1.15;
+    transform:translateX(-50%); pointer-events:none;
+    background:radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 62%);
+  }
+  .stage-deco{ position:absolute; inset:auto 0 0 0; height:34%; background:linear-gradient(180deg,transparent,#D2DCEA); }
+  /* 地面椭圆投影,让角色"落地" */
+  .stage-deco::before{
+    content:""; position:absolute; left:50%; bottom:6%; width:44%; height:14%;
+    transform:translateX(-50%); border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%, rgba(35,58,92,.18), transparent 70%);
+  }
+  /* 漂浮光斑(スタジオライト) */
+  .orb{
+    position:absolute; border-radius:50%; pointer-events:none; opacity:.55;
+    background:radial-gradient(circle at 35% 35%, rgba(255,255,255,.9), rgba(255,255,255,0) 70%);
+    animation:float 9s ease-in-out infinite;
+  }
+  .o1{ width:96px;height:96px; left:7%;  top:16%; }
+  .o2{ width:48px;height:48px; right:11%; top:11%; animation-delay:-3s; }
+  .o3{ width:66px;height:66px; right:20%; bottom:32%; animation-delay:-6s; opacity:.35; }
+  @keyframes float{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  .avatarbox{ position:relative; z-index:1; width:min(46%,300px); }
+  .presenter{ width:100%; display:block; }
+  /* VRM 立绘(three-vrm);加载成功后 .stage.vrm-on 接管,失败则保留上面的 SVG */
+  #vrmCanvas{ position:absolute; inset:0; width:100%; height:100%; z-index:1; display:none; }
+  .stage.vrm-on #avatarBox{ display:none; }
+  .stage.vrm-on #vrmCanvas{ display:block; }
+
+  /* 立绘动画 */
+  .p-sway{ animation:sway 4s ease-in-out infinite; transform-origin:50% 100%; }
+  @keyframes sway{ 0%,100%{transform:rotate(0)} 50%{transform:rotate(.6deg)} }
+  .p-blink{ animation:blink 5s infinite; transform-origin:100px 96px; }
+  @keyframes blink{ 0%,95%,100%{transform:scaleY(1)} 97%{transform:scaleY(.06)} }
+  #mouthTalk{ display:none; animation:mouth .3s ease-in-out infinite alternate; transform-origin:100px 121px; }
+  @keyframes mouth{ from{transform:scaleY(.4)} to{transform:scaleY(1)} }
+  .talking #mouthTalk{ display:block; } .talking #mouthIdle{ display:none; }
+  #eyesHappy,#browTroubled{ display:none; }
+  .happy #eyesNormal,.excited #eyesNormal{ display:none; }
+  .happy #eyesHappy,.excited #eyesHappy{ display:block; }
+  .troubled #browTroubled{ display:block; }
+  .blush{ opacity:0; transition:opacity .3s; }
+  .shy .blush,.happy .blush{ opacity:.55; }
+
+  /* 放送風ローワーサード(字幕テロップ) */
+  .lower-third{
+    position:absolute; z-index:2; left:14px; right:14px; bottom:14px;
+    display:flex; align-items:stretch; gap:0; filter:drop-shadow(0 4px 14px rgba(26,35,51,.18));
+  }
+  .lt-name{
+    background:linear-gradient(150deg,#2C4970 0%,#1B2E4B 100%); color:#fff;
+    border-radius:8px 0 0 8px; padding:10px 14px;
+    display:flex; flex-direction:column; justify-content:center; white-space:nowrap;
+    box-shadow:inset -1px 0 0 rgba(255,255,255,.08);
+  }
+  .lt-name b{ font-size:13px; letter-spacing:.03em; } .lt-name small{ font-size:10px; opacity:.75; }
+  .lt-text{
+    flex:1; background:rgba(255,255,255,.88); border-radius:0 8px 8px 0;
+    -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+    border-top:1px solid rgba(255,255,255,.7);
+    padding:10px 14px; font-size:13.5px; display:flex; align-items:center; min-height:52px;
+  }
+
+  /* ---------- 注目商品バー ---------- */
+  .featured{
+    display:flex; gap:14px; align-items:center; padding:14px 16px;
+    border-top:1px solid var(--line);
+  }
+  .pemoji{
+    width:64px;height:64px;border-radius:14px;flex-shrink:0;
+    background:linear-gradient(160deg,#FFFFFF,#F0F4FA);
+    box-shadow:inset 0 0 0 1px var(--line), 0 3px 8px -3px rgba(20,30,50,.12);
+    display:flex;align-items:center;justify-content:center;font-size:32px;
+  }
+  .ptag{ display:inline-block; font-size:10.5px; font-weight:700; color:var(--accent); background:#FDF0F2; border:1px solid #F2C6CE; border-radius:5px; padding:1px 8px; margin-bottom:3px; }
+  .pname{ font-weight:700; font-size:14.5px; }
+  .pdesc{ font-size:12px; color:var(--sub); }
+  .pprice{ color:var(--accent); font-weight:800; font-size:21px; font-feature-settings:"tnum"; letter-spacing:-.01em; }
+  .porig{ font-size:12px; color:var(--sub); text-decoration:line-through; margin-left:8px; }
+  .pstock{ font-size:11.5px; color:var(--sub); }
+  .pstock.low{ color:var(--accent); font-weight:700; }
+  .buybtn{
+    margin-left:auto; flex-shrink:0; border:none; cursor:pointer; color:#fff;
+    background:linear-gradient(180deg,#E12F47,#C81F35);
+    font-weight:700; font-size:13.5px; border-radius:10px; padding:12px 22px;
+    box-shadow:0 4px 14px -5px rgba(215,38,61,.6);
+  }
+  .buybtn:hover{ transform:translateY(-1px); box-shadow:0 7px 18px -5px rgba(215,38,61,.65); }
+  .buybtn:active{ transform:translateY(0); }
+  .buybtn:disabled{ background:#C4C9D1; box-shadow:none; transform:none; cursor:not-allowed; }
+  .listlink{ padding:0 16px 14px; font-size:12.5px; display:flex; align-items:center; gap:10px; }
+  .listlink a{
+    cursor:pointer; font-weight:700; text-decoration:none;
+    border:1px solid var(--line); border-radius:999px; padding:5px 14px; background:#FAFBFD;
+    transition:border-color .15s, background .15s;
+  }
+  .listlink a:hover{ border-color:var(--navy); background:#F2F5FA; }
+
+  /* ---------- コメント欄 ---------- */
+  .comments-card{ display:flex; flex-direction:column; height:560px; }
+  .c-head{ padding:12px 16px; border-bottom:1px solid var(--line); font-weight:700; font-size:13.5px; display:flex; justify-content:space-between; align-items:center; }
+  .c-head small{ font-weight:400; color:var(--sub); }
+  .c-list{ flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:10px; scrollbar-width:thin; scrollbar-color:#D4DAE4 transparent; }
+  /* 空态:还没有弹幕时不留白板 */
+  .c-list:empty::before{
+    content:"💬 コメントはまだありません\A気になることを聞いてみましょう";
+    white-space:pre; text-align:center; margin:auto; color:#A6AEBB; font-size:12.5px; line-height:1.9;
+  }
+  .c-list::-webkit-scrollbar{ width:8px; }
+  .c-list::-webkit-scrollbar-thumb{ background:#D4DAE4; border-radius:99px; border:2px solid #fff; }
+  .c-list::-webkit-scrollbar-track{ background:transparent; }
+  .cm{ font-size:13px; line-height:1.5; animation:fadein .25s ease; }
+  .cm b{ color:var(--navy); margin-right:6px; font-size:12.5px; }
+  .cm.me b{ color:var(--ok); }
+  .cm.host{
+    background:linear-gradient(90deg,#F3F6FB,#FAFBFD);
+    border-left:3px solid var(--navy); border-radius:0 10px 10px 0; padding:8px 11px;
+    box-shadow:0 1px 3px -1px rgba(20,30,50,.08);
+  }
+  .cm.host b{ color:var(--accent); }
+  .cm.sys{ color:var(--sub); font-size:12px; background:#FAFBFC; border:1px dashed var(--line); border-radius:10px; padding:6px 10px; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:none} }
+  .c-input{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
+  .c-input input{ flex:1; min-width:0; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13px; outline:none; transition:border-color .15s, box-shadow .15s; }
+  .c-input input:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba(35,58,92,.10); }
+  .sendbtn{ border:none; cursor:pointer; border-radius:10px; padding:10px 16px; font-weight:700; font-size:13px; background:var(--navy); color:#fff; }
+  .sendbtn:hover{ background:#2C4970; }
+  .sendbtn:active{ transform:scale(.97); }
+
+  /* ---------- モーダル ---------- */
+  .mask{ position:fixed; inset:0; z-index:50; background:rgba(21,30,48,.5); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; padding:16px; }
+  .mask.open{ display:flex; }
+  .modal{ width:100%; max-width:460px; background:#fff; border-radius:18px; padding:22px; max-height:86vh; overflow-y:auto; animation:fadein .2s ease; box-shadow:0 24px 60px -18px rgba(15,25,45,.35); }
+  .modal h3{ font-size:15px; margin-bottom:4px; color:var(--navy); }
+  .modal .note{ font-size:12px; color:var(--sub); margin-bottom:10px; }
+  .ditem{ display:flex; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); }
+  .ditem .de{ width:48px;height:48px;border:1px solid var(--line);border-radius:8px;background:#FAFBFC;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0; }
+  .ditem .dn{ font-weight:700; font-size:13.5px; }
+  .ditem .dd{ font-size:11.5px; color:var(--sub); }
+  .sbtn{ font-size:12px; font-weight:700; border-radius:7px; padding:6px 11px; cursor:pointer; background:#fff; }
+  .sbtn.ask{ color:var(--navy); border:1px solid var(--navy); }
+  .sbtn.ask:hover{ background:#F2F5FA; }
+  .sbtn.cart{ color:var(--accent); border:1px solid var(--accent); }
+  .sbtn.cart:hover{ background:#FDF0F2; }
+  .primarybtn{ width:100%; margin-top:14px; border:none; cursor:pointer; background:var(--accent); color:#fff; font-weight:700; font-size:14px; border-radius:8px; padding:13px; }
+  .primarybtn:hover{ background:var(--accent-d); }
+  .primarybtn:disabled{ background:#C4C9D1; }
+  .field{ width:100%; border:1px solid var(--line); border-radius:10px; padding:11px 13px; font-size:14px; margin-top:10px; outline:none; transition:border-color .15s, box-shadow .15s; }
+  .field:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba(35,58,92,.10); }
+  .switchline{ text-align:center; font-size:12.5px; color:var(--sub); margin-top:14px; }
+  .switchline a{ font-weight:700; cursor:pointer; text-decoration:none; }
+  .errline{ color:var(--accent); font-size:12px; margin-top:8px; min-height:16px; }
+
+  .payopt{ display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:8px; cursor:pointer; font-size:13.5px; transition:border-color .15s, background .15s, box-shadow .15s; }
+  .payopt:hover{ border-color:#C7CFDB; }
+  .payopt.sel{ border-color:var(--accent); background:#FDF3F4; box-shadow:0 0 0 3px rgba(215,38,61,.08); }
+  .spinner{ width:36px;height:36px;border:4px solid #F0D5D9;border-top-color:var(--accent);border-radius:50%;margin:18px auto;animation:spin .8s linear infinite; }
+  @keyframes spin{ to{transform:rotate(360deg)} }
+  .successcheck{ width:60px;height:60px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;margin:14px auto;animation:popIn .4s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes popIn{ from{transform:scale(.3);opacity:0} to{transform:scale(1);opacity:1} }
+
+  .toast{ position:fixed; z-index:60; top:64px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; border-radius:8px; padding:9px 18px; font-size:13px; animation:fadein .2s ease; box-shadow:0 6px 20px rgba(26,35,51,.25); }
+  footer{ max-width:1080px; margin:0 auto; padding:4px 16px 26px; font-size:11.5px; color:#9AA3B1; text-align:center; }
+  @media (prefers-reduced-motion: reduce){ .p-sway,#mouthTalk,.livedot,.orb{ animation:none } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="brand">AI<span>ライブ</span>コマース</div>
+    <span class="livebadge"><span class="livedot"></span>LIVE</span>
+    <div class="hmeta">
+      <span>視聴者 <b id="viewers" style="color:var(--ink)">0</b>人</span>
+      <button class="hbtn" id="soundBtn" title="音声ON/OFF">🔇 音声OFF</button>
+      <button class="hbtn" id="userBtn">ログイン</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- 左:配信ステージ + 注目商品 -->
+  <div class="card">
+    <div class="stage">
+      <div class="stage-deco"></div>
+      <i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i>
+      <canvas id="vrmCanvas"></canvas>
+      <div class="avatarbox" id="avatarBox">
+        <svg viewBox="0 0 200 230" class="presenter p-sway" aria-label="AIアシスタント 花奈">
+          <!-- 髪(後ろ) -->
+          <path d="M52 82 Q44 128 52 152 L66 148 Q58 116 62 86 Z" fill="#4A3728"/>
+          <path d="M148 82 Q156 128 148 152 L134 148 Q142 116 138 86 Z" fill="#4A3728"/>
+          <!-- 体:ネイビージャケット+白シャツ -->
+          <path d="M46 230 Q50 178 78 166 L100 176 L122 166 Q150 178 154 230 Z" fill="#233A5C"/>
+          <path d="M88 168 L100 186 L112 168 L106 164 L100 172 L94 164 Z" fill="#FFFFFF"/>
+          <path d="M97 176 L103 176 L101 196 L99 196 Z" fill="#D7263D"/>
+          <path d="M78 166 L100 176 L88 196 Q78 184 78 166 Z" fill="#2C4568"/>
+          <path d="M122 166 L100 176 L112 196 Q122 184 122 166 Z" fill="#2C4568"/>
+          <!-- 首 -->
+          <rect x="92" y="148" width="16" height="20" rx="7" fill="#F2D6C4"/>
+          <!-- 顔 -->
+          <ellipse cx="100" cy="100" rx="44" ry="46" fill="#F7DFCE"/>
+          <!-- 前髪:きれいめボブ -->
+          <path d="M56 96 Q52 46 100 42 Q148 46 144 96 Q142 70 124 62 Q128 76 116 70 Q108 56 100 58 Q92 56 84 70 Q72 76 76 62 Q58 70 56 96 Z" fill="#4A3728"/>
+          <!-- 目(通常) -->
+          <g id="eyesNormal" class="p-blink">
+            <ellipse cx="82" cy="102" rx="6.5" ry="8.5" fill="#2A2028"/>
+            <ellipse cx="118" cy="102" rx="6.5" ry="8.5" fill="#2A2028"/>
+            <circle cx="84" cy="99" r="2.2" fill="#FFF"/>
+            <circle cx="120" cy="99" r="2.2" fill="#FFF"/>
+          </g>
+          <!-- 目(にこやか) -->
+          <g id="eyesHappy">
+            <path d="M75 102 Q82 95 89 102" stroke="#2A2028" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+            <path d="M111 102 Q118 95 125 102" stroke="#2A2028" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+          </g>
+          <!-- 眉(困り) -->
+          <g id="browTroubled">
+            <path d="M73 90 Q82 87 90 92" stroke="#5B4634" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+            <path d="M127 90 Q118 87 110 92" stroke="#5B4634" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          </g>
+          <!-- 頬 -->
+          <ellipse class="blush" cx="72" cy="116" rx="7" ry="3.6" fill="#F3B8B0"/>
+          <ellipse class="blush" cx="128" cy="116" rx="7" ry="3.6" fill="#F3B8B0"/>
+          <!-- 口 -->
+          <path id="mouthIdle" d="M93 122 Q100 127 107 122" stroke="#C4685E" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <ellipse id="mouthTalk" cx="100" cy="123" rx="6.5" ry="5.5" fill="#B85A50"/>
+          <!-- イヤリング(小) -->
+          <circle cx="57" cy="112" r="2.6" fill="#C9A44C"/>
+          <circle cx="143" cy="112" r="2.6" fill="#C9A44C"/>
+        </svg>
+      </div>
+      <!-- 放送風テロップ -->
+      <div class="lower-third">
+        <div class="lt-name"><b>花奈</b><small>AIアシスタント</small></div>
+        <div class="lt-text" id="bubbleText">ご視聴ありがとうございます。ご質問はコメントでお気軽にどうぞ。</div>
+      </div>
+    </div>
+
+    <div class="featured" id="productCard" style="display:none">
+      <div class="pemoji" id="pEmoji"></div>
+      <div style="min-width:0">
+        <span class="ptag" id="pTag"></span>
+        <div class="pname" id="pName"></div>
+        <div class="pdesc" id="pDesc"></div>
+        <div><span class="pprice" id="pPrice"></span><span class="porig" id="pOrig"></span>
+          <span class="pstock" id="pStock" style="margin-left:10px"></span></div>
+      </div>
+      <button class="buybtn" id="buyBtn">カートに入れる</button>
+    </div>
+    <div class="listlink">
+      <a id="drawerBtn">▸ 本日の商品一覧・カートを見る</a>
+      <span id="cartInfo" style="color:var(--sub)"></span>
+    </div>
+  </div>
+
+  <!-- 右:コメント -->
+  <div class="card comments-card">
+    <div class="c-head">コメント <small id="connState">接続中…</small></div>
+    <div class="c-list" id="comments"></div>
+    <div class="c-input">
+      <input id="input" maxlength="200" placeholder="質問・コメントを入力">
+      <button class="sendbtn" id="sendBtn">送信</button>
+    </div>
+  </div>
+</div>
+
+<footer>本サイトはポートフォリオ用のデモです。決済は行われません。音声合成: VOICEVOX / 回答生成: Anthropic Claude API</footer>
+
+<!-- 商品一覧・カート -->
+<div class="mask" id="drawerMask">
+  <div class="modal">
+    <h3>本日の商品</h3>
+    <div id="drawerList"></div>
+    <h3 style="margin-top:18px">カート <span id="cartCount" style="font-weight:400;color:var(--sub)"></span></h3>
+    <div id="cartList" style="font-size:13px"></div>
+    <button class="primarybtn" id="toPayBtn">レジに進む(<span id="cartTotal">¥0</span>)</button>
+    <div class="switchline"><a id="drawerClose">閉じる</a></div>
+  </div>
+</div>
+
+<!-- ログイン / 新規登録 -->
+<div class="mask" id="authMask">
+  <div class="modal" style="max-width:380px">
+    <h3 id="authTitle" style="text-align:center">ログイン</h3>
+    <div class="note" style="text-align:center">コメント投稿・ご購入には会員登録が必要です</div>
+    <input class="field" id="authUser" maxlength="20" placeholder="ユーザー名(2〜20文字)">
+    <input class="field" id="authPass" type="password" maxlength="64" placeholder="パスワード(6文字以上)">
+    <div class="errline" id="authErr"></div>
+    <button class="primarybtn" id="authSubmit">ログイン</button>
+    <div class="switchline">アカウントをお持ちでない方は <a id="authToggle">新規登録</a> · <a id="authClose">閉じる</a></div>
+  </div>
+</div>
+
+<!-- 決済(モック) -->
+<div class="mask" id="payMask">
+  <div class="modal" style="max-width:380px" id="payBody"></div>
+</div>
+
+<script>
+// ================= 状態 =================
+const $ = (id) => document.getElementById(id);
+let token = localStorage.getItem('lc_token') || '';
+let username = localStorage.getItem('lc_user') || '';
+let products = [], featured = null, cart = [];
+let soundOn = false, ws = null;
+const audioQueue = []; let playing = false;
+let authMode = 'login';
+let pendingAfterAuth = null;
+
+const yen = (n) => '¥' + Number(n).toLocaleString('ja-JP');
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = document.createElement('div'); t.className='toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 2600);
+}
+function authHeaders(){ return { 'Content-Type':'application/json', 'X-Auth-Token': token }; }
+
+// ================= 認証 =================
+function openAuth(after){ pendingAfterAuth = after || null; $('authErr').textContent=''; $('authMask').classList.add('open'); }
+function setAuthMode(m){
+  authMode = m;
+  $('authTitle').textContent = m==='login' ? 'ログイン' : '新規登録';
+  $('authSubmit').textContent = m==='login' ? 'ログイン' : '登録して利用を開始';
+  $('authToggle').textContent = m==='login' ? '新規登録' : 'ログイン';
+}
+$('authToggle').onclick = () => setAuthMode(authMode==='login' ? 'register' : 'login');
+$('authClose').onclick = () => $('authMask').classList.remove('open');
+$('authSubmit').onclick = async () => {
+  const u = $('authUser').value.trim(), p = $('authPass').value;
+  if (!u || !p){ $('authErr').textContent = 'ユーザー名とパスワードを入力してください'; return; }
+  const res = await fetch(`/api/auth/${authMode}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok){ $('authErr').textContent = data.detail?.[0]?.msg || data.detail || 'エラーが発生しました'; return; }
+  token = data.token; username = data.username;
+  localStorage.setItem('lc_token', token); localStorage.setItem('lc_user', username);
+  $('authMask').classList.remove('open');
+  renderWho(); refreshCart();
+  toast(`ようこそ、${username}さん`);
+  if (pendingAfterAuth){ const f = pendingAfterAuth; pendingAfterAuth = null; f(); }
+};
+$('userBtn').onclick = () => {
+  if (!token) return openAuth();
+  if (confirm(`${username} さん、ログアウトしますか?`)){
+    token=''; username=''; localStorage.removeItem('lc_token'); localStorage.removeItem('lc_user');
+    cart=[]; renderWho(); renderCartUI();
+  }
+};
+function renderWho(){ $('userBtn').textContent = token ? `${username} さん ▾` : 'ログイン'; }
+async function checkSession(){
+  if (!token) return renderWho();
+  const res = await fetch('/api/auth/me', { headers: authHeaders() });
+  if (!res.ok){ token=''; username=''; localStorage.removeItem('lc_token'); localStorage.removeItem('lc_user'); }
+  renderWho();
+}
+
+// ================= アシスタント:感情 + 発話 =================
+let emoTimer=null, talkTimer=null;
+function setEmotion(emo){
+  const box = $('avatarBox');
+  box.classList.remove('happy','excited','troubled','shy');
+  if (emo && emo!=='normal') box.classList.add(emo);
+  window.HANA && window.HANA.setEmotion(emo || 'normal');
+  clearTimeout(emoTimer);
+  emoTimer = setTimeout(()=>{ box.classList.remove('happy','excited','troubled','shy'); window.HANA && window.HANA.setEmotion('normal'); }, 8000);
+}
+function hostSpeak(text, audioUrl, emotion){
+  $('bubbleText').textContent = text;
+  setEmotion(emotion);
+  $('avatarBox').classList.add('talking');
+  clearTimeout(talkTimer);
+  if (soundOn && audioUrl){ audioQueue.push(audioUrl); playNext(); }
+  else {
+    const dur = Math.min(text.length*150, 10000);
+    window.HANA && window.HANA.talkFor(dur);   // 无音频:按文本长度做口型
+    talkTimer = setTimeout(()=>$('avatarBox').classList.remove('talking'), dur);
+  }
+}
+function playNext(){
+  if (playing || !audioQueue.length) return;
+  playing = true;
+  const a = new Audio(audioQueue.shift());
+  window.HANA && window.HANA.attachAudio(a);   // 真·音频口型同步
+  a.onended = a.onerror = () => { playing=false; $('avatarBox').classList.remove('talking'); playNext(); };
+  a.play().catch(()=>{ playing=false; $('avatarBox').classList.remove('talking'); });
+}
+$('soundBtn').onclick = () => {
+  soundOn = !soundOn;
+  window.HANA && window.HANA.resumeAudio();   // 用户手势内解锁 AudioContext(口型分析用)
+  $('soundBtn').textContent = soundOn ? '🔊 音声ON' : '🔇 音声OFF';
+};
+
+// ================= コメント =================
+function addComment(nick, text, cls=''){
+  const box = $('comments');
+  const div = document.createElement('div');
+  div.className = 'cm ' + cls;
+  div.innerHTML = `<b>${esc(nick)}</b>${esc(text)}`;
+  box.appendChild(div);
+  while (box.children.length > 80) box.removeChild(box.firstChild);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ================= 商品 =================
+async function loadProducts(){
+  products = await (await fetch('/api/products')).json();
+  if (!featured || !products.find(p=>p.id===featured.id)) featured = products[0] || null;
+  else featured = products.find(p=>p.id===featured.id);
+  renderFeatured(); renderDrawer();
+}
+function renderFeatured(){
+  if (!featured){ $('productCard').style.display='none'; return; }
+  $('productCard').style.display='flex';
+  $('pEmoji').textContent = featured.emoji;
+  $('pTag').textContent = featured.tag || 'ご紹介中';
+  $('pName').textContent = featured.name;
+  $('pDesc').textContent = featured.description;
+  $('pPrice').textContent = yen(featured.price);
+  $('pOrig').textContent = featured.original_price > featured.price ? yen(featured.original_price) : '';
+  const st = $('pStock');
+  st.textContent = featured.stock > 0 ? `残り${featured.stock}点` : '在庫切れ';
+  st.className = 'pstock' + (featured.stock <= 15 ? ' low' : '');
+  $('buyBtn').disabled = featured.stock <= 0;
+}
+function setFeaturedById(id){ const p = products.find(x=>x.id===id); if (p){ featured=p; renderFeatured(); } }
+
+// ================= カート =================
+async function refreshCart(){
+  if (!token){ cart=[]; renderCartUI(); return; }
+  const res = await fetch('/api/cart', { headers: authHeaders() });
+  cart = res.ok ? await res.json() : [];
+  renderCartUI();
+}
+function renderCartUI(){
+  const count = cart.reduce((s,c)=>s+c.quantity,0);
+  $('cartInfo').textContent = count ? ` — カートに${count}点入っています` : '';
+  $('cartCount').textContent = count ? `(${count}点)` : '';
+  const total = cart.reduce((s,c)=>s+c.quantity*c.product.price,0);
+  $('cartTotal').textContent = yen(total);
+  $('toPayBtn').disabled = !count;
+  $('cartList').innerHTML = cart.length
+    ? cart.map(c=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">
+        <span>${c.product.emoji} ${esc(c.product.name)} × ${c.quantity}</span>
+        <span>${yen(c.product.price*c.quantity)} <a href="#" data-rm="${c.id}" style="color:var(--accent);text-decoration:none;margin-left:8px">削除</a></span></div>`).join('')
+    : `<div style="color:var(--sub);padding:8px 0">${token?'カートは空です':'ログインするとカートをご利用いただけます'}</div>`;
+  $('cartList').querySelectorAll('[data-rm]').forEach(a=>{
+    a.onclick = async (e)=>{ e.preventDefault(); await fetch(`/api/cart/${a.dataset.rm}`,{method:'DELETE',headers:authHeaders()}); refreshCart(); };
+  });
+}
+async function addToCart(productId){
+  if (!token) return openAuth(()=>addToCart(productId));
+  const res = await fetch('/api/cart', { method:'POST', headers: authHeaders(), body: JSON.stringify({product_id:productId, quantity:1}) });
+  if (!res.ok){ const e = await res.json().catch(()=>({})); toast(e.detail||'エラーが発生しました'); return; }
+  toast('カートに追加しました');
+  refreshCart();
+}
+$('buyBtn').onclick = () => featured && addToCart(featured.id);
+
+// ================= 決済(モック) =================
+const PAY_METHODS = [
+  { id:'credit_card', emoji:'💳', label:'クレジットカード' },
+  { id:'convenience_store', emoji:'🏪', label:'コンビニ払い' },
+  { id:'paypay', emoji:'📱', label:'PayPay' },
+];
+let payMethod = 'credit_card';
+$('toPayBtn').onclick = () => {
+  if (!token) return openAuth();
+  if (!cart.length) return;
+  $('drawerMask').classList.remove('open');
+  renderPayStep1();
+  $('payMask').classList.add('open');
+};
+function renderPayStep1(){
+  const total = cart.reduce((s,c)=>s+c.quantity*c.product.price,0);
+  $('payBody').innerHTML = `
+    <h3 style="text-align:center">お支払い方法の選択</h3>
+    <div class="note" style="text-align:center">合計 <b style="color:var(--accent);font-size:17px">${yen(total)}</b>(送料無料)</div>
+    ${PAY_METHODS.map(m=>`<div class="payopt ${m.id===payMethod?'sel':''}" data-pay="${m.id}"><span>${m.emoji}</span>${m.label}</div>`).join('')}
+    <div class="note" style="text-align:center;margin-top:10px">※デモのため実際の決済は行われません</div>
+    <button class="primarybtn" id="payGo">注文を確定する</button>
+    <div class="switchline"><a id="payCancel">キャンセル</a></div>`;
+  $('payBody').querySelectorAll('[data-pay]').forEach(d=>{ d.onclick = ()=>{ payMethod=d.dataset.pay; renderPayStep1(); }; });
+  $('payCancel').onclick = ()=>$('payMask').classList.remove('open');
+  $('payGo').onclick = doPay;
+}
+async function doPay(){
+  $('payBody').innerHTML = `<h3 style="text-align:center">決済処理中</h3><div class="spinner"></div>
+    <div class="note" style="text-align:center">${PAY_METHODS.find(m=>m.id===payMethod).label}で処理しています…</div>`;
+  await new Promise(r=>setTimeout(r,1200));
+  const res = await fetch('/api/orders/checkout', { method:'POST', headers: authHeaders(), body: JSON.stringify({payment_method: payMethod}) });
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok){
+    $('payBody').innerHTML = `<h3 style="text-align:center">決済に失敗しました</h3>
+      <div class="note" style="text-align:center">${esc(data.detail||'エラーが発生しました')}</div>
+      <button class="primarybtn" onclick="document.getElementById('payMask').classList.remove('open')">閉じる</button>`;
+    refreshCart(); loadProducts(); return;
+  }
+  $('payBody').innerHTML = `<div class="successcheck">✓</div>
+    <h3 style="text-align:center">ご注文ありがとうございます</h3>
+    <div class="note" style="text-align:center">注文番号 #${data.id} / ${yen(data.total)}<br>3〜5日でお届けいたします</div>
+    <button class="primarybtn" onclick="document.getElementById('payMask').classList.remove('open')">配信にもどる</button>`;
+  refreshCart(); loadProducts();
+}
+
+// ================= 商品一覧モーダル =================
+function renderDrawer(){
+  $('drawerList').innerHTML = products.map(p=>`
+    <div class="ditem">
+      <div class="de">${p.emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div class="dn">${esc(p.name)}</div>
+        <div class="dd">${esc(p.description)}</div>
+        <span style="color:var(--accent);font-weight:800">${yen(p.price)}</span>
+        ${p.original_price>p.price?`<span style="font-size:11px;color:var(--sub);text-decoration:line-through;margin-left:6px">${yen(p.original_price)}</span>`:''}
+        <span style="font-size:11px;color:var(--sub);margin-left:6px">残り${p.stock}点</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="sbtn ask" data-ask="${p.id}">質問する</button>
+        <button class="sbtn cart" data-cart="${p.id}">カートへ</button>
+      </div>
+    </div>`).join('');
+  $('drawerList').querySelectorAll('[data-ask]').forEach(b=>{
+    b.onclick = ()=>{ const p = products.find(x=>x.id===+b.dataset.ask); setFeaturedById(p.id);
+      $('drawerMask').classList.remove('open'); trySend(`${p.name}について教えてください`); };
+  });
+  $('drawerList').querySelectorAll('[data-cart]').forEach(b=>{ b.onclick = ()=>addToCart(+b.dataset.cart); });
+}
+$('drawerBtn').onclick = ()=>{ $('drawerMask').classList.add('open'); refreshCart(); };
+$('drawerClose').onclick = ()=>$('drawerMask').classList.remove('open');
+[['drawerMask'],['payMask'],['authMask']].forEach(([id])=>{
+  $(id).addEventListener('click', (e)=>{ if (e.target===$(id)) $(id).classList.remove('open'); });
+});
+
+// ================= WebSocket =================
+function connect(){
+  const proto = location.protocol==='https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/live`);
+  ws.onopen = ()=>{ $('connState').textContent = 'ライブ接続中'; };
+  ws.onclose = ()=>{ $('connState').textContent = '再接続中…'; setTimeout(connect, 2000); };
+  ws.onmessage = (ev)=>{
+    const m = JSON.parse(ev.data);
+    switch (m.type){
+      case 'viewers': $('viewers').textContent = m.count; break;
+      case 'comment': addComment(m.nickname, m.text, m.nickname===username?'me':''); break;
+      case 'host_reply':
+        addComment(m.nickname, m.text, 'host');
+        if (m.product_id) setFeaturedById(m.product_id);
+        hostSpeak(m.text, m.audio_url, m.emotion);
+        break;
+      case 'purchase': {
+        addComment('お知らせ', `${m.nickname}さんが ${m.items.map(i=>`${i.name}×${i.quantity}`).join('、')} を購入しました`, 'sys');
+        if (m.stocks){ products.forEach(p=>{ if (m.stocks[p.id]!==undefined) p.stock=m.stocks[p.id]; }); renderFeatured(); renderDrawer(); }
+        break;
+      }
+      case 'products_changed': loadProducts(); break;
+      case 'error': toast(m.message); if (!token) openAuth(); break;
+    }
+  };
+}
+function trySend(text){
+  text = (text||'').trim();
+  if (!text || !ws || ws.readyState!==1) return;
+  if (!token) return openAuth(()=>trySend(text));
+  ws.send(JSON.stringify({ type:'comment', token, text }));
+}
+$('sendBtn').onclick = ()=>{ trySend($('input').value); $('input').value=''; };
+$('input').addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ trySend($('input').value); $('input').value=''; } });
+
+// ================= 起動 =================
+setAuthMode('login');
+checkSession(); loadProducts(); refreshCart(); connect();
+</script>
+
+<!-- ===== VRM 虚拟主播(three-vrm) ===== -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.1.1/lib/three-vrm.module.js"
+  }
+}
+</script>
+<script type="module" src="/static/vrm.js"></script>
+</body>
+</html>

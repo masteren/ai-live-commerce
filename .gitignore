@@ -1,0 +1,21 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# 秘密情報・ローカル設定
+.env
+.env.*
+!.env.example
+
+# ローカルDB・バックアップ
+*.db
+*.db.bak_*
+*.db-journal
+
+# TTS 音声キャッシュ(実行時に生成)
+app/static/audio/*
+!app/static/audio/.gitkeep
+
+# OS
+.DS_Store

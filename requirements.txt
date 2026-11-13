@@ -1,0 +1,9 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0
+greenlet>=3.0          # SQLAlchemy 异步引擎依赖 (Python 3.9 需显式声明)
+aiosqlite>=0.20
+httpx>=0.27
+pydantic-settings>=2.3
+# PostgreSQL に切り替える場合のみ:
+# asyncpg>=0.29
