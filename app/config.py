@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     bot_pool_batch: int = 60             # 每次批量生成的弹幕条数(闲聊+提问合计)
 
+    # ---- TTS ----
+    tts_provider: str = "voicevox"       # voicevox / none(纯文字)。新增引擎时在 tts.build_tts() 注册
+    tts_credit: str = "VOICEVOX:ずんだもん"   # 页面显示的音声署名(换声线时一起改)
+
     # ---- VOICEVOX TTS ----
     voicevox_url: str = "http://127.0.0.1:50021"
     voicevox_speaker: int = 3            # 3=ずんだもん(ノーマル) 8=春日部つむぎ 2=四国めたん;GET {voicevox_url}/speakers 可查全部
@@ -44,6 +48,7 @@ class Settings(BaseSettings):
     admin_token: str = "change-me-admin-token"   # 生产环境务必修改!
 
     # ---- 其他 ----
+    log_level: str = "INFO"              # DEBUG / INFO / WARNING / ERROR
     audio_dir: str = "app/static/audio"  # TTS 音频缓存目录
     cors_origins: str = "*"
 

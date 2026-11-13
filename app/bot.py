@@ -12,6 +12,7 @@
 """
 import asyncio
 import json
+import logging
 import random
 import time
 from typing import Optional
@@ -24,6 +25,8 @@ from .config import settings
 from .database import SessionLocal
 from .models import Comment, Product
 from .ws import manager
+
+logger = logging.getLogger(__name__)
 
 BOT_ASK_PROB = 0.15   # 提问型弹幕占比(会触发主播回答)
 POOL_LOW_WATER = 10   # 池内剩余低于此数时触发后台补货
@@ -135,10 +138,10 @@ class DanmakuBot:
             chat, ask = await _generate_pool()
             self._pool_chat.extend(chat)
             self._pool_ask.extend(ask)
-            print(f"[bot] 弹幕池补充完成: 闲聊+{len(chat)} 提问+{len(ask)}")
+            logger.info("弹幕池补充完成: 闲聊+%d 提问+%d", len(chat), len(ask))
         except Exception as e:
             # 降级链:生成失败 → 内置列表兜底,机器人照常发
-            print(f"[bot] 弹幕池生成失败,使用内置列表: {e}")
+            logger.warning("弹幕池生成失败,使用内置列表: %s", e)
         finally:
             self._refilling = False
 
@@ -162,7 +165,7 @@ class DanmakuBot:
                 else:
                     host.last_activity_at = time.time()
             except Exception as e:
-                print(f"[bot] 发送失败: {e}")
+                logger.warning("bot 弹幕发送失败: %s", e)
 
 
 bot = DanmakuBot()

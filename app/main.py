@@ -7,6 +7,7 @@ API 文档: http://127.0.0.1:8000/docs
 """
 import asyncio
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -24,7 +25,14 @@ from .models import Comment, Product
 from .ratelimit import SlidingWindowLimiter
 from .routers import admin, auth, cart, orders, products
 from .routers.auth import extract_token, resolve_session
+from .tts import tts
 from .ws import manager
+
+logging.basicConfig(
+    level=settings.log_level.upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("app")
 
 comment_limiter = SlidingWindowLimiter(settings.comment_rate_limit, settings.comment_rate_window)
 
@@ -49,9 +57,11 @@ async def lifespan(app: FastAPI):
             for p in SEED_PRODUCTS:
                 db.add(Product(**p))
             await db.commit()
-            print("[seed] 示例商品已写入")
+            logger.info("示例商品已写入(首次启动)")
     os.makedirs(settings.audio_dir, exist_ok=True)
     await host.refresh_product_names()
+    logger.info("TTS: %s / LLM: %s", tts.name,
+                settings.anthropic_model if settings.anthropic_api_key else "なし(定型文モード)")
     tasks = host.start() + [bot.start()]   # AI主播 worker ×2 + 气氛组机器人
     yield
     for t in tasks:

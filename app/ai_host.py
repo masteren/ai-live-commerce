@@ -14,10 +14,12 @@
   单一 worker 顺序消费队列 + 最小回答间隔限流;积压只保留最新几条
 
 ■ 降级链
-  无 API key / LLM 失败 → 规则回复;VOICEVOX 失败 → 纯文字。任何一环挂掉直播不中断
+  无 API key / LLM 失败 → 规则回复;TTS 失败 → 纯文字。任何一环挂掉直播不中断
+  (情绪 → 声音参数的对应关系由各 TTS Provider 自己决定,见 tts.py)
 """
 import asyncio
 import json
+import logging
 import random
 import re
 import time
@@ -29,21 +31,13 @@ from sqlalchemy import select
 from .config import settings
 from .database import SessionLocal
 from .models import Comment, Product
-from .tts import synthesize
+from .tts import EMOTIONS, tts
 from .ws import manager
+
+logger = logging.getLogger(__name__)
 
 MAX_BACKLOG = 3       # 弹幕队列积压上限(旧问题直接放弃)
 HISTORY_TURNS = 6     # 携带的历史问答轮数
-EMOTIONS = {"normal", "happy", "excited", "troubled", "shy"}
-
-# 情绪 → 语速/音高微调(声线统一,保持专业感;speaker=None 沿用 .env 配置)
-EMOTION_VOICE = {
-    "normal":   {"speaker": None, "speed": 1.0,  "pitch": 0.0},
-    "happy":    {"speaker": None, "speed": 1.04, "pitch": 0.01},
-    "excited":  {"speaker": None, "speed": 1.08, "pitch": 0.02},
-    "troubled": {"speaker": None, "speed": 0.95, "pitch": -0.01},
-    "shy":      {"speaker": None, "speed": 0.97, "pitch": 0.0},
-}
 
 # 「像问题」的规则特征:疑问符 / 疑问词 / 购买意图词
 _QUESTION_RE = re.compile(
@@ -127,8 +121,8 @@ class AIHost:
                 else:
                     reply, product_id, emotion = await self._generate(item["nickname"], item["text"])
                     await self._speak(reply, product_id, emotion)
-            except Exception as e:
-                print(f"[ai_host] 回答生成失败: {e}")
+            except Exception:
+                logger.exception("回答の生成・送信に失敗しました")
             self.last_reply_at = time.time()
             self.last_activity_at = time.time()
 
@@ -136,18 +130,21 @@ class AIHost:
         i = 0
         while True:
             await asyncio.sleep(5)
-            if time.time() - self.last_activity_at >= settings.idle_interval and self.queue.empty():
-                text, emotion = IDLE_LINES[i % len(IDLE_LINES)]
-                i += 1
-                await self._speak(text.format(host=settings.host_name), None, emotion, save=False)
+            # 异常保护:这里抛出异常的话 task 会静默结束,之后再也不会自动播报
+            try:
+                if time.time() - self.last_activity_at >= settings.idle_interval and self.queue.empty():
+                    text, emotion = IDLE_LINES[i % len(IDLE_LINES)]
+                    i += 1
+                    await self._speak(text.format(host=settings.host_name), None, emotion, save=False)
+                    self.last_activity_at = time.time()
+            except Exception:
+                logger.exception("自動トークに失敗しました(次の周期で再試行)")
                 self.last_activity_at = time.time()
 
     async def _speak(self, text: str, product_id: Optional[int], emotion: str, save: bool = True) -> None:
-        """主播发言统一出口:情绪声线 TTS → 落库 → 广播"""
+        """主播发言统一出口:TTS → 落库 → 广播"""
         emotion = emotion if emotion in EMOTIONS else "normal"
-        voice = EMOTION_VOICE[emotion]
-        audio_url = await synthesize(text, speaker=voice["speaker"],
-                                     speed=voice["speed"], pitch=voice["pitch"])
+        audio_url = await tts.synthesize(text, emotion)
         if save:
             async with SessionLocal() as db:
                 db.add(Comment(nickname=settings.host_name, text=text, is_host=True))
@@ -193,7 +190,7 @@ class AIHost:
                 data = res.json()
         except Exception as e:
             # 降级链:LLM 超时/限流/网络故障 → 规则回复,直播不冷场
-            print(f"[ai_host] LLM 调用失败,降级规则回复: {e}")
+            logger.warning("LLM 调用失败,降级为规则回复: %s", e)
             reply, emotion = random.choice(FALLBACK_REPLIES)
             return reply, None, emotion
 
