@@ -15,6 +15,7 @@ os.environ.update(
     ADMIN_TOKEN="test-token",
     TTS_PROVIDER="none",
     VOICEVOX_ENABLED="false",
+    LLM_PROVIDER="none",
     ANTHROPIC_API_KEY="",
     OPENAI_API_KEY="",
     AUDIO_DIR=f"{_tmpdir}/audio",

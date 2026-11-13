@@ -13,7 +13,9 @@ class Settings(BaseSettings):
     #   mysql+aiomysql://liveuser:livepass@127.0.0.1:3306/livecommerce?charset=utf8mb4
     auto_migrate: bool = True            # 起動時に alembic upgrade head を自動実行
 
-    # ---- AI 主播 (Anthropic API) ----
+    # ---- AI 主播の LLM ----
+    # auto: キーが設定されている方を使う(両方あれば Anthropic)/ anthropic / openai / none(ルール応答のみ)
+    llm_provider: str = "auto"
     anthropic_api_key: str = ""          # 留空则使用内置降级回复(无 LLM)
     anthropic_model: str = "claude-sonnet-5"   # 更高档可换 claude-opus-4-8
     host_name: str = "ハナ"

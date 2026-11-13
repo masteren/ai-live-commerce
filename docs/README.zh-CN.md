@@ -119,7 +119,7 @@ openapi.json           # 导出的 API 规格(iOS 端对接用)
 - **跑单元测试?** `pip install -r requirements-dev.txt` 后执行 `pytest`(不需要启动服务,自动使用临时数据库,约 2 秒)。
 - **跑端到端测试?** 测试会注册用户、下单,且假设数据库为空 —— **不要对 live.db 跑**。用独立 DB 另开端口启动服务,再指定地址运行:
   ```bash
-  DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false ANTHROPIC_API_KEY= \
+  DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false LLM_PROVIDER=none \
     uvicorn app.main:app --port 8001
   E2E_BASE=http://127.0.0.1:8001 python3 test_e2e.py     # 结束后停服并 rm test.db
   ```

@@ -9,7 +9,7 @@ sequenceDiagram
   participant DB as DB
   participant Q as AI キュー
   participant H as AI ホスト worker
-  participant C as Claude API
+  participant C as LLM(Claude / OpenAI)
   participant T as VOICEVOX
   participant All as 全視聴者
 
@@ -25,7 +25,7 @@ sequenceDiagram
   H->>C: システムプロンプト(商品データ)+ 直近6往復の履歴
   C-->>H: {"reply","product_id","emotion"}
   alt API キーなし / エラー
-    H->>H: 定型文に縮退
+    H->>H: ルール応答に縮退(形式不正の返答も同様)
   end
   H->>T: 感情に応じた速度・音高で合成
   alt VOICEVOX 停止

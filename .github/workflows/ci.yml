@@ -66,7 +66,7 @@ jobs:
           DATABASE_URL: sqlite+aiosqlite:///./e2e.db
           ADMIN_TOKEN: test-token
           VOICEVOX_ENABLED: "false"
-          ANTHROPIC_API_KEY: ""
+          LLM_PROVIDER: "none"
       - run: python test_e2e.py
         env:
           E2E_BASE: http://127.0.0.1:8001

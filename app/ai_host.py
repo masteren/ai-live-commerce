@@ -25,12 +25,12 @@ import re
 import time
 from typing import Optional
 
-import httpx
 from sqlalchemy import select
 
 from . import host_rules
 from .config import settings
 from .database import SessionLocal
+from .llm import LLMProvider, build_llm
 from .models import Comment, Product
 from .tts import EMOTIONS, tts
 from .ws import manager
@@ -67,8 +67,34 @@ def looks_like_question(text: str) -> bool:
     return bool(_QUESTION_RE.search(text))
 
 
+def parse_llm_reply(raw: str, product_ids: "set[int]") -> "Optional[tuple[str, Optional[int], str]]":
+    """LLM の返答(JSON 文字列)を (返答, 商品ID, 感情) に変換。形式が違えば None。
+
+    LLM の出力は信用しない:
+      - 商品ID は実在するものだけ採用(存在しない ID を返されても商品カードを切り替えない)
+      - 感情は決められた5種類だけ採用
+      - 文字数の上限はプロンプトで指示しているが、守られない場合に備えてコード側でも切り詰める
+    """
+    text = raw.replace("```json", "").replace("```", "").strip()
+    try:
+        j = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(j, dict) or not isinstance(j.get("reply"), str) or not j["reply"].strip():
+        return None
+    reply = j["reply"].strip()
+    hard_limit = settings.reply_max_chars * 2
+    if len(reply) > hard_limit:
+        reply = reply[:hard_limit].rstrip() + "…"
+    pid = j.get("product_id")
+    product_id = pid if isinstance(pid, int) and not isinstance(pid, bool) and pid in product_ids else None
+    emotion = j.get("emotion") if j.get("emotion") in EMOTIONS else "normal"
+    return reply, product_id, emotion
+
+
 class AIHost:
     def __init__(self) -> None:
+        self.llm: Optional[LLMProvider] = build_llm()
         self.queue: asyncio.Queue[dict] = asyncio.Queue()
         self.history: list[dict] = []
         self.last_reply_at: float = 0.0
@@ -165,7 +191,7 @@ class AIHost:
 
     async def _generate(self, nickname: str, question: str) -> "tuple[str, Optional[int], str]":
         products = await self._load_products()
-        if not settings.anthropic_api_key:
+        if self.llm is None:
             # LLM なし:コメントの意図と商品を判定し、DB の実データで答える(host_rules)
             return host_rules.rule_reply(nickname, question, products)
 
@@ -174,46 +200,20 @@ class AIHost:
         messages = self.history + [{"role": "user", "content": f"{nickname}: {question}"}]
 
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                res = await client.post(
-                    "https://api.anthropic.com/v1/messages",
-                    headers={
-                        "x-api-key": settings.anthropic_api_key,
-                        "anthropic-version": "2023-06-01",
-                        "content-type": "application/json",
-                    },
-                    json={
-                        "model": settings.anthropic_model,
-                        "max_tokens": 300,
-                        # 直播即答场景:短回复延迟优先,关闭思考
-                        "thinking": {"type": "disabled"},
-                        "system": system,
-                        "messages": messages,
-                    },
-                )
-                res.raise_for_status()
-                data = res.json()
+            raw = await self.llm.complete(system, messages)
         except Exception as e:
-            # 降级链:LLM 超时/限流/网络故障 → 规则回复,直播不冷场
+            # 縮退:タイムアウト・レート制限・通信障害 → ルール応答。配信は止めない
             logger.warning("LLM 调用失败,降级为规则回复: %s", e)
             return host_rules.rule_reply(nickname, question, products)
 
-        raw = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
-        raw = raw.replace("```json", "").replace("```", "").strip()
-        reply, product_id, emotion = raw, None, "normal"
-        try:
-            j = json.loads(raw)
-            reply = j.get("reply") or raw
-            pid = j.get("product_id")
-            if isinstance(pid, int) and any(p.id == pid for p in products):
-                product_id = pid
-            if j.get("emotion") in EMOTIONS:
-                emotion = j["emotion"]
-        except json.JSONDecodeError:
-            pass
+        parsed = parse_llm_reply(raw, {p.id for p in products})
+        if parsed is None:
+            # 指示した JSON 形式で返ってこなかった → そのまま視聴者に見せず、ルール応答に切り替える
+            logger.warning("LLM の返答を解釈できません,降级为规则回复: %.80r", raw)
+            return host_rules.rule_reply(nickname, question, products)
 
         self.history = messages + [{"role": "assistant", "content": raw}]
-        return reply, product_id, emotion
+        return parsed
 
     def _build_system_prompt(self, products: list[Product]) -> str:
         lines = "\n".join(

@@ -61,4 +61,4 @@ async def test_idle_talk_alternates_shop_info_and_product_spotlight():
 async def test_meta_endpoint_shows_credit_and_mode(client):
     m = (await client.get("/api/meta")).json()
     assert m["tts_credit"] == ""                      # TTS_PROVIDER=none ならクレジット不要
-    assert m["llm"] == "定型文(デモモード)"
+    assert m["llm"] == "ルール応答(デモモード)"

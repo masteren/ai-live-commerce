@@ -24,14 +24,14 @@
 ```bash
 pytest                                   # 単体テスト(約2秒)
 # E2E:別ポート・空の SQLite でサーバを起動してから
-DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false ANTHROPIC_API_KEY= uvicorn app.main:app --port 8001
+DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false LLM_PROVIDER=none uvicorn app.main:app --port 8001
 E2E_BASE=http://127.0.0.1:8001 python test_e2e.py
 # iOS(Mac のみ、サーバを 8000 で起動してから)
 xcodebuild test -project ios/AILiveCommerce.xcodeproj -scheme AILiveCommerce -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 ```
 
 ## 未着手・保留
-- Claude API の実キーでの動作確認と、LLM 応答部分(`ai_host._generate` の後半)のモックテスト
+- LLM の実キーでの動作確認(OpenAI のキーを `.env` の `OPENAI_API_KEY` に設定して起動。モックテストは `tests/test_llm.py` で済み)
 - VOICEVOX を起動しての音声・口パクの確認
 - サーバへのデプロイ(Docker + Nginx + HTTPS)は保留中
 - プロンプトインジェクション対策、管理 API の試行回数制限

@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
     os.makedirs(settings.audio_dir, exist_ok=True)
     await host.refresh_product_names()
     logger.info("TTS: %s / LLM: %s", tts.name,
-                settings.anthropic_model if settings.anthropic_api_key else "なし(定型文モード)")
+                host.llm.name if host.llm else "なし(ルール応答モード)")
     tasks = host.start() + [bot.start()]   # AI主播 worker ×2 + 气氛组机器人
     yield
     for t in tasks:
@@ -99,7 +99,7 @@ async def meta():
     return {
         "host_name": settings.host_name,
         "tts_credit": tts.credit,
-        "llm": "Anthropic Claude API" if settings.anthropic_api_key else "定型文(デモモード)",
+        "llm": host.llm.name if host.llm else "ルール応答(デモモード)",
     }
 
 

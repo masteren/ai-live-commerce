@@ -15,7 +15,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 ## 主な機能
 | 分類 | 内容 |
 |---|---|
-| AI ホスト | コメントを分類(質問は必ず回答・雑談は確率で返答)し、Claude API で回答。API なし・障害時も、質問の意図と商品を判定して DB の価格・在庫で答える。商品データを毎回プロンプトに注入し価格・在庫を誤答しない。感情(5種)も同時に出力 |
+| AI ホスト | コメントを分類(質問は必ず回答・雑談は確率で返答)し、LLM(Claude / OpenAI を設定で切替)で回答。API なし・障害時も、質問の意図と商品を判定して DB の価格・在庫で答える。商品データを毎回プロンプトに注入し価格・在庫を誤答しない。感情(5種)も同時に出力 |
 | 音声・アバター | VOICEVOX で感情に合わせた音声合成(キャッシュあり)。three-vrm の 3D アバターが表情・口パク・まばたき |
 | ライブ配信 | WebSocket で多人数のコメントを即時配信、視聴者数表示、自動再接続、無人時の自動トーク、盛り上げ用コメントBOT |
 | EC | 商品 → カート → 決済(クレジット/コンビニ/PayPay のモック)→ 注文。購入をライブで告知し、ホストがお礼を言う |
@@ -28,10 +28,10 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | バックエンド | Python 3.12+ / FastAPI(非同期)/ SQLAlchemy 2.0(async)/ Alembic / Pydantic |
 | DB | SQLite(開発)・MySQL 8.4(docker-compose)、`DATABASE_URL` で切り替え |
 | リアルタイム | WebSocket(FastAPI)+ asyncio のキューとバックグラウンドタスク |
-| AI・音声 | Anthropic Claude API、VOICEVOX ENGINE |
+| AI・音声 | LLM は Provider 構造で切替(Anthropic Claude API / OpenAI 互換 API)、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
 | iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
-| テスト・CI | pytest(66件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
+| テスト・CI | pytest(87件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
 ```mermaid
@@ -49,7 +49,7 @@ flowchart LR
     W --> Q --> H
     B --> Q
   end
-  H -- "回答生成" --> C["Claude API"]
+  H -- "回答生成" --> C["LLM(Claude / OpenAI)"]
   H -- "音声合成" --> T["VOICEVOX"]
   API -- "SQLAlchemy" --> D[("SQLite / MySQL")]
 ```
@@ -70,7 +70,7 @@ flowchart LR
 3. **AI 応答の制御(コストと体験)**
    単一 worker のキューで回答を順番に処理し、最小間隔でレート制限。積み残しは最新 3 件だけ残して古い質問は捨てる。雑談は確率で返答し、購入のお礼は定型文(LLM を使わない)にして API 費用を抑えた。
 4. **外部サービスが落ちても止まらない設計**
-   TTS は Provider インターフェース(VOICEVOX / なし)で差し替え可能。LLM・TTS・BOT 用 API はすべて失敗時に縮退し、テストでは `httpx.MockTransport` でエンジン停止を再現して確認している。
+   LLM(Claude / OpenAI)と TTS(VOICEVOX / なし)は Provider インターフェースで差し替え可能。LLM の出力は信用せず、JSON 形式・商品ID・文字数をコード側で検証し、形式が違えば視聴者に見せずルール応答に切り替える。LLM・TTS・BOT 用 API はすべて失敗時に縮退し、テストでは `httpx.MockTransport` でエンジン停止を再現して確認している。
 
 ## 起動方法
 ```bash
@@ -84,7 +84,7 @@ uvicorn app.main:app --reload   # 起動時に DB マイグレーション(Alemb
 - 管理画面:http://127.0.0.1:8000/admin(`.env` の ADMIN_TOKEN でログイン)
 - API ドキュメント:http://127.0.0.1:8000/docs(オフライン版は `openapi.json`)
 
-`ANTHROPIC_API_KEY` がなくても全機能が動きます(AI ホストは定型文で回答)。
+LLM のキー(`OPENAI_API_KEY` または `ANTHROPIC_API_KEY`)がなくても全機能が動きます(AI ホストはルール応答で回答)。
 音声を出すには [VOICEVOX](https://voicevox.hiroshiba.jp/) を起動し、画面右上の 🔊 を押してください。
 
 ### MySQL を使う場合(Docker が必要)
@@ -99,7 +99,7 @@ pip install -r requirements-dev.txt
 pytest                       # 単体テスト(サーバ起動不要・一時 DB を使用)
 
 # E2E(サーバを空の DB で起動してから実行。live.db には絶対に実行しない)
-DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false ANTHROPIC_API_KEY= \
+DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false LLM_PROVIDER=none \
   uvicorn app.main:app --port 8001 &
 E2E_BASE=http://127.0.0.1:8001 python test_e2e.py
 ```
@@ -115,6 +115,8 @@ app/
 ├── schemas.py      # Pydantic の入出力モデル
 ├── ws.py           # WebSocket 接続管理(一斉配信・視聴者数)
 ├── ai_host.py      # AI ホスト:プロンプト・感情・応答戦略・キュー
+├── llm.py          # LLM Provider(Anthropic / OpenAI 互換)
+├── host_rules.py   # ルール応答(LLM なし・障害時)
 ├── tts.py          # 音声合成 Provider(VOICEVOX / なし)
 ├── bot.py          # 盛り上げ用コメント BOT
 ├── ratelimit.py    # スライディングウィンドウ方式のレート制限
