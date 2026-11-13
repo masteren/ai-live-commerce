@@ -106,7 +106,8 @@ openapi.json           # 导出的 API 规格(iOS 端对接用)
 - **主播不回答闲聊?** 这是混合应答策略的预期行为;把 `CHAT_REPLY_PROB` 调到 1.0 就变成每条必答。
 - **重置数据?** 停服后删除 `live.db` 再启动即可(会重新播种示例商品)。
 - **升级后注册失败(提示用户名已存在)?** 旧版 `live.db` 的 users 表还有已废弃的 token 列。目前尚未引入迁移工具,请备份后删除 `live.db` 重新生成(引入 Alembic 后将改为迁移)。
-- **跑测试?** 测试会注册用户、下单,且假设数据库为空 —— **不要对 live.db 跑**。用独立 DB 另开端口启动服务,再指定地址运行:
+- **跑单元测试?** `pip install -r requirements-dev.txt` 后执行 `pytest`(不需要启动服务,自动使用临时数据库,约 2 秒)。
+- **跑端到端测试?** 测试会注册用户、下单,且假设数据库为空 —— **不要对 live.db 跑**。用独立 DB 另开端口启动服务,再指定地址运行:
   ```bash
   DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false ANTHROPIC_API_KEY= \
     uvicorn app.main:app --port 8001

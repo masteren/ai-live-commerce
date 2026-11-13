@@ -73,12 +73,14 @@ class VoicevoxTTS:
         "shy":      {"speaker": None, "speed": 0.97, "pitch": 0.0},
     }
 
-    def __init__(self, base_url: str, speaker: int, speed: float, audio_dir: str, credit: str) -> None:
+    def __init__(self, base_url: str, speaker: int, speed: float, audio_dir: str, credit: str,
+                 transport: Optional[httpx.AsyncBaseTransport] = None) -> None:
         self.base_url = base_url
         self.speaker = speaker
         self.speed = speed
         self.audio_dir = audio_dir
         self.credit = credit
+        self.transport = transport   # 测试时注入 httpx.MockTransport,不连真实引擎
 
     async def synthesize(self, text: str, emotion: str = "normal") -> Optional[str]:
         speech_text = clean_text(text)
@@ -97,7 +99,7 @@ class VoicevoxTTS:
             return url
 
         try:
-            async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
+            async with httpx.AsyncClient(base_url=self.base_url, timeout=30, transport=self.transport) as client:
                 q = await client.post("/audio_query", params={"text": speech_text, "speaker": spk})
                 q.raise_for_status()
                 query = q.json()
