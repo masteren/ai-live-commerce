@@ -31,7 +31,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | AI・音声 | LLM は Provider 構造で切替(Anthropic Claude API / OpenAI 互換 API)、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
 | iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
-| テスト・CI | pytest(87件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
+| テスト・CI | pytest(101件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
 ```mermaid
@@ -70,7 +70,7 @@ flowchart LR
 3. **AI 応答の制御(コストと体験)**
    単一 worker のキューで回答を順番に処理し、最小間隔でレート制限。積み残しは最新 3 件だけ残して古い質問は捨てる。雑談は確率で返答し、購入のお礼は定型文(LLM を使わない)にして API 費用を抑えた。
 4. **外部サービスが落ちても止まらない設計**
-   LLM(Claude / OpenAI)と TTS(VOICEVOX / なし)は Provider インターフェースで差し替え可能。LLM の出力は信用せず、JSON 形式・商品ID・文字数をコード側で検証し、形式が違えば視聴者に見せずルール応答に切り替える。LLM・TTS・BOT 用 API はすべて失敗時に縮退し、テストでは `httpx.MockTransport` でエンジン停止を再現して確認している。
+   LLM(Claude / OpenAI)と TTS(VOICEVOX / なし)は Provider インターフェースで差し替え可能。LLM の出力は信用せず、JSON 形式・商品ID・文字数に加えて、返答中の金額・割引率・在庫数を DB と照合する(実際に LLM が割引率を誤って答えたため)。合わなければ視聴者に見せずルール応答に切り替える。LLM・TTS・BOT 用 API はすべて失敗時に縮退し、テストでは `httpx.MockTransport` でエンジン停止を再現して確認している。
 
 ## 起動方法
 ```bash

@@ -132,3 +132,60 @@ def test_bot_never_calls_api_when_llm_provider_is_none(monkeypatch):
     b = bot_mod.DanmakuBot()
     b.set_enabled(True)                 # ここで補充(API 呼び出し)が予約されないこと
     assert b._refilling is False
+
+
+# ---------- 数値で決まる感情はコードで補正 ----------
+def test_adjust_emotion_uses_real_stock_and_discount():
+    from types import SimpleNamespace as P
+    from app.ai_host import adjust_emotion
+    low = P(stock=15, price=2680, original_price=3980)        # 在庫少・33%オフ
+    plenty = P(stock=60, price=1880, original_price=2480)     # 在庫十分・24%オフ
+    assert adjust_emotion("美容液は在庫が15点ございます。", low, "normal") == "troubled"
+    assert adjust_emotion("¥2,680で販売中です。通常は¥3,980です。", low, "normal") == "excited"
+    assert adjust_emotion("マグは在庫が60点ございます。", plenty, "normal") == "normal"
+    assert adjust_emotion("1,880円です。", plenty, "normal") == "normal"          # 割引が小さい
+    assert adjust_emotion("在庫は15点です。", low, "happy") == "happy"            # LLM が選んだ感情は尊重
+    assert adjust_emotion("送料は無料です。", None, "normal") == "normal"
+
+
+async def test_host_overrides_normal_emotion_for_low_stock(use_llm):
+    raw = json.dumps({"reply": "美容液は在庫が15点ございます。", "product_id": 3, "emotion": "normal"}, ensure_ascii=False)
+    use_llm(OpenAILLM("k", "m", "https://api.openai.com/v1", openai_transport(raw, [])))
+    assert (await host._generate("taro", "美容液の在庫は?"))[2] == "troubled"
+
+
+# ---------- 事実の検証:数字は DB と照合、存在しない案内先は削る ----------
+def _products():
+    from types import SimpleNamespace as P
+    return [P(id=1, price=4980, original_price=7980, stock=30), P(id=2, price=1880, original_price=2480, stock=60),
+            P(id=3, price=2680, original_price=3980, stock=15)]
+
+
+@pytest.mark.parametrize("reply,ok", [
+    ("現在¥4,980で、通常価格から38%の割引です。", True),
+    ("現在¥4,980で、通常価格から36%の割引です。", False),      # 実際に gpt-4o-mini が返した誤り
+    ("イヤホンは4,980円です。", True),
+    ("イヤホンは3,980円です。", True),                         # 別商品の通常価格と同じ数字は見分けられない(限界)
+    ("イヤホンは4,500円です。", False),
+    ("在庫が15点ございます。", True),
+    ("在庫は残り3点です。", False),
+    ("最大32時間再生、12時間保温です。", True),                # 仕様の数字は対象外
+    ("送料は全国無料です。", True),
+])
+def test_facts_are_consistent(reply, ok):
+    from app.ai_host import facts_are_consistent
+    assert facts_are_consistent(reply, _products()) is ok
+
+
+def test_strip_fake_referrals_removes_only_that_sentence():
+    from app.ai_host import strip_fake_referrals
+    assert strip_fake_referrals("色の情報は手元にありません。詳しくは公式サイトをご覧ください。") == "色の情報は手元にありません。"
+    assert strip_fake_referrals("送料は無料です。") == "送料は無料です。"
+    assert strip_fake_referrals("公式サイトをご覧ください。") == "公式サイトをご覧ください。"     # 全部消えるなら元のまま
+
+
+async def test_host_rejects_reply_with_wrong_number(use_llm):
+    raw = json.dumps({"reply": "イヤホンは¥4,980で、36%の割引です。", "product_id": 1, "emotion": "excited"}, ensure_ascii=False)
+    use_llm(OpenAILLM("k", "m", "https://api.openai.com/v1", openai_transport(raw, [])))
+    reply, pid, _ = await host._generate("taro", "イヤホンはいくら?")
+    assert "36%" not in reply and "38%オフ" in reply and host.history == []      # ルール応答に切替・履歴に残さない

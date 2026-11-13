@@ -15,6 +15,9 @@ SHIPPING = "全国送料無料で、ご注文から3〜5日ほどでお届けし
 RETURNS = "未開封であれば、到着から7日以内は返品を承っています"
 PAYMENT = "クレジットカード、コンビニ払い、PayPayからお選びいただけます"
 
+LOW_STOCK = 15        # 在庫がこれ以下なら「残りわずか」として扱う
+BIG_DISCOUNT = 30     # 割引率(%)がこれ以上なら「大きな割引」として扱う
+
 # 意図の判定(上から順に評価)
 INTENTS: List[Tuple[str, "re.Pattern[str]"]] = [
     ("haggle", re.compile(r"安くして|まけて|値引き(して|できない|できます|できる)|おまけ")),
@@ -118,10 +121,10 @@ def rule_reply(nickname: str, text: str, products: Sequence,
         if p:
             if p.stock <= 0:
                 return f"{call}{spoken(p.name)}は、申し訳ありません、ただいま在庫切れです。", pid, "troubled"
-            if p.stock <= 15:
+            if p.stock <= LOW_STOCK:
                 return f"{call}{spoken(p.name)}は残り{p.stock}点です。少なくなってきていますので、お早めにどうぞ。", pid, "troubled"
             return f"{call}{spoken(p.name)}は、まだ在庫があります。残り{p.stock}点です。", pid, "normal"
-        low = [x for x in products if 0 < x.stock <= 15]
+        low = [x for x in products if 0 < x.stock <= LOW_STOCK]
         if low:
             items = "、".join(f"{spoken(x.name)}(残り{x.stock}点)" for x in low)
             return f"在庫が少なくなっているのは、{items}です。ほかはまだ余裕があります。", low[0].id, "troubled"
@@ -133,7 +136,7 @@ def rule_reply(nickname: str, text: str, products: Sequence,
             off = off_rate(target.price, target.original_price)
             tail = f"通常{yen(target.original_price)}のところ、{off}%オフです。" if off else ""
             return (f"{call}{spoken(target.name)}は{yen(target.price)}です。{tail}", target.id,
-                    "excited" if off >= 30 else "happy")
+                    "excited" if off >= BIG_DISCOUNT else "happy")
 
     if intent == "variant":
         name = spoken(p.name) if p else "商品"

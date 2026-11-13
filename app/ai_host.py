@@ -92,6 +92,53 @@ def parse_llm_reply(raw: str, product_ids: "set[int]") -> "Optional[tuple[str, O
     return reply, product_id, emotion
 
 
+# 存在しない案内先(このデモには公式サイトも店舗も電話窓口もない)
+_FAKE_REFERRAL_RE = re.compile(r"公式サイト|公式ページ|ホームページ|店舗|お電話|電話|カスタマー|サポートセンター|メーカー")
+
+
+def strip_fake_referrals(reply: str) -> str:
+    """「詳しくは公式サイトで」のような、存在しない案内先に触れた文を取り除く"""
+    sentences = [x for x in re.split(r"(?<=[。!?!?])", reply) if x.strip()]
+    kept = [x for x in sentences if not _FAKE_REFERRAL_RE.search(x)]
+    return "".join(kept).strip() if kept else reply
+
+
+def facts_are_consistent(reply: str, products) -> bool:
+    """返答に出てくる数字(金額・割引率・在庫数)が、DB の値と一致しているか。
+    LLM は数字を間違えることがある(実際に 38% を 36% と答えた)。プロンプトで頼むだけでは防げないので、
+    コードで照合し、合わなければその返答は使わない(呼び出し側でルール応答に切り替える)。"""
+    prices = {p.price for p in products} | {p.original_price for p in products}
+    rates = {host_rules.off_rate(p.price, p.original_price) for p in products}
+    stocks = {p.stock for p in products}
+    text = reply.translate(str.maketrans("0123456789,%", "0123456789,%"))
+    for m in re.finditer(r"[¥¥]\s?([\d,]+)|([\d,]+)\s*円", text):
+        if int((m.group(1) or m.group(2)).replace(",", "")) not in prices:
+            return False
+    for m in re.finditer(r"(\d{1,3})\s*(?:%|パーセント)", text):
+        if int(m.group(1)) not in rates:
+            return False
+    for m in re.finditer(r"(?:在庫|残り)[^。]{0,8}?(\d+)\s*点", text):
+        if int(m.group(1)) not in stocks:
+            return False
+    return True
+
+
+def adjust_emotion(reply: str, product, emotion: str) -> str:
+    """数値で決まる感情はコード側で補正する(LLM はしきい値の判断が安定しないため)。
+    LLM が normal と答えた場合だけ、話題の商品の実データを見て上書きする:
+      - 在庫の話で、在庫が15点以下 → troubled
+      - 価格・割引の話で、割引が30%以上 → excited
+    """
+    if emotion != "normal" or product is None:
+        return emotion
+    if re.search(r"在庫|残り", reply) and product.stock <= host_rules.LOW_STOCK:
+        return "troubled"
+    if re.search(r"円|¥|¥|オフ|OFF|割引|お得", reply) and \
+            host_rules.off_rate(product.price, product.original_price) >= host_rules.BIG_DISCOUNT:
+        return "excited"
+    return emotion
+
+
 class AIHost:
     def __init__(self) -> None:
         self.llm: Optional[LLMProvider] = build_llm()
@@ -212,8 +259,15 @@ class AIHost:
             logger.warning("LLM の返答を解釈できません,降级为规则回复: %.80r", raw)
             return host_rules.rule_reply(nickname, question, products)
 
+        reply, product_id, emotion = parsed
+        if not facts_are_consistent(reply, products):
+            # 数字が DB と違う返答は視聴者に見せない(履歴にも残さない)
+            logger.warning("LLM の返答の数字が商品データと一致しません,降级为规则回复: %.80r", reply)
+            return host_rules.rule_reply(nickname, question, products)
+        reply = strip_fake_referrals(reply)
         self.history = messages + [{"role": "assistant", "content": raw}]
-        return parsed
+        product = next((p for p in products if p.id == product_id), None)
+        return reply, product_id, adjust_emotion(reply, product, emotion)
 
     def _build_system_prompt(self, products: list[Product]) -> str:
         lines = "\n".join(
@@ -246,12 +300,23 @@ class AIHost:
 
 # ルール
 - 回答は必ず日本語、{settings.reply_max_chars}文字以内、絵文字は使わない
-- 価格・在庫は上記データのみを根拠にする。不明な点は正直に「確認いたします」と答える
+- 【最重要】商品について言ってよい事実は「販売中の商品」と「店舗情報」に書かれていることだけ。
+  書かれていないこと(色・サイズ・素材・重さ・付属品・保証期間・対応機種・成分の詳細・発売日など)は、
+  推測や一般常識で答えない。その情報は手元にないことを、自分の言葉で正直に伝える(毎回同じ言い回しにしない)。
+  公式サイト・店舗・電話窓口など、ここに書かれていない案内先も作らない
+- 聞かれたことだけに答える。価格や在庫は、それを聞かれたとき・おすすめするときにだけ触れる
+- 数字(価格・割引率・在庫数)は上の「販売中の商品」に書かれている値をそのまま使う。自分で計算しない
 - 雑談には礼儀正しく短く応じ、自然に商品のご案内へ戻す
 - 医療効果の断定、他社への言及・比較、過度な煽り、値引き交渉への応諾は禁止
-- emotionは happy(お礼・好意的な話題)/excited(セール告知・ご購入報告)/troubled(在庫僅少・回答不能)/shy(照れ)/normal から選ぶ
 - 必ず次のJSONのみで返答(前置き・コードブロック禁止):
-  {{"reply": "回答文", "product_id": 話題にした商品のid(なければnull), "emotion": "normal"}}"""
+  {{"reply": "回答文", "product_id": 話題にした商品のid(なければnull), "emotion": "下の5つから1つ"}}
+
+# emotion の選び方(表情と声の調子に反映される。返答の内容に合うものを必ず選び分ける)
+- troubled: 断る・謝る・情報がなく答えられない・在庫が15点以下または在庫切れの商品の在庫を伝える
+- excited : 30%以上の割引がある商品の価格や割引を伝える、セールの案内、購入の報告
+- happy   : 商品をおすすめする、「はい、できます/使えます」と答える、褒められた・感謝された、あいさつ
+- shy     : 自分(花奈)のことを褒められた・個人的なことを聞かれた
+- normal  : 上のどれにも当てはまらない、事実だけを伝える返答(送料・支払方法・返品など)"""
 
     async def _load_products(self) -> list[Product]:
         async with SessionLocal() as db:
