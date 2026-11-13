@@ -42,3 +42,9 @@ async def test_backlog_keeps_only_latest():
 async def test_generate_without_api_key_uses_fallback():
     reply, product_id, emotion = await host._generate("taro", "おすすめは?")
     assert (reply, emotion) in FALLBACK_REPLIES and product_id is None
+
+
+async def test_meta_endpoint_shows_credit_and_mode(client):
+    m = (await client.get("/api/meta")).json()
+    assert m["tts_credit"] == ""                      # TTS_PROVIDER=none ならクレジット不要
+    assert m["llm"] == "定型文(デモモード)"

@@ -54,3 +54,15 @@ async def test_emoji_only_text_is_not_sent(tmp_path):
     calls = []
     v = VoicevoxTTS("http://engine", 3, 1.0, str(tmp_path), "", transport=_mock_engine(calls))
     assert await v.synthesize("🎧✨") is None and calls == []
+
+
+def test_vendor_files_exist_for_offline_demo():
+    """importmap が参照するローカルファイルが揃っている(CDN なしで 3D アバターが動く)"""
+    import os
+    import re
+    html = open("app/static/index.html", encoding="utf-8").read()
+    paths = re.findall(r'"(/static/vendor/[^"]+)"', html)
+    assert paths and not re.search(r"cdn\.jsdelivr|unpkg", html)
+    for p in paths:
+        local = "app" + p
+        assert os.path.exists(local if not local.endswith("/") else local + "loaders/GLTFLoader.js"), p

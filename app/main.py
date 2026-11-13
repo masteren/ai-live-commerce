@@ -92,6 +92,16 @@ async def index():
     return FileResponse(os.path.join(BASE_DIR, "static", "index.html"))
 
 
+@app.get("/api/meta", tags=["meta"])
+async def meta():
+    """画面表示用の公開情報(音声クレジット・回答生成エンジン)"""
+    return {
+        "host_name": settings.host_name,
+        "tts_credit": tts.credit,
+        "llm": "Anthropic Claude API" if settings.anthropic_api_key else "定型文(デモモード)",
+    }
+
+
 @app.get("/admin", include_in_schema=False)
 async def admin_page():
     return FileResponse(os.path.join(BASE_DIR, "static", "admin.html"))
