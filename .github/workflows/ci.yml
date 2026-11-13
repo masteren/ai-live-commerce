@@ -11,8 +11,10 @@ jobs:
   unit-sqlite:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false        # 1つのバージョンが失敗しても他のバージョンは最後まで実行する
       matrix:
-        python-version: ["3.9", "3.12"]
+        # 3.9 はサポート終了(2025-10)で ubuntu-latest に無いため 3.12 / 3.13 で確認
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
