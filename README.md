@@ -25,7 +25,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 ## 技術スタック
 | 層 | 技術 |
 |---|---|
-| バックエンド | Python / FastAPI(非同期)/ SQLAlchemy 2.0(async)/ Alembic / Pydantic |
+| バックエンド | Python 3.12+ / FastAPI(非同期)/ SQLAlchemy 2.0(async)/ Alembic / Pydantic |
 | DB | SQLite(開発)・MySQL 8.4(docker-compose)、`DATABASE_URL` で切り替え |
 | リアルタイム | WebSocket(FastAPI)+ asyncio のキューとバックグラウンドタスク |
 | AI・音声 | Anthropic Claude API、VOICEVOX ENGINE |
@@ -70,7 +70,8 @@ flowchart LR
 
 ## 起動方法
 ```bash
-python3 -m venv venv && source venv/bin/activate
+# Python 3.12 以上が必要(例:uv python install 3.12 && uv venv venv --python 3.12 --seed)
+python3.12 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env            # 必要に応じて ANTHROPIC_API_KEY・ADMIN_TOKEN などを設定
 uvicorn app.main:app --reload   # 起動時に DB マイグレーション(Alembic)を自動実行

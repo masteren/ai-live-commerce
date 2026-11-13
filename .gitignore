@@ -28,3 +28,6 @@ ios/build/
 xcuserdata/
 *.xcuserstate
 DerivedData/
+
+# 旧 venv のバックアップ
+venv-*.bak/

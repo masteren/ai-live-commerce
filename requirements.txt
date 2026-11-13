@@ -1,7 +1,7 @@
 fastapi>=0.115
 uvicorn[standard]>=0.30
 sqlalchemy>=2.0
-greenlet>=3.0          # SQLAlchemy 非同期エンジンの依存(Python 3.9 では明示が必要)
+greenlet>=3.0          # SQLAlchemy 非同期エンジンの依存(環境によっては明示が必要)
 alembic>=1.13          # DB マイグレーション
 aiosqlite>=0.20        # 開発用 SQLite
 aiomysql>=0.2          # MySQL(docker-compose.yml の db)
