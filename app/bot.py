@@ -128,7 +128,8 @@ class DanmakuBot:
         return text
 
     def _schedule_refill(self) -> None:
-        if self._refilling or not settings.openai_api_key:
+        # LLM_PROVIDER=none(テスト・デモ用)のときは、キーが環境変数にあっても外部 API を呼ばない
+        if self._refilling or not settings.openai_api_key or settings.llm_provider.lower() == "none":
             return
         self._refilling = True
         asyncio.create_task(self._refill())

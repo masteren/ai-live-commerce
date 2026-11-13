@@ -121,3 +121,14 @@ async def test_host_falls_back_when_llm_returns_non_json(use_llm):
     use_llm(AnthropicLLM("k", "m", anthropic_transport("JSONではない返答です", [])))
     reply, pid, _ = await host._generate("taro", "マグはいくら?")
     assert "JSON" not in reply and pid == 2 and "1,880円" in reply            # 生の出力を視聴者に見せない
+
+
+def test_bot_never_calls_api_when_llm_provider_is_none(monkeypatch):
+    """LLM_PROVIDER=none なら、シェルの環境変数に OPENAI_API_KEY があってもBOTは外部 API を呼ばない
+    (以前はテスト実行のたびに実際の API を呼び、利用料が発生していた)"""
+    from app import bot as bot_mod
+    monkeypatch.setattr(bot_mod.settings, "openai_api_key", "sk-real-key-from-shell-env")
+    monkeypatch.setattr(bot_mod.settings, "llm_provider", "none")
+    b = bot_mod.DanmakuBot()
+    b.set_enabled(True)                 # ここで補充(API 呼び出し)が予約されないこと
+    assert b._refilling is False
