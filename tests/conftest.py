@@ -10,7 +10,8 @@ import tempfile
 
 _tmpdir = tempfile.mkdtemp(prefix="alc-test-")
 os.environ.update(
-    DATABASE_URL=f"sqlite+aiosqlite:///{_tmpdir}/test.db",
+    # 既定は一時 SQLite。TEST_DATABASE_URL を指定すると MySQL 等で同じテストを実行できる(CI で使用)
+    DATABASE_URL=os.environ.get("TEST_DATABASE_URL", f"sqlite+aiosqlite:///{_tmpdir}/test.db"),
     ADMIN_TOKEN="test-token",
     TTS_PROVIDER="none",
     VOICEVOX_ENABLED="false",
