@@ -85,6 +85,12 @@ app.include_router(orders.router)
 app.include_router(admin.router)
 
 BASE_DIR = os.path.dirname(__file__)
+# 音声キャッシュは設定の AUDIO_DIR から配信する(/static より先に登録 → こちらが優先される)。
+# 以前は /static(app/static)にあるものとして URL を作っていたため、AUDIO_DIR を変えたり
+# 別のディレクトリから起動したりすると、音声は合成されるのに 404 になっていた
+AUDIO_DIR = os.path.abspath(settings.audio_dir)
+os.makedirs(AUDIO_DIR, exist_ok=True)
+app.mount("/static/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 

@@ -1,4 +1,6 @@
 """集中配置:全部通过环境变量 / .env 覆盖"""
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,7 +56,8 @@ class Settings(BaseSettings):
 
     # ---- 其他 ----
     log_level: str = "INFO"              # DEBUG / INFO / WARNING / ERROR
-    audio_dir: str = "app/static/audio"  # TTS 音频缓存目录
+    # TTS 音声のキャッシュ置き場(/static/audio/ で配信)。既定はプロジェクト内(起動場所に左右されない絶対パス)
+    audio_dir: str = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "static", "audio")
     cors_origins: str = "*"
 
 

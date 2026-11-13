@@ -66,3 +66,14 @@ def test_vendor_files_exist_for_offline_demo():
     for p in paths:
         local = "app" + p
         assert os.path.exists(local if not local.endswith("/") else local + "loaders/GLTFLoader.js"), p
+
+
+async def test_audio_is_served_from_configured_audio_dir(client):
+    """合成した音声は設定の AUDIO_DIR から /static/audio/ で配信される(以前は AUDIO_DIR を変えると 404)"""
+    import os
+    from app.config import settings
+    with open(os.path.join(settings.audio_dir, "probe.wav"), "wb") as f:
+        f.write(b"RIFF0000WAVE")
+    r = await client.get("/static/audio/probe.wav")
+    assert r.status_code == 200 and r.content == b"RIFF0000WAVE"
+    assert (await client.get("/static/index.html")).status_code == 200      # 通常の静的ファイルも引き続き配信
