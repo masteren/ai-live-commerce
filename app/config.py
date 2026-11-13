@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     # 本地开发默认 SQLite;生产环境改为:
     #   postgresql+asyncpg://liveuser:password@localhost:5432/livecommerce
     database_url: str = "sqlite+aiosqlite:///./live.db"
+    # MySQL(docker-compose.yml の db サービス)を使う場合:
+    #   mysql+aiomysql://liveuser:livepass@127.0.0.1:3306/livecommerce?charset=utf8mb4
+    auto_migrate: bool = True            # 起動時に alembic upgrade head を自動実行
 
     # ---- AI 主播 (Anthropic API) ----
     anthropic_api_key: str = ""          # 留空则使用内置降级回复(无 LLM)

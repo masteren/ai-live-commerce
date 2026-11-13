@@ -39,7 +39,7 @@ uvicorn app.main:app --reload
 - 管理后台: http://127.0.0.1:8000/admin (令牌 = .env 的 ADMIN_TOKEN)
 - API 文档: http://127.0.0.1:8000/docs (交互式;离线版见 openapi.json)
 
-首次启动自动建表并播种 3 件示例商品。不填 `ANTHROPIC_API_KEY` 也能跑通全部流程(主播用定型文回复)。
+首次启动自动执行数据库迁移(Alembic)并播种 3 件示例商品。不填 `ANTHROPIC_API_KEY` 也能跑通全部流程(主播用定型文回复)。
 
 ## VOICEVOX 语音(用 Windows 台式机跑)
 
@@ -63,15 +63,24 @@ uvicorn app.main:app --reload
 - `CHAT_REPLY_PROB` 闲聊接话概率(问题类弹幕始终必答)
 - 人设与硬规则在 `app/ai_host.py` 的 `_build_system_prompt()`,商品数据每次实时注入,不会答错价格库存
 
-## 切换 PostgreSQL(将来部署服务器时)
+## 数据库:SQLite(默认)/ MySQL
+
+表结构由 **Alembic** 管理(`migrations/`),应用启动时自动执行 `alembic upgrade head`(`AUTO_MIGRATE=false` 可关闭)。
 
 ```bash
-pip install asyncpg
-# PostgreSQL 里: CREATE USER liveuser WITH PASSWORD '...'; CREATE DATABASE livecommerce OWNER liveuser;
-# .env: DATABASE_URL=postgresql+asyncpg://liveuser:...@localhost:5432/livecommerce
+# MySQL(需要 Docker)
+docker compose up -d db
+# .env: DATABASE_URL=mysql+aiomysql://liveuser:livepass@127.0.0.1:3306/livecommerce?charset=utf8mb4
+uvicorn app.main:app --reload
+
+# 修改了 models.py 之后
+alembic revision --autogenerate -m "变更内容"
+alembic upgrade head
 ```
 
-代码零改动(SQLAlchemy 异步引擎自动适配);下单用 `UPDATE ... SET stock = stock - q WHERE stock >= q` 条件更新原子扣库存,SQLite / PG 都防并发超卖(SQLite 会忽略 `FOR UPDATE`,所以不能只靠行锁);PG 下另有 `SELECT ... FOR UPDATE` 行锁。部署到服务器时按老套路 Nginx 反代(WebSocket 需加 `proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`)+ systemd 托管 uvicorn 即可。
+- MySQL 使用 `utf8mb4` + 照合顺序 `utf8mb4_bin`(保证日文/emoji 可存、用户名按完全一致判定重复)。
+- 下单用 `UPDATE ... SET stock = stock - q WHERE stock >= q` 条件更新原子扣库存,SQLite / MySQL / PostgreSQL 都防并发超卖(SQLite 会忽略 `FOR UPDATE`,所以不能只靠行锁);MySQL/PG 下另有 `SELECT ... FOR UPDATE` 行锁。
+- PostgreSQL 也可用(`pip install asyncpg`,`DATABASE_URL=postgresql+asyncpg://...`)。
 
 ## 项目结构
 
@@ -79,7 +88,8 @@ pip install asyncpg
 app/
 ├── main.py            # 入口:路由挂载、WebSocket 端点、启动任务、种子数据
 ├── config.py          # 全部配置(.env 覆盖)
-├── database.py        # 异步 SQLAlchemy 引擎(SQLite/PG 切换)
+├── database.py        # 异步 SQLAlchemy 引擎(SQLite/MySQL/PG 切换)
+├── migrate.py         # 启动时执行 Alembic 迁移
 ├── models.py          # User / Product / CartItem / Order / OrderItem / Comment
 ├── schemas.py         # Pydantic 请求/响应模型
 ├── ws.py              # WebSocket 连接管理器(广播/人数/峰值)
@@ -105,7 +115,7 @@ openapi.json           # 导出的 API 规格(iOS 端对接用)
 - **主播不说话?** 检查 VOICEVOX 引擎是否启动、`VOICEVOX_URL` 是否可达、是否点了 🔊。后端日志会打印 `[tts] 降级纯文字` 的原因。
 - **主播不回答闲聊?** 这是混合应答策略的预期行为;把 `CHAT_REPLY_PROB` 调到 1.0 就变成每条必答。
 - **重置数据?** 停服后删除 `live.db` 再启动即可(会重新播种示例商品)。
-- **升级后注册失败(提示用户名已存在)?** 旧版 `live.db` 的 users 表还有已废弃的 token 列。目前尚未引入迁移工具,请备份后删除 `live.db` 重新生成(引入 Alembic 后将改为迁移)。
+- **升级后注册失败(提示用户名已存在)?** 引入 Alembic 之前生成的旧 `live.db`(users 表还有已废弃的 token 列)与当前结构不兼容,请备份后删除 `live.db` 重新生成。之后的结构变更都通过迁移完成。
 - **跑单元测试?** `pip install -r requirements-dev.txt` 后执行 `pytest`(不需要启动服务,自动使用临时数据库,约 2 秒)。
 - **跑端到端测试?** 测试会注册用户、下单,且假设数据库为空 —— **不要对 live.db 跑**。用独立 DB 另开端口启动服务,再指定地址运行:
   ```bash

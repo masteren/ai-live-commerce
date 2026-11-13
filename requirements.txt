@@ -1,8 +1,11 @@
 fastapi>=0.115
 uvicorn[standard]>=0.30
 sqlalchemy>=2.0
-greenlet>=3.0          # SQLAlchemy 异步引擎依赖 (Python 3.9 需显式声明)
-aiosqlite>=0.20
+greenlet>=3.0          # SQLAlchemy 非同期エンジンの依存(Python 3.9 では明示が必要)
+alembic>=1.13          # DB マイグレーション
+aiosqlite>=0.20        # 開発用 SQLite
+aiomysql>=0.2          # MySQL(docker-compose.yml の db)
+cryptography>=42       # MySQL 8 の認証方式(caching_sha2_password)に必要
 httpx>=0.27
 pydantic-settings>=2.3
 # PostgreSQL に切り替える場合のみ:

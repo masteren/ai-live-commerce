@@ -20,7 +20,8 @@ from sqlalchemy import select, func
 from .ai_host import host
 from .bot import bot
 from .config import settings
-from .database import Base, SessionLocal, engine
+from .database import SessionLocal
+from .migrate import run_migrations
 from .models import Comment, Product
 from .ratelimit import SlidingWindowLimiter
 from .routers import admin, auth, cart, orders, products
@@ -48,9 +49,9 @@ SEED_PRODUCTS = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 建表 + 首次启动播种示例商品
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # 表结构由 Alembic 迁移管理(migrations/);首次启动播种示例商品
+    if settings.auto_migrate:
+        await run_migrations()
     async with SessionLocal() as db:
         count = (await db.execute(select(func.count(Product.id)))).scalar()
         if not count:

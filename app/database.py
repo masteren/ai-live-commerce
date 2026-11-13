@@ -1,10 +1,20 @@
-"""异步 SQLAlchemy:SQLite(开发)/ PostgreSQL(生产)通过 DATABASE_URL 切换"""
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+"""非同期 SQLAlchemy:SQLite(開発)/ MySQL・PostgreSQL(本番)を DATABASE_URL で切り替え
+
+テーブル構造は Alembic(migrations/)で管理する。モデルを変更したら:
+    alembic revision --autogenerate -m "変更内容"
+    alembic upgrade head
+"""
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from .config import settings
 
-engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=True)
+_engine_kwargs = {"echo": False, "pool_pre_ping": True}
+if settings.database_url.startswith("mysql"):
+    # MySQL はアイドル接続を wait_timeout(既定8時間)で切断する → それより前に接続を作り直す
+    _engine_kwargs["pool_recycle"] = 3600
+
+engine = create_async_engine(settings.database_url, **_engine_kwargs)
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -13,6 +23,6 @@ class Base(DeclarativeBase):
 
 
 async def get_db():
-    """FastAPI 依赖:每个请求一个会话"""
+    """FastAPI 依存:リクエストごとに1セッション"""
     async with SessionLocal() as session:
         yield session

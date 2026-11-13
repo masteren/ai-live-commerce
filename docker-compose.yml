@@ -1,0 +1,34 @@
+# ローカル開発用 MySQL(アプリ本体はホストの venv で起動)
+#
+#   docker compose up -d db
+#   .env: DATABASE_URL=mysql+aiomysql://liveuser:livepass@127.0.0.1:3306/livecommerce?charset=utf8mb4
+#   uvicorn app.main:app --reload        # 起動時に alembic upgrade head が自動実行される
+#
+# 注意:ここのパスワードはローカル開発専用。サーバに置くときは .env で別の値にすること。
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: livecommerce
+      MYSQL_USER: liveuser
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-livepass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+    command:
+      # 日本語・絵文字を保存できるように utf8mb4。
+      # 照合順序は utf8mb4_bin(完全一致)。既定の utf8mb4_0900_ai_ci だと
+      # 大文字小文字やカナの濁点の違いを「同じ」とみなし、ユーザー名の重複判定が SQLite と変わってしまう
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_bin
+    ports:
+      - "127.0.0.1:3306:3306"     # 自分のPCからだけ接続できる(外部には公開しない)
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  mysql-data:
