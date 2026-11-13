@@ -18,13 +18,17 @@ struct LoginView: View {
                     Text("新規登録").tag(true)
                 }
                 .pickerStyle(.segmented)
+                .accessibilityIdentifier("authMode")
                 Section {
                     TextField("ユーザー名(2〜20文字)", text: $username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .textContentType(.username)
+                        .accessibilityIdentifier("usernameField")
+                    // .newPassword だと「強力なパスワード」の自動入力が割り込み、入力内容が変わることがあるため .password に統一
                     SecureField("パスワード(6文字以上)", text: $password)
-                        .textContentType(isRegister ? .newPassword : .password)
+                        .textContentType(.password)
+                        .accessibilityIdentifier("passwordField")
                 }
                 if let error {
                     Text(error).foregroundStyle(.red).font(.footnote)
@@ -40,6 +44,7 @@ struct LoginView: View {
                     else { Text(isRegister ? "登録して利用を開始" : "ログイン").bold().frame(maxWidth: .infinity) }
                 }
                 .disabled(busy || username.isEmpty || password.isEmpty)
+                .accessibilityIdentifier("authSubmit")
             }
             .navigationTitle(isRegister ? "新規登録" : "ログイン")
             .navigationBarTitleDisplayMode(.inline)
@@ -61,9 +66,12 @@ struct AccountView: View {
                 Section("アカウント") {
                     if let name = state.username {
                         LabeledContent("ユーザー名", value: name)
+                            .accessibilityIdentifier("accountUsername")
                         Button("ログアウト", role: .destructive) { Task { await state.logout() } }
+                            .accessibilityIdentifier("logoutButton")
                     } else {
                         Button("ログイン / 新規登録") { state.showLogin = true }
+                            .accessibilityIdentifier("openLogin")
                     }
                 }
                 if state.isLoggedIn {

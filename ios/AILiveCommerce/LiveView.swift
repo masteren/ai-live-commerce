@@ -4,6 +4,7 @@ import SwiftUI
 struct LiveView: View {
     @EnvironmentObject var state: AppState
     @State private var input = ""
+    @FocusState private var inputFocused: Bool   // キーボードの表示状態(閉じる操作に使う)
 
     private let faces = ["normal": "🙂", "happy": "😊", "excited": "🤩", "troubled": "😥", "shy": "😳"]
 
@@ -19,12 +20,15 @@ struct LiveView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
+                    // ツールバーの中では幅が詰められるため fixedSize で潰れないようにする
                     HStack(spacing: 6) {
                         Text("LIVE").font(.caption.bold()).foregroundStyle(.white)
                             .padding(.horizontal, 6).padding(.vertical, 2)
                             .background(state.connected ? Color.red : Color.gray, in: RoundedRectangle(cornerRadius: 4))
-                        Label("\(state.viewers)", systemImage: "person.2").font(.caption)
+                        Text("視聴者 \(state.viewers)人").font(.caption).monospacedDigit()
+                            .accessibilityIdentifier("viewers")
                     }
+                    .fixedSize()
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { state.soundOn.toggle() } label: {
@@ -52,6 +56,8 @@ struct LiveView: View {
         .padding()
         .background(LinearGradient(colors: [Color(white: 0.97), Color(red: 0.9, green: 0.93, blue: 0.97)],
                                    startPoint: .top, endPoint: .bottom))
+        .contentShape(Rectangle())
+        .onTapGesture { inputFocused = false }       // ホストの部分をタップするとキーボードを閉じる
     }
 
     private func featuredCard(_ p: Product) -> some View {
@@ -68,6 +74,7 @@ struct LiveView: View {
             Button("カートへ") { Task { await state.addToCart(p) } }
                 .buttonStyle(.borderedProminent)
                 .disabled(p.stock <= 0)
+                .accessibilityIdentifier("featuredAddToCart")
         }
         .padding(.horizontal).padding(.vertical, 8)
         .background(Color(.systemBackground))
@@ -79,6 +86,7 @@ struct LiveView: View {
                 commentRow(line).id(line.id).listRowSeparator(.hidden)
             }
             .listStyle(.plain)
+            .scrollDismissesKeyboard(.interactively)      // コメント欄をスクロールするとキーボードが閉じる
             .onChange(of: state.comments.count) {
                 if let last = state.comments.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
             }
@@ -93,8 +101,10 @@ struct LiveView: View {
                 .font(.subheadline)
                 .padding(8)
                 .background(Color.pink.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityIdentifier("hostComment")
         case .system:
             Text(line.text).font(.caption).foregroundStyle(.orange)
+                .accessibilityIdentifier("systemComment")
         case .mine, .user:
             (Text(line.nickname + " ").bold().foregroundColor(line.kind == .mine ? .green : .secondary) + Text(line.text))
                 .font(.subheadline)
@@ -107,9 +117,12 @@ struct LiveView: View {
                 .textFieldStyle(.roundedBorder)
                 .submitLabel(.send)
                 .onSubmit(send)
+                .focused($inputFocused)
+                .accessibilityIdentifier("commentField")
             Button("送信", action: send)
                 .buttonStyle(.borderedProminent)
                 .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty)
+                .accessibilityIdentifier("sendButton")
         }
         .padding()
         .background(.bar)

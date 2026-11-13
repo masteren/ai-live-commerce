@@ -112,6 +112,7 @@ struct CartView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(processing)
+                .accessibilityIdentifier("checkoutButton")
             }
         }
     }

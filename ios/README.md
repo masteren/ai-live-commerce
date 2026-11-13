@@ -20,6 +20,14 @@ Web 版と **同じ API** を使う iOS クライアントです(サーバ側の
 2. `ios/AILiveCommerce.xcodeproj` を Xcode で開き、iPhone シミュレータを選んで ▶︎(Run)
 3. シミュレータからは `http://127.0.0.1:8000` で Mac 上のサーバに接続できる
 
+### UI テスト(XCUITest)
+サーバを起動した状態で、Xcode の ⌘U、またはコマンドで実行:
+```bash
+xcodebuild test -project ios/AILiveCommerce.xcodeproj -scheme AILiveCommerce \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
+```
+未ログインでコメント → ログインシート → 新規登録 → コメントが送信され AI ホストが回答 → カート追加 → 注文 → ライブで購入告知 → 注文履歴 → ログアウト、を実際にタップ・入力して確認します。起動引数 `--reset-session` で毎回未ログインから開始します。
+
 ### 実機で動かす場合
 - サーバを `uvicorn app.main:app --host 0.0.0.0` で起動し、アプリの「アカウント → 接続先サーバ」に Mac の LAN の IP(例 `http://192.168.0.10:8000`)を入力
 - Xcode の Signing & Capabilities で自分の Apple ID(Team)を選択

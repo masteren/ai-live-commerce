@@ -22,9 +22,19 @@
 - **一套 API,多种客户端**:REST + WebSocket 的接口设计没有依赖浏览器,所以 iOS 能直接复用 → 后端设计的好坏在这里体现。
 - **@MainActor**:画面的状态只能在主线程修改;WebSocket 的回调在别的线程,所以用 `Task { @MainActor in ... }` 切回主线程。
 
-## 4. 验证情况
-- `swiftc` 对 iOS 模拟器 SDK 的类型检查、编译、链接:通过(无警告)
-- **还没在模拟器里实际运行**:需要先执行 `sudo xcodebuild -runFirstLaunch`,并下载 iOS 模拟器运行环境
+## 4. 验证情况:UI 测试(XCUITest)
+`ios/AILiveCommerceUITests/` 在 iPhone 18 Pro 模拟器上**实际点击、输入**,跑通了:
+未登录发弹幕 → 弹出登录 → 注册 → 弹幕自动发出、主播回答 → 加购物车 → 下单 → 直播间播报购买 → 订单历史 → 登出。
+
+跑 UI 测试的过程中发现并修好了 3 个问题(都是「真机/模拟器上才会出现」的):
+| 现象 | 原因 | 修正 |
+|---|---|---|
+| 注册返回 422 | 密码框设成 `.newPassword`,iOS 的「强密码自动填充」打乱了输入 | 改成 `.password` |
+| 点不到「カート」标签 | 输入框一直有焦点,**键盘挡住了标签栏** | 点主播区域/滑动弹幕列表收起键盘(`@FocusState`、`scrollDismissesKeyboard`) |
+| 第二次跑测试时不弹登录 | 上次登录的令牌还在 Keychain 里 | 启动参数 `--reset-session` 时清空令牌(只给测试用) |
+另外修了工具栏里「LIVE / 視聴者数」被压扁的显示问题(`fixedSize`)。
+
+**为什么用 accessibilityIdentifier?** UI 测试按「标识符」找按钮,不依赖显示的文字 → 改文案也不会让测试失败。顺带也提升了 VoiceOver(读屏)的可用性。
 
 ## 5. 自测问题
 1. iOS 版登录后,为什么要重新连接 WebSocket?

@@ -42,6 +42,8 @@ final class AppState: ObservableObject {
 
     // MARK: 起動
     func bootstrap() async {
+        // UI テストは毎回「未ログイン」から始めるため、起動引数でトークンを消せるようにする
+        if ProcessInfo.processInfo.arguments.contains("--reset-session") { Keychain.delete() }
         if Keychain.load() != nil {
             // 保存済みトークンが有効か確認(期限切れなら破棄)
             if let me = try? await api.me() { username = me.username } else { Keychain.delete() }

@@ -6,6 +6,12 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 > 就職作品(ポートフォリオ)です。決済はモックで、実際の課金は行いません。
 > 中文版说明:[docs/README.zh-CN.md](docs/README.zh-CN.md)
 
+<p>
+  <img src="docs/images/web_live.png" alt="Web版ライブ画面(3Dアバター・コメント・商品カード)" width="62%">
+  <img src="docs/images/ios_live.png" alt="iOS版ライブ画面(購入告知とホストのお礼)" width="18%">
+  <img src="docs/images/ios_account.png" alt="iOS版アカウント画面(注文履歴)" width="18%">
+</p>
+
 ## 主な機能
 | 分類 | 内容 |
 |---|---|
@@ -25,7 +31,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | AI・音声 | Anthropic Claude API、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
 | iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
-| テスト・CI | pytest(39件)、E2E(41件)、GitHub Actions(SQLite と MySQL の両方で実行) |
+| テスト・CI | pytest(39件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
 ```mermaid
