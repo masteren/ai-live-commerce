@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     voicevox_enabled: bool = True        # False 则纯文字模式
     voicevox_speed: float = 1.05
 
+    # ---- 认证 / 会话 ----
+    session_ttl_hours: int = 24 * 7      # 登录会话有效期(Web Cookie 与 iOS Bearer 共用)
+    cookie_secure: bool = False          # 本地 http 开发为 False;部署到 HTTPS 后必须设为 True
+    login_fail_limit: int = 5            # 同一 IP+用户名 在窗口期内允许的登录失败次数(防暴力破解)
+    login_fail_window: float = 300.0     # 秒
+    comment_rate_limit: int = 5          # 每个用户在窗口期内最多发送的弹幕数(防刷屏)
+    comment_rate_window: float = 10.0    # 秒
+
     # ---- 管理后台 ----
     admin_token: str = "change-me-admin-token"   # 生产环境务必修改!
 

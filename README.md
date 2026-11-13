@@ -17,8 +17,8 @@
 | AI 主播「花奈」 | 专业販売アシスタント人设(丁寧語、不夸大、拒绝议价),问题弹幕必答、闲聊 30% 概率接话,带 6 轮上下文 |
 | 情绪系统 | LLM 每次输出 emotion(normal/happy/excited/troubled/shy)→ 前端立绘表情微变化,后端对 VOICEVOX 做克制的语速/音高微调 |
 | VOICEVOX TTS | ずんだもん声线,按「文本+声线参数」md5 缓存 wav;引擎不在线自动降级纯文字 |
-| 多用户弹幕 | WebSocket 广播,在线人数实时统计,断线自动重连 |
-| 用户系统 | 注册/登录(pbkdf2 哈希,标准库实现),发弹幕和购物需登录 |
+| 多用户弹幕 | WebSocket 广播,在线人数实时统计,断线自动重连;按用户限流防刷屏;Origin 检查防跨站劫持 |
+| 用户系统 | 注册/登录(pbkdf2 哈希);Web 用 HttpOnly Cookie + CSRF 令牌,iOS 等原生 App 用 Bearer 令牌;会话有有效期、DB 只存哈希、支持多端登录;登录失败限流防暴力破解 |
 | 电商闭环 | 商品 → 购物车 → 模拟支付页(信用卡/コンビニ/PayPay)→ 条件 UPDATE 原子扣库存防超卖(并发测试验证)→ 订单 |
 | 直播联动 | 购买事件全房间播报 + 主播语音道谢;主播提到的商品自动切换商品卡 |
 | 管理后台 | 商品上架/改价/改库存/下架(软删除),销售统计,气氛组 BOT 开关 |
@@ -87,7 +87,7 @@ app/
 ├── tts.py             # VOICEVOX 客户端(情绪声线参数、wav缓存、降级)
 ├── bot.py             # 气氛组机器人
 ├── routers/
-│   ├── auth.py        # 注册/登录/me(pbkdf2 + token)
+│   ├── auth.py        # 注册/登录/登出/me/token(pbkdf2 + Cookie 会话 + Bearer)
 │   ├── products.py    # 公开商品接口
 │   ├── cart.py        # 购物车(需登录)
 │   ├── orders.py      # 模拟支付下单(事务扣库存)+ 我的订单
@@ -95,7 +95,7 @@ app/
 └── static/
     ├── index.html     # 观众端直播间(原生JS,零构建)
     └── admin.html     # 管理后台
-test_e2e.py            # 端到端测试(28项:认证/下单/并发超卖/WS/BOT,全部通过)
+test_e2e.py            # 端到端测试(41项:认证/CSRF/Bearer/下单/并发超卖/限流/WS/BOT,全部通过)
 openapi.json           # 导出的 API 规格(iOS 端对接用)
 ```
 
@@ -105,6 +105,7 @@ openapi.json           # 导出的 API 规格(iOS 端对接用)
 - **主播不说话?** 检查 VOICEVOX 引擎是否启动、`VOICEVOX_URL` 是否可达、是否点了 🔊。后端日志会打印 `[tts] 降级纯文字` 的原因。
 - **主播不回答闲聊?** 这是混合应答策略的预期行为;把 `CHAT_REPLY_PROB` 调到 1.0 就变成每条必答。
 - **重置数据?** 停服后删除 `live.db` 再启动即可(会重新播种示例商品)。
+- **升级后注册失败(提示用户名已存在)?** 旧版 `live.db` 的 users 表还有已废弃的 token 列。目前尚未引入迁移工具,请备份后删除 `live.db` 重新生成(引入 Alembic 后将改为迁移)。
 - **跑测试?** 测试会注册用户、下单,且假设数据库为空 —— **不要对 live.db 跑**。用独立 DB 另开端口启动服务,再指定地址运行:
   ```bash
   DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false ANTHROPIC_API_KEY= \

@@ -18,8 +18,22 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(20), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(200))   # 格式: salt_hex$pbkdf2_hex
-    token: Mapped[str] = mapped_column(String(64), default="", index=True)  # 登录令牌(重登会刷新)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class AuthSession(Base):
+    """登录会话:一个用户可同时持有多个(Web 浏览器 + iOS App 等多端登录)
+
+    DB 只保存令牌的 SHA-256 哈希:即使 DB 泄露,也无法直接拿哈希值冒充用户登录。
+    """
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    csrf_token: Mapped[str] = mapped_column(String(64))       # Cookie 认证时的 CSRF 对策(双重提交)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class Product(Base):

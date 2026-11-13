@@ -370,8 +370,9 @@
 <script>
 // ================= 状態 =================
 const $ = (id) => document.getElementById(id);
-let token = localStorage.getItem('lc_token') || '';
-let username = localStorage.getItem('lc_user') || '';
+// 認証は HttpOnly Cookie(JS からは読めない)。JS が持つのは表示用のユーザー名と CSRF トークンだけ
+let username = '';
+let csrf = '';
 let products = [], featured = null, cart = [];
 let soundOn = false, ws = null;
 const audioQueue = []; let playing = false;
@@ -385,7 +386,9 @@ function toast(msg){
   const t = document.createElement('div'); t.className='toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(()=>t.remove(), 2600);
 }
-function authHeaders(){ return { 'Content-Type':'application/json', 'X-Auth-Token': token }; }
+// Cookie は同一オリジンの fetch で自動送信される。更新系リクエストには CSRF トークンを付ける
+function authHeaders(){ return { 'Content-Type':'application/json', 'X-CSRF-Token': csrf }; }
+function setSession(user, csrfToken){ username = user || ''; csrf = csrfToken || ''; renderWho(); }
 
 // ================= 認証 =================
 function openAuth(after){ pendingAfterAuth = after || null; $('authErr').textContent=''; $('authMask').classList.add('open'); }
@@ -403,26 +406,28 @@ $('authSubmit').onclick = async () => {
   const res = await fetch(`/api/auth/${authMode}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
   const data = await res.json().catch(()=>({}));
   if (!res.ok){ $('authErr').textContent = data.detail?.[0]?.msg || data.detail || 'エラーが発生しました'; return; }
-  token = data.token; username = data.username;
-  localStorage.setItem('lc_token', token); localStorage.setItem('lc_user', username);
+  setSession(data.username, data.csrf_token);
   $('authMask').classList.remove('open');
-  renderWho(); refreshCart();
+  reconnect();   // WebSocket は接続時に Cookie で認証するため、ログイン後に張り直す
+  refreshCart();
   toast(`ようこそ、${username}さん`);
   if (pendingAfterAuth){ const f = pendingAfterAuth; pendingAfterAuth = null; f(); }
 };
-$('userBtn').onclick = () => {
-  if (!token) return openAuth();
+$('userBtn').onclick = async () => {
+  if (!username) return openAuth();
   if (confirm(`${username} さん、ログアウトしますか?`)){
-    token=''; username=''; localStorage.removeItem('lc_token'); localStorage.removeItem('lc_user');
-    cart=[]; renderWho(); renderCartUI();
+    await fetch('/api/auth/logout', { method:'POST', headers: authHeaders() }).catch(()=>{});
+    setSession('', '');
+    cart=[]; renderCartUI();
+    reconnect();
   }
 };
-function renderWho(){ $('userBtn').textContent = token ? `${username} さん ▾` : 'ログイン'; }
+function renderWho(){ $('userBtn').textContent = username ? `${username} さん ▾` : 'ログイン'; }
+// ページ読み込み時:Cookie が有効ならログイン状態と CSRF トークンを復元
 async function checkSession(){
-  if (!token) return renderWho();
-  const res = await fetch('/api/auth/me', { headers: authHeaders() });
-  if (!res.ok){ token=''; username=''; localStorage.removeItem('lc_token'); localStorage.removeItem('lc_user'); }
-  renderWho();
+  const res = await fetch('/api/auth/me').catch(()=>null);
+  if (res && res.ok){ const d = await res.json(); setSession(d.username, d.csrf_token); }
+  else setSession('', '');
 }
 
 // ================= アシスタント:感情 + 発話 =================
@@ -497,7 +502,7 @@ function setFeaturedById(id){ const p = products.find(x=>x.id===id); if (p){ fea
 
 // ================= カート =================
 async function refreshCart(){
-  if (!token){ cart=[]; renderCartUI(); return; }
+  if (!username){ cart=[]; renderCartUI(); return; }
   const res = await fetch('/api/cart', { headers: authHeaders() });
   cart = res.ok ? await res.json() : [];
   renderCartUI();
@@ -511,15 +516,15 @@ function renderCartUI(){
   $('toPayBtn').disabled = !count;
   $('cartList').innerHTML = cart.length
     ? cart.map(c=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">
-        <span>${c.product.emoji} ${esc(c.product.name)} × ${c.quantity}</span>
+        <span>${esc(c.product.emoji)} ${esc(c.product.name)} × ${c.quantity}</span>
         <span>${yen(c.product.price*c.quantity)} <a href="#" data-rm="${c.id}" style="color:var(--accent);text-decoration:none;margin-left:8px">削除</a></span></div>`).join('')
-    : `<div style="color:var(--sub);padding:8px 0">${token?'カートは空です':'ログインするとカートをご利用いただけます'}</div>`;
+    : `<div style="color:var(--sub);padding:8px 0">${username?'カートは空です':'ログインするとカートをご利用いただけます'}</div>`;
   $('cartList').querySelectorAll('[data-rm]').forEach(a=>{
     a.onclick = async (e)=>{ e.preventDefault(); await fetch(`/api/cart/${a.dataset.rm}`,{method:'DELETE',headers:authHeaders()}); refreshCart(); };
   });
 }
 async function addToCart(productId){
-  if (!token) return openAuth(()=>addToCart(productId));
+  if (!username) return openAuth(()=>addToCart(productId));
   const res = await fetch('/api/cart', { method:'POST', headers: authHeaders(), body: JSON.stringify({product_id:productId, quantity:1}) });
   if (!res.ok){ const e = await res.json().catch(()=>({})); toast(e.detail||'エラーが発生しました'); return; }
   toast('カートに追加しました');
@@ -535,7 +540,7 @@ const PAY_METHODS = [
 ];
 let payMethod = 'credit_card';
 $('toPayBtn').onclick = () => {
-  if (!token) return openAuth();
+  if (!username) return openAuth();
   if (!cart.length) return;
   $('drawerMask').classList.remove('open');
   renderPayStep1();
@@ -577,7 +582,7 @@ async function doPay(){
 function renderDrawer(){
   $('drawerList').innerHTML = products.map(p=>`
     <div class="ditem">
-      <div class="de">${p.emoji}</div>
+      <div class="de">${esc(p.emoji)}</div>
       <div style="flex:1;min-width:0">
         <div class="dn">${esc(p.name)}</div>
         <div class="dd">${esc(p.description)}</div>
@@ -603,10 +608,14 @@ $('drawerClose').onclick = ()=>$('drawerMask').classList.remove('open');
 });
 
 // ================= WebSocket =================
+let pendingSend = null;   // 接続確立前に送ろうとしたコメント(ログイン直後など)
 function connect(){
   const proto = location.protocol==='https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/live`);
-  ws.onopen = ()=>{ $('connState').textContent = 'ライブ接続中'; };
+  ws.onopen = ()=>{
+    $('connState').textContent = 'ライブ接続中';
+    if (pendingSend){ const t = pendingSend; pendingSend = null; trySend(t); }
+  };
   ws.onclose = ()=>{ $('connState').textContent = '再接続中…'; setTimeout(connect, 2000); };
   ws.onmessage = (ev)=>{
     const m = JSON.parse(ev.data);
@@ -624,22 +633,28 @@ function connect(){
         break;
       }
       case 'products_changed': loadProducts(); break;
-      case 'error': toast(m.message); if (!token) openAuth(); break;
+      case 'error': toast(m.message); if (!username) openAuth(); break;
     }
   };
 }
+// ログイン/ログアウト後に張り直す(サーバは接続時の Cookie でユーザーを判定するため)
+function reconnect(){
+  if (ws){ ws.onclose = null; ws.close(); }
+  connect();
+}
 function trySend(text){
   text = (text||'').trim();
-  if (!text || !ws || ws.readyState!==1) return;
-  if (!token) return openAuth(()=>trySend(text));
-  ws.send(JSON.stringify({ type:'comment', token, text }));
+  if (!text) return;
+  if (!username) return openAuth(()=>trySend(text));
+  if (!ws || ws.readyState!==1){ pendingSend = text; return; }
+  ws.send(JSON.stringify({ type:'comment', text }));   // トークンは送らない(Cookie で認証済み)
 }
 $('sendBtn').onclick = ()=>{ trySend($('input').value); $('input').value=''; };
 $('input').addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ trySend($('input').value); $('input').value=''; } });
 
 // ================= 起動 =================
 setAuthMode('login');
-checkSession(); loadProducts(); refreshCart(); connect();
+checkSession().then(refreshCart); loadProducts(); connect();
 </script>
 
 <!-- ===== VRM 虚拟主播(three-vrm) ===== -->

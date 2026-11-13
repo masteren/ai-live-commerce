@@ -21,9 +21,12 @@ from .bot import bot
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .models import Comment, Product
+from .ratelimit import SlidingWindowLimiter
 from .routers import admin, auth, cart, orders, products
-from .routers.auth import resolve_token
+from .routers.auth import extract_token, resolve_session
 from .ws import manager
+
+comment_limiter = SlidingWindowLimiter(settings.comment_rate_limit, settings.comment_rate_window)
 
 SEED_PRODUCTS = [
     dict(name="ワイヤレスイヤホン Pro", emoji="🎧", price=4980, original_price=7980, stock=30,
@@ -84,11 +87,31 @@ async def admin_page():
     return FileResponse(os.path.join(BASE_DIR, "static", "admin.html"))
 
 
+def _origin_allowed(ws: WebSocket) -> bool:
+    """防止跨站 WebSocket 劫持(CSWSH)
+
+    浏览器连接 WebSocket 时会自动附带 Cookie,但 WebSocket 不受同源策略/CORS 保护,
+    恶意网站也能连到这里并借用用户的 Cookie。所以浏览器发来的握手必须检查 Origin。
+    原生 App / 测试脚本通常不发送 Origin(它们用 Bearer 令牌认证),直接放行。
+    """
+    origin = ws.headers.get("origin")
+    if not origin:
+        return True
+    allowed = [o.strip() for o in settings.cors_origins.split(",") if o.strip() and o.strip() != "*"]
+    if origin in allowed:
+        return True
+    host = ws.headers.get("host", "")
+    return origin in (f"http://{host}", f"https://{host}")
+
+
 @app.websocket("/ws/live")
 async def live_ws(ws: WebSocket):
     """直播间 WebSocket
 
-    客户端 → 服务端: {"type":"comment","token":"...","text":"..."}(发言需登录令牌)
+    认证:握手时携带(未登录也可以观看,只是不能发言)
+      浏览器 → 同源连接时自动附带 HttpOnly Cookie(登录/登出后前端会重新连接)
+      原生 App → 握手请求头 Authorization: Bearer <token>
+    客户端 → 服务端: {"type":"comment","text":"..."}
     服务端 → 客户端:
       {"type":"viewers","count":N}                                   在线人数
       {"type":"comment","nickname","text"}                           观众/机器人弹幕
@@ -97,6 +120,10 @@ async def live_ws(ws: WebSocket):
       {"type":"products_changed"}                                    商品变更
       {"type":"error","message"}                                     仅发给当前连接
     """
+    if not _origin_allowed(ws):
+        await ws.close(code=1008)   # 握手前关闭 → 客户端收到 403
+        return
+    raw_token, _ = extract_token(ws.headers, ws.cookies)
     await manager.connect(ws)
     try:
         while True:
@@ -111,9 +138,14 @@ async def live_ws(ws: WebSocket):
             text = (data.get("text") or "").strip()[:200]
             if not text:
                 continue
-            user = await resolve_token(data.get("token") or "")
-            if not user:
+            # 每条弹幕都重新校验会话:登出或过期后立即失去发言权限
+            found = await resolve_session(raw_token)
+            if not found:
                 await ws.send_json({"type": "error", "message": "コメントするにはログインが必要です"})
+                continue
+            user = found[0]
+            if not comment_limiter.hit(f"user:{user.id}"):
+                await ws.send_json({"type": "error", "message": "コメントの送信が早すぎます。少し待ってから送信してください"})
                 continue
             # 落库 → 广播 → 交给 AI 主播(混合应答策略判断是否回答)
             async with SessionLocal() as db:
