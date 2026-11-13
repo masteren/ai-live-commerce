@@ -34,8 +34,12 @@ alembic upgrade head --sql  # 不连 DB,只输出 SQL(检查用)
 - **SQLite 的迁移为什么要 batch 模式?** SQLite 的 ALTER TABLE 不能删列/改列,Alembic 用「建新表 → 复制数据 → 删旧表」来实现。
 - **启动时自动迁移有什么风险?** 多台服务器同时启动可能同时迁移;大表迁移会拖慢启动。规模大了以后,应该在部署流程里单独执行 `alembic upgrade head`,并设置 `AUTO_MIGRATE=false`。
 
-## 6. 还没做的
-- 本机没有 Docker,**真实 MySQL 上的运行还没验证**(只验证了生成的 MySQL DDL)。装好 Docker 后:`docker compose up -d db` → 改 `.env` 的 DATABASE_URL → 启动 → 跑 pytest/E2E。
+## 6. 在真实 MySQL 上的验证(已完成)
+- GitHub Actions 的 unit-mysql 任务,以及本机 Docker Desktop(2026-11-13)上都验证过:
+  - `docker compose up -d db` → MySQL 8.4.13 / utf8mb4 / utf8mb4_bin
+  - 应用连接 MySQL 启动 → Alembic 自动迁移、写入示例商品
+  - E2E 41/41、pytest 39/39 通过(并发下单在 MySQL 的行锁下也是「只成功 1 单」)
+- 自己用 MySQL 开发时:`.env` 的 `DATABASE_URL` 改成 `mysql+aiomysql://liveuser:livepass@127.0.0.1:3306/livecommerce?charset=utf8mb4`。不用时 `docker compose stop db`。
 
 ## 7. 自测问题
 1. `create_all` 和 Alembic 迁移的区别是什么?
