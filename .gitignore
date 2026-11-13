@@ -22,3 +22,9 @@ app/static/audio/*
 
 # テスト
 .pytest_cache/
+
+# Xcode
+ios/build/
+xcuserdata/
+*.xcuserstate
+DerivedData/

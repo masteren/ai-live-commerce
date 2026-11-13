@@ -24,6 +24,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | リアルタイム | WebSocket(FastAPI)+ asyncio のキューとバックグラウンドタスク |
 | AI・音声 | Anthropic Claude API、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
+| iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
 | テスト・CI | pytest(39件)、E2E(41件)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
@@ -31,7 +32,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 flowchart LR
   V["視聴者ブラウザ<br/>index.html + three-vrm"] -- "WebSocket(コメント・配信)" --> API
   V -- "REST + Cookie" --> API
-  I["iOS アプリ(予定)"] -- "REST / WebSocket + Bearer" --> API
+  I["iOS アプリ(SwiftUI)"] -- "REST / WebSocket + Bearer" --> API
   A["管理画面 admin.html"] -- "REST + X-Admin-Token" --> API
   subgraph API["FastAPI(単一プロセス)"]
     R["REST ルーター<br/>auth / products / cart / orders / admin"]
@@ -111,11 +112,12 @@ app/
 migrations/         # Alembic マイグレーション
 tests/              # pytest
 docs/design/        # 要件定義・ER 図・シーケンス図・画面遷移図
+ios/                # iOS アプリ(SwiftUI)
 test_e2e.py         # E2E テスト
 ```
 
 ## 今後の予定
-- iOS アプリ(SwiftUI、同じ API を Bearer 認証で利用)
+- iOS アプリの 3D アバター表示(現在は絵文字の表情で代替)
 - サーバへのデプロイ(Docker + Nginx + HTTPS)
 
 ## クレジット
