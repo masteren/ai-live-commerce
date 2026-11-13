@@ -31,7 +31,7 @@ xcodebuild test -project ios/AILiveCommerce.xcodeproj -scheme AILiveCommerce -de
 ```
 
 ## 未着手・保留
-- LLM の実キーでの動作確認(OpenAI のキーを `.env` の `OPENAI_API_KEY` に設定して起動。モックテストは `tests/test_llm.py` で済み)
+- (済)OpenAI の実キーでホストの応答を確認(2026-11-13、gpt-4o-mini)。Anthropic 側は実キー未確認。感情が normal に偏る点は要調整
 - VOICEVOX を起動しての音声・口パクの確認
 - サーバへのデプロイ(Docker + Nginx + HTTPS)は保留中
 - プロンプトインジェクション対策、管理 API の試行回数制限
