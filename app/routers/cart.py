@@ -1,6 +1,7 @@
 """购物车接口:登录用户绑定"""
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, delete
+from sqlalchemy import case, delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
@@ -25,17 +26,25 @@ async def add_to_cart(body: CartAdd, user: User = Depends(get_current_user), db:
     if product.stock <= 0:
         raise HTTPException(409, "在庫切れです")
 
-    row = await db.execute(
-        select(CartItem).where(CartItem.user_id == user.id, CartItem.product_id == body.product_id)
-    )
-    item = row.scalar_one_or_none()
-    if item:
-        item.quantity = min(item.quantity + body.quantity, 99)
-    else:
-        db.add(CartItem(user_id=user.id, product_id=body.product_id, quantity=body.quantity))
-    await db.commit()
+    user_id = user.id      # rollback すると ORM オブジェクトが失効するので先に取り出す
+    # まず追加を試み、すでに行があれば(一意制約 uq_cart_user_product に当たれば)数量の加算に切り替える。
+    # 「読んでから書く」をやめ、判定を DB の制約に任せることで、同時リクエストでも重複行・加算漏れが起きない。
+    # ※「先に UPDATE、0件なら INSERT」の順にすると、MySQL(InnoDB)ではギャップロック同士でデッドロックする
+    db.add(CartItem(user_id=user_id, product_id=body.product_id, quantity=body.quantity))
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        new_qty = case((CartItem.quantity + body.quantity > 99, 99), else_=CartItem.quantity + body.quantity)
+        await db.execute(
+            update(CartItem)
+            .where(CartItem.user_id == user_id, CartItem.product_id == body.product_id)
+            .values(quantity=new_qty)             # 加算は DB 内で1文(上限 99)
+            .execution_options(synchronize_session=False)
+        )
+        await db.commit()
 
-    rows = await db.execute(select(CartItem).where(CartItem.user_id == user.id))
+    rows = await db.execute(select(CartItem).where(CartItem.user_id == user_id))
     return rows.scalars().all()
 
 

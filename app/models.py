@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -42,7 +42,8 @@ class Product(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[str] = mapped_column(Text, default="")
-    emoji: Mapped[str] = mapped_column(String(8), default="🛍️")
+    emoji: Mapped[str] = mapped_column(String(8), default="🛍️")               # 画像がない場合の代替表示
+    image_url: Mapped[str] = mapped_column(String(255), default="", server_default="")  # 商品画像(/static/products/xxx.png)
     price: Mapped[int] = mapped_column(Integer)                        # 単価(円)
     original_price: Mapped[int] = mapped_column(Integer, default=0)    # 通常価格(划线价)
     stock: Mapped[int] = mapped_column(Integer, default=0)
@@ -53,6 +54,8 @@ class Product(Base):
 
 class CartItem(Base):
     __tablename__ = "cart_items"
+    # 同じユーザーのカートに同じ商品は1行だけ(同時に「カートへ」が押されても重複行を作らせない)
+    __table_args__ = (UniqueConstraint("user_id", "product_id", name="uq_cart_user_product"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)

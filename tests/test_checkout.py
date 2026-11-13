@@ -61,3 +61,33 @@ async def test_concurrent_checkout_never_oversells(client, make_client):
     rs = await asyncio.gather(*(c.post("/api/orders/checkout", headers=h, json={}) for c, h in buyers))
     assert sorted(r.status_code for r in rs) == [200, 409, 409, 409, 409]
     assert await _stock(client, pid) == 0
+
+
+async def test_same_user_concurrent_checkout_creates_one_order(client):
+    """同じユーザーの注文リクエストが同時に5回届いても(ダブルクリック・再送)、注文は1件・在庫は1点だけ減る"""
+    csrf = await register(client)
+    before = await _stock(client, 1)
+    await client.post("/api/cart", headers=csrf, json={"product_id": 1, "quantity": 1})
+    rs = await asyncio.gather(*(client.post("/api/orders/checkout", headers=csrf, json={}) for _ in range(5)))
+    codes = sorted(r.status_code for r in rs)
+    assert codes.count(200) == 1 and all(c in (200, 400, 409) for c in codes), codes
+    assert len((await client.get("/api/orders")).json()) == 1
+    assert await _stock(client, 1) == before - 1
+
+
+async def test_concurrent_add_to_cart_keeps_single_row(client):
+    """同じ商品への「カートへ」が同時に5回届いても、カートは1行・数量5(以前は重複行ができ、以後 500 になった)"""
+    csrf = await register(client)
+    body = {"product_id": 2, "quantity": 1}
+    rs = await asyncio.gather(*(client.post("/api/cart", headers=csrf, json=body) for _ in range(5)))
+    assert [r.status_code for r in rs] == [200] * 5
+    cart = (await client.get("/api/cart")).json()
+    assert len(cart) == 1 and cart[0]["quantity"] == 5
+    assert (await client.post("/api/cart", headers=csrf, json=body)).status_code == 200
+
+
+async def test_cart_quantity_is_capped_at_99(client):
+    csrf = await register(client)
+    await client.post("/api/cart", headers=csrf, json={"product_id": 2, "quantity": 60})
+    cart = (await client.post("/api/cart", headers=csrf, json={"product_id": 2, "quantity": 60})).json()
+    assert cart[0]["quantity"] == 99
