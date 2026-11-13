@@ -2,7 +2,7 @@
 import pytest
 
 from app import ai_host
-from app.ai_host import FALLBACK_REPLIES, MAX_BACKLOG, host, looks_like_question
+from app.ai_host import MAX_BACKLOG, host, looks_like_question
 
 
 @pytest.mark.parametrize("text,expected", [
@@ -39,9 +39,23 @@ async def test_backlog_keeps_only_latest():
     assert texts == [f"q{i}" for i in range(3, MAX_BACKLOG + 3)]     # 古いものから捨てる
 
 
-async def test_generate_without_api_key_uses_fallback():
-    reply, product_id, emotion = await host._generate("taro", "おすすめは?")
-    assert (reply, emotion) in FALLBACK_REPLIES and product_id is None
+async def test_generate_without_api_key_answers_from_db():
+    """LLM なしでも、DB の商品データを使って質問に答える(定型文の使い回しではない)"""
+    reply, product_id, emotion = await host._generate("taro", "マグはいくらですか?")
+    assert product_id == 2 and "1,880円" in reply
+
+
+async def test_product_short_name_always_gets_reply(monkeypatch):
+    monkeypatch.setattr(ai_host.random, "random", lambda: 0.99)    # 雑談なら答えない値
+    await host.refresh_product_names()
+    await host.on_comment("taro", "マグ気になる")                   # 疑問形ではないが商品の略称を含む
+    assert host.queue.qsize() == 1
+
+
+async def test_idle_talk_alternates_shop_info_and_product_spotlight():
+    text0, pid0, _ = await host._idle_line(0)
+    text1, pid1, _ = await host._idle_line(1)
+    assert pid0 is None and pid1 == 1 and "ワイヤレスイヤホン Pro" in text1 and "38%オフ" in text1
 
 
 async def test_meta_endpoint_shows_credit_and_mode(client):

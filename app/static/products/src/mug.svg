@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 30 340 340">
+  <!-- ステンレス保温マグ 480ml:マットなセージグリーン + ステンレスの縁 -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5E6E64"/><stop offset=".35" stop-color="#7B8B80"/>
+      <stop offset=".55" stop-color="#6C7C71"/><stop offset="1" stop-color="#4C5A51"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9C9A95"/><stop offset=".4" stop-color="#E4E2DD"/>
+      <stop offset=".7" stop-color="#B9B6B0"/><stop offset="1" stop-color="#8E8C87"/>
+    </linearGradient>
+    <linearGradient id="lid" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2A2A28"/><stop offset=".4" stop-color="#4A4A47"/><stop offset="1" stop-color="#232321"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="200" cy="336" rx="70" ry="10" fill="#1A1A1A" opacity=".1"/>
+  <!-- 本体 -->
+  <path d="M146 120 H254 L248 318 Q248 330 236 330 H164 Q152 330 152 318 Z" fill="url(#body)"/>
+  <!-- ステンレスの帯 -->
+  <rect x="144" y="108" width="112" height="16" rx="3" fill="url(#steel)"/>
+  <!-- フタ -->
+  <path d="M148 108 V84 Q148 70 162 70 H238 Q252 70 252 84 V108 Z" fill="url(#lid)"/>
+  <rect x="226" y="58" width="22" height="14" rx="4" fill="#3A3A37"/>
+  <!-- ロゴ風の刻印 -->
+  <rect x="186" y="200" width="28" height="2" rx="1" fill="#FFFFFF" opacity=".35"/>
+</svg>

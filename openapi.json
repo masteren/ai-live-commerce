@@ -763,6 +763,26 @@
           }
         }
       }
+    },
+    "/api/meta": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Meta",
+        "description": "画面表示用の公開情報(音声クレジット・回答生成エンジン)",
+        "operationId": "meta_api_meta_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -958,6 +978,12 @@
             "title": "Emoji",
             "default": "🛍️"
           },
+          "image_url": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Image Url",
+            "default": ""
+          },
           "price": {
             "type": "integer",
             "minimum": 0.0,
@@ -1011,6 +1037,12 @@
             "maxLength": 8,
             "title": "Emoji",
             "default": "🛍️"
+          },
+          "image_url": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Image Url",
+            "default": ""
           },
           "price": {
             "type": "integer",
@@ -1087,6 +1119,18 @@
               }
             ],
             "title": "Emoji"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
           },
           "price": {
             "anyOf": [

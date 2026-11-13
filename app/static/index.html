@@ -3,94 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>AIライブコマース | LIVE配信中</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
+<title>HANA LIVE COMMERCE | ライブ配信中</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23161616'/><text x='50' y='70' font-size='58' text-anchor='middle' fill='white' font-family='serif'>H</text></svg>">
 <style>
+  /* デザイン方針:装飾を足さない。余白・細い罫線・文字組みで整える。
+     色はほぼ無彩色、アクセント(朱)は LIVE と割引だけに使う */
   :root{
-    --bg:#F3F4F8; --card:#FFFFFF; --line:#E5E8EF; --ink:#1B2436; --sub:#6A7382;
-    --accent:#D7263D;          /* 紅:LIVE・価格・CTA */
-    --accent-d:#B01E31;
-    --navy:#233A5C;            /* 墨紺:見出し・リンク */
-    --ok:#1E8E4E;
-    --radius:16px;
-    --shadow-card:0 1px 2px rgba(20,30,50,.04), 0 10px 28px -14px rgba(20,30,50,.12);
+    --bg:#F6F5F2; --paper:#FFFFFF; --ink:#161616; --ink-2:#3A3A38; --sub:#6F6E6A; --mute:#A3A19C;
+    --line:#E6E3DD; --line-2:#D5D1C9; --stage:#EDEBE6;
+    --accent:#A8372B;          /* 朱:LIVE・割引・エラーのみ */
+    --ok:#3F6B4F;
+    --radius:6px;
+    --sans:"Hiragino Sans","Noto Sans JP","Yu Gothic UI","Yu Gothic",-apple-system,sans-serif;
+    --serif:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{
-    min-height:100vh; color:var(--ink);
-    background:
-      radial-gradient(900px 480px at 88% -8%, #FBEEF0 0%, transparent 58%),
-      radial-gradient(820px 520px at -8% 2%, #ECF1F8 0%, transparent 55%),
-      var(--bg);
-    font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",-apple-system,sans-serif;
-    font-size:14px; line-height:1.6;
+    min-height:100vh; color:var(--ink); background:var(--bg);
+    font-family:var(--sans); font-size:14px; line-height:1.7; letter-spacing:.02em;
     -webkit-font-smoothing:antialiased;
   }
-  a{ color:var(--navy); }
-  button{ transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .12s ease; }
-  :focus-visible{ outline:2px solid var(--navy); outline-offset:2px; }
+  a{ color:var(--ink); }
+  button{ font-family:inherit; letter-spacing:inherit; transition:background .15s ease, border-color .15s ease, color .15s ease; }
+  :focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
 
   /* ---------- ヘッダー ---------- */
-  header{
-    background:rgba(255,255,255,.86);
-    -webkit-backdrop-filter:saturate(1.4) blur(12px); backdrop-filter:saturate(1.4) blur(12px);
-    border-bottom:1px solid var(--line);
-    position:sticky; top:0; z-index:20;
-  }
-  header::after{
-    content:""; display:block; height:2px;
-    background:linear-gradient(90deg, var(--accent) 0%, #E8899A 26%, transparent 58%);
-  }
-  .hwrap{ max-width:1080px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; gap:14px; }
-  .brand{ font-weight:800; font-size:16px; letter-spacing:.04em; color:var(--navy); }
-  .brand span{ color:var(--accent); }
-  .livebadge{
-    display:inline-flex; align-items:center; gap:6px; background:linear-gradient(180deg,#E12F47,var(--accent-d)); color:#fff;
-    font-size:11px; font-weight:800; border-radius:6px; padding:3px 9px; letter-spacing:.06em;
-    box-shadow:0 2px 10px -2px rgba(215,38,61,.55);
-  }
-  .livedot{ width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.5s infinite; }
-  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.3} }
-  .hmeta{ margin-left:auto; display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--sub); }
-  .hmeta > span{ background:#F1F3F8; border:1px solid var(--line); border-radius:999px; padding:4px 12px; }
-  .hbtn{ border:1px solid var(--line); background:#fff; border-radius:9px; padding:6px 12px; font-size:12.5px; cursor:pointer; color:var(--ink); }
-  .hbtn:hover{ border-color:var(--navy); background:#F7F9FC; }
+  header{ background:var(--paper); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20; }
+  .hwrap{ max-width:1120px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; gap:18px; }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand-mark{ font-family:var(--serif); font-size:20px; letter-spacing:.22em; font-weight:600; }
+  .brand-sub{ font-size:10px; letter-spacing:.28em; color:var(--sub); }
+  .live{ display:inline-flex; align-items:center; gap:7px; font-size:11px; font-weight:600; letter-spacing:.22em; color:var(--ink); }
+  .live i{ width:7px; height:7px; border-radius:50%; background:var(--accent); animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  .hmeta{ margin-left:auto; display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--sub); }
+  .viewers{ margin-right:6px; }
+  .viewers b{ color:var(--ink); font-weight:600; font-feature-settings:"tnum"; }
+  .hbtn{ border:1px solid var(--line-2); background:var(--paper); border-radius:4px; padding:6px 12px; font-size:12.5px; cursor:pointer; color:var(--ink); }
+  .hbtn:hover{ border-color:var(--ink); }
 
   /* ---------- レイアウト ---------- */
-  .wrap{ max-width:1080px; margin:0 auto; padding:16px; display:grid; grid-template-columns:1fr 340px; gap:16px; align-items:start; }
-  @media (max-width: 880px){ .wrap{ grid-template-columns:1fr; } .comments-card{ height:380px !important; } }
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow-card); }
+  .wrap{ max-width:1120px; margin:0 auto; padding:24px 16px; display:grid; grid-template-columns:1fr 340px; gap:24px; align-items:start; }
+  @media (max-width: 880px){ .wrap{ grid-template-columns:1fr; gap:16px; } .comments-card{ height:380px !important; } }
+  .card{ background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); }
 
-  /* ---------- 配信ステージ(スタジオ風) ---------- */
+  /* ---------- 配信ステージ ---------- */
   .stage{
     position:relative; overflow:hidden; border-radius:var(--radius) var(--radius) 0 0;
-    background:radial-gradient(130% 100% at 50% -6%, #FEFEFF 0%, #EDF2F9 44%, #D8E2F0 100%);
-    aspect-ratio:16/10; display:flex; align-items:flex-end; justify-content:center;
+    background:var(--stage); aspect-ratio:16/10; display:flex; align-items:flex-end; justify-content:center;
   }
   @media (max-width:880px){ .stage{ aspect-ratio:4/3; } }
-  /* 角色身后的柔光聚光灯 */
-  .stage::before{
-    content:""; position:absolute; left:50%; top:6%; width:78%; aspect-ratio:1.15;
-    transform:translateX(-50%); pointer-events:none;
-    background:radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 62%);
-  }
-  .stage-deco{ position:absolute; inset:auto 0 0 0; height:34%; background:linear-gradient(180deg,transparent,#D2DCEA); }
-  /* 地面椭圆投影,让角色"落地" */
-  .stage-deco::before{
-    content:""; position:absolute; left:50%; bottom:6%; width:44%; height:14%;
-    transform:translateX(-50%); border-radius:50%;
-    background:radial-gradient(50% 50% at 50% 50%, rgba(35,58,92,.18), transparent 70%);
-  }
-  /* 漂浮光斑(スタジオライト) */
-  .orb{
-    position:absolute; border-radius:50%; pointer-events:none; opacity:.55;
-    background:radial-gradient(circle at 35% 35%, rgba(255,255,255,.9), rgba(255,255,255,0) 70%);
-    animation:float 9s ease-in-out infinite;
-  }
-  .o1{ width:96px;height:96px; left:7%;  top:16%; }
-  .o2{ width:48px;height:48px; right:11%; top:11%; animation-delay:-3s; }
-  .o3{ width:66px;height:66px; right:20%; bottom:32%; animation-delay:-6s; opacity:.35; }
-  @keyframes float{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
   .avatarbox{ position:relative; z-index:1; width:min(46%,300px); }
   .presenter{ width:100%; display:block; }
   /* VRM 立绘(three-vrm);加载成功后 .stage.vrm-on 接管,失败则保留上面的 SVG */
@@ -98,7 +60,7 @@
   .stage.vrm-on #avatarBox{ display:none; }
   .stage.vrm-on #vrmCanvas{ display:block; }
 
-  /* 立绘动画 */
+  /* SVG 立ち絵(WebGL が使えない環境用) */
   .p-sway{ animation:sway 4s ease-in-out infinite; transform-origin:50% 100%; }
   @keyframes sway{ 0%,100%{transform:rotate(0)} 50%{transform:rotate(.6deg)} }
   .p-blink{ animation:blink 5s infinite; transform-origin:100px 96px; }
@@ -113,137 +75,109 @@
   .blush{ opacity:0; transition:opacity .3s; }
   .shy .blush,.happy .blush{ opacity:.55; }
 
-  /* 放送風ローワーサード(字幕テロップ) */
+  /* 字幕(名前+発言) */
   .lower-third{
-    position:absolute; z-index:2; left:14px; right:14px; bottom:14px;
-    display:flex; align-items:stretch; gap:0; filter:drop-shadow(0 4px 14px rgba(26,35,51,.18));
+    position:absolute; z-index:2; left:16px; right:16px; bottom:16px;
+    display:flex; align-items:stretch; background:rgba(255,255,255,.95); border:1px solid var(--line); border-radius:4px;
   }
-  .lt-name{
-    background:linear-gradient(150deg,#2C4970 0%,#1B2E4B 100%); color:#fff;
-    border-radius:8px 0 0 8px; padding:10px 14px;
-    display:flex; flex-direction:column; justify-content:center; white-space:nowrap;
-    box-shadow:inset -1px 0 0 rgba(255,255,255,.08);
-  }
-  .lt-name b{ font-size:13px; letter-spacing:.03em; } .lt-name small{ font-size:10px; opacity:.75; }
-  .lt-text{
-    flex:1; background:rgba(255,255,255,.88); border-radius:0 8px 8px 0;
-    -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
-    border-top:1px solid rgba(255,255,255,.7);
-    padding:10px 14px; font-size:13.5px; display:flex; align-items:center; min-height:52px;
-  }
+  .lt-name{ padding:12px 16px; border-right:1px solid var(--line); display:flex; flex-direction:column; justify-content:center; white-space:nowrap; }
+  .lt-name b{ font-family:var(--serif); font-size:15px; font-weight:600; letter-spacing:.12em; }
+  .lt-name small{ font-size:10px; color:var(--sub); letter-spacing:.12em; }
+  .lt-text{ flex:1; padding:12px 16px; font-size:14px; display:flex; align-items:center; min-height:56px; color:var(--ink-2); }
 
-  /* ---------- 注目商品バー ---------- */
-  .featured{
-    display:flex; gap:14px; align-items:center; padding:14px 16px;
-    border-top:1px solid var(--line);
-  }
-  .pemoji{
-    width:64px;height:64px;border-radius:14px;flex-shrink:0;
-    background:linear-gradient(160deg,#FFFFFF,#F0F4FA);
-    box-shadow:inset 0 0 0 1px var(--line), 0 3px 8px -3px rgba(20,30,50,.12);
-    display:flex;align-items:center;justify-content:center;font-size:32px;
-  }
-  .ptag{ display:inline-block; font-size:10.5px; font-weight:700; color:var(--accent); background:#FDF0F2; border:1px solid #F2C6CE; border-radius:5px; padding:1px 8px; margin-bottom:3px; }
-  .pname{ font-weight:700; font-size:14.5px; }
+  /* ---------- 紹介中の商品 ---------- */
+  .featured{ display:flex; gap:18px; align-items:center; padding:18px 20px; border-top:1px solid var(--line); }
+  .pimg{ width:88px; height:88px; flex-shrink:0; border-radius:4px; background:#F3F1ED; display:flex; align-items:center; justify-content:center; font-size:34px; overflow:hidden; }
+  .pimg img, .thumb img{ width:100%; height:100%; object-fit:contain; display:block; }
+  .ptag{ display:inline-block; font-size:10.5px; color:var(--accent); letter-spacing:.1em; margin-bottom:2px; }
+  .pname{ font-weight:600; font-size:15px; }
   .pdesc{ font-size:12px; color:var(--sub); }
-  .pprice{ color:var(--accent); font-weight:800; font-size:21px; font-feature-settings:"tnum"; letter-spacing:-.01em; }
-  .porig{ font-size:12px; color:var(--sub); text-decoration:line-through; margin-left:8px; }
+  .prow{ display:flex; align-items:baseline; gap:10px; margin-top:4px; flex-wrap:wrap; }
+  .pprice{ font-size:22px; font-weight:600; font-feature-settings:"tnum"; letter-spacing:0; }
+  .porig{ font-size:12px; color:var(--mute); text-decoration:line-through; }
+  .poff{ font-size:12px; color:var(--accent); font-weight:600; }
   .pstock{ font-size:11.5px; color:var(--sub); }
-  .pstock.low{ color:var(--accent); font-weight:700; }
+  .pstock.low{ color:var(--accent); }
   .buybtn{
-    margin-left:auto; flex-shrink:0; border:none; cursor:pointer; color:#fff;
-    background:linear-gradient(180deg,#E12F47,#C81F35);
-    font-weight:700; font-size:13.5px; border-radius:10px; padding:12px 22px;
-    box-shadow:0 4px 14px -5px rgba(215,38,61,.6);
+    margin-left:auto; flex-shrink:0; border:1px solid var(--ink); cursor:pointer; color:#fff; background:var(--ink);
+    font-weight:600; font-size:13.5px; border-radius:4px; padding:12px 24px;
   }
-  .buybtn:hover{ transform:translateY(-1px); box-shadow:0 7px 18px -5px rgba(215,38,61,.65); }
-  .buybtn:active{ transform:translateY(0); }
-  .buybtn:disabled{ background:#C4C9D1; box-shadow:none; transform:none; cursor:not-allowed; }
-  .listlink{ padding:0 16px 14px; font-size:12.5px; display:flex; align-items:center; gap:10px; }
-  .listlink a{
-    cursor:pointer; font-weight:700; text-decoration:none;
-    border:1px solid var(--line); border-radius:999px; padding:5px 14px; background:#FAFBFD;
-    transition:border-color .15s, background .15s;
-  }
-  .listlink a:hover{ border-color:var(--navy); background:#F2F5FA; }
+  .buybtn:hover{ background:#000; }
+  .buybtn:disabled{ background:#BDBAB4; border-color:#BDBAB4; cursor:not-allowed; }
+  .listlink{ padding:0 20px 16px; font-size:12.5px; display:flex; align-items:center; gap:12px; }
+  .listlink a{ cursor:pointer; text-decoration:none; border-bottom:1px solid var(--line-2); padding-bottom:1px; }
+  .listlink a:hover{ border-color:var(--ink); }
 
   /* ---------- コメント欄 ---------- */
-  .comments-card{ display:flex; flex-direction:column; height:560px; }
-  .c-head{ padding:12px 16px; border-bottom:1px solid var(--line); font-weight:700; font-size:13.5px; display:flex; justify-content:space-between; align-items:center; }
-  .c-head small{ font-weight:400; color:var(--sub); }
-  .c-list{ flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:10px; scrollbar-width:thin; scrollbar-color:#D4DAE4 transparent; }
-  /* 空态:还没有弹幕时不留白板 */
-  .c-list:empty::before{
-    content:"💬 コメントはまだありません\A気になることを聞いてみましょう";
-    white-space:pre; text-align:center; margin:auto; color:#A6AEBB; font-size:12.5px; line-height:1.9;
-  }
-  .c-list::-webkit-scrollbar{ width:8px; }
-  .c-list::-webkit-scrollbar-thumb{ background:#D4DAE4; border-radius:99px; border:2px solid #fff; }
-  .c-list::-webkit-scrollbar-track{ background:transparent; }
-  .cm{ font-size:13px; line-height:1.5; animation:fadein .25s ease; }
-  .cm b{ color:var(--navy); margin-right:6px; font-size:12.5px; }
+  .comments-card{ display:flex; flex-direction:column; height:600px; }
+  .c-head{ padding:14px 16px; border-bottom:1px solid var(--line); font-weight:600; font-size:13px; display:flex; justify-content:space-between; align-items:center; letter-spacing:.08em; }
+  .c-head small{ font-weight:400; color:var(--sub); letter-spacing:.02em; }
+  .c-list{ flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:12px; scrollbar-width:thin; scrollbar-color:var(--line-2) transparent; }
+  .c-list:empty::before{ content:"まだコメントはありません"; text-align:center; margin:auto; color:var(--mute); font-size:12.5px; }
+  .cm{ font-size:13px; line-height:1.65; animation:fadein .2s ease; }
+  .cm b{ color:var(--sub); margin-right:8px; font-size:12px; font-weight:600; }
   .cm.me b{ color:var(--ok); }
-  .cm.host{
-    background:linear-gradient(90deg,#F3F6FB,#FAFBFD);
-    border-left:3px solid var(--navy); border-radius:0 10px 10px 0; padding:8px 11px;
-    box-shadow:0 1px 3px -1px rgba(20,30,50,.08);
-  }
-  .cm.host b{ color:var(--accent); }
-  .cm.sys{ color:var(--sub); font-size:12px; background:#FAFBFC; border:1px dashed var(--line); border-radius:10px; padding:6px 10px; }
-  @keyframes fadein{ from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:none} }
+  .cm.host{ border-left:2px solid var(--ink); padding:2px 0 2px 12px; color:var(--ink); }
+  .cm.host b{ color:var(--ink); font-family:var(--serif); }
+  .cm.sys{ color:var(--sub); font-size:12px; padding:6px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  @keyframes fadein{ from{opacity:0} to{opacity:1} }
   .c-input{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
-  .c-input input{ flex:1; min-width:0; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13px; outline:none; transition:border-color .15s, box-shadow .15s; }
-  .c-input input:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba(35,58,92,.10); }
-  .sendbtn{ border:none; cursor:pointer; border-radius:10px; padding:10px 16px; font-weight:700; font-size:13px; background:var(--navy); color:#fff; }
-  .sendbtn:hover{ background:#2C4970; }
-  .sendbtn:active{ transform:scale(.97); }
+  .c-input input{ flex:1; min-width:0; border:1px solid var(--line-2); border-radius:4px; padding:10px 12px; font-size:13px; outline:none; font-family:inherit; }
+  .c-input input:focus{ border-color:var(--ink); }
+  .sendbtn{ border:1px solid var(--ink); cursor:pointer; border-radius:4px; padding:10px 16px; font-weight:600; font-size:13px; background:var(--ink); color:#fff; }
+  .sendbtn:hover{ background:#000; }
 
   /* ---------- モーダル ---------- */
-  .mask{ position:fixed; inset:0; z-index:50; background:rgba(21,30,48,.5); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; padding:16px; }
+  .mask{ position:fixed; inset:0; z-index:50; background:rgba(22,22,22,.42); display:none; align-items:center; justify-content:center; padding:16px; }
   .mask.open{ display:flex; }
-  .modal{ width:100%; max-width:460px; background:#fff; border-radius:18px; padding:22px; max-height:86vh; overflow-y:auto; animation:fadein .2s ease; box-shadow:0 24px 60px -18px rgba(15,25,45,.35); }
-  .modal h3{ font-size:15px; margin-bottom:4px; color:var(--navy); }
-  .modal .note{ font-size:12px; color:var(--sub); margin-bottom:10px; }
-  .ditem{ display:flex; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); }
-  .ditem .de{ width:48px;height:48px;border:1px solid var(--line);border-radius:8px;background:#FAFBFC;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0; }
-  .ditem .dn{ font-weight:700; font-size:13.5px; }
+  .modal{ width:100%; max-width:460px; background:var(--paper); border-radius:8px; padding:26px; max-height:86vh; overflow-y:auto; animation:fadein .15s ease; box-shadow:0 20px 50px -24px rgba(0,0,0,.35); }
+  .modal h3{ font-size:15px; font-weight:600; margin-bottom:6px; letter-spacing:.06em; }
+  .modal .note{ font-size:12px; color:var(--sub); margin-bottom:12px; }
+  .ditem{ display:flex; gap:14px; align-items:center; padding:14px 0; border-bottom:1px solid var(--line); }
+  .thumb{ width:56px; height:56px; border-radius:4px; background:#F3F1ED; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; overflow:hidden; }
+  .thumb.sm{ width:32px; height:32px; font-size:16px; }
+  .ditem .dn{ font-weight:600; font-size:13.5px; }
   .ditem .dd{ font-size:11.5px; color:var(--sub); }
-  .sbtn{ font-size:12px; font-weight:700; border-radius:7px; padding:6px 11px; cursor:pointer; background:#fff; }
-  .sbtn.ask{ color:var(--navy); border:1px solid var(--navy); }
-  .sbtn.ask:hover{ background:#F2F5FA; }
-  .sbtn.cart{ color:var(--accent); border:1px solid var(--accent); }
-  .sbtn.cart:hover{ background:#FDF0F2; }
-  .primarybtn{ width:100%; margin-top:14px; border:none; cursor:pointer; background:var(--accent); color:#fff; font-weight:700; font-size:14px; border-radius:8px; padding:13px; }
-  .primarybtn:hover{ background:var(--accent-d); }
-  .primarybtn:disabled{ background:#C4C9D1; }
-  .field{ width:100%; border:1px solid var(--line); border-radius:10px; padding:11px 13px; font-size:14px; margin-top:10px; outline:none; transition:border-color .15s, box-shadow .15s; }
-  .field:focus{ border-color:var(--navy); box-shadow:0 0 0 3px rgba(35,58,92,.10); }
-  .switchline{ text-align:center; font-size:12.5px; color:var(--sub); margin-top:14px; }
-  .switchline a{ font-weight:700; cursor:pointer; text-decoration:none; }
+  .sbtn{ font-size:12px; font-weight:600; border-radius:4px; padding:6px 12px; cursor:pointer; background:var(--paper); color:var(--ink); border:1px solid var(--line-2); }
+  .sbtn:hover{ border-color:var(--ink); }
+  .sbtn.cart{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .sbtn.cart:hover{ background:#000; }
+  .primarybtn{ width:100%; margin-top:16px; border:1px solid var(--ink); cursor:pointer; background:var(--ink); color:#fff; font-weight:600; font-size:14px; border-radius:4px; padding:13px; }
+  .primarybtn:hover{ background:#000; }
+  .primarybtn:disabled{ background:#BDBAB4; border-color:#BDBAB4; }
+  .field{ width:100%; border:1px solid var(--line-2); border-radius:4px; padding:11px 13px; font-size:14px; margin-top:10px; outline:none; font-family:inherit; }
+  .field:focus{ border-color:var(--ink); }
+  .switchline{ text-align:center; font-size:12.5px; color:var(--sub); margin-top:16px; }
+  .switchline a{ cursor:pointer; text-decoration:none; border-bottom:1px solid var(--line-2); }
   .errline{ color:var(--accent); font-size:12px; margin-top:8px; min-height:16px; }
+  .cartrow{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .cartrow .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cartrow a{ color:var(--sub); text-decoration:none; font-size:12px; margin-left:8px; }
+  .cartrow a:hover{ color:var(--accent); }
 
-  .payopt{ display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:8px; cursor:pointer; font-size:13.5px; transition:border-color .15s, background .15s, box-shadow .15s; }
-  .payopt:hover{ border-color:#C7CFDB; }
-  .payopt.sel{ border-color:var(--accent); background:#FDF3F4; box-shadow:0 0 0 3px rgba(215,38,61,.08); }
-  .spinner{ width:36px;height:36px;border:4px solid #F0D5D9;border-top-color:var(--accent);border-radius:50%;margin:18px auto;animation:spin .8s linear infinite; }
+  .payopt{ display:flex; align-items:center; gap:12px; border:1px solid var(--line-2); border-radius:4px; padding:13px 14px; margin-top:8px; cursor:pointer; font-size:13.5px; }
+  .payopt:hover{ border-color:var(--ink); }
+  .payopt .radio{ width:14px; height:14px; border-radius:50%; border:1px solid var(--line-2); flex-shrink:0; }
+  .payopt.sel{ border-color:var(--ink); }
+  .payopt.sel .radio{ border:4px solid var(--ink); }
+  .spinner{ width:28px;height:28px;border:2px solid var(--line);border-top-color:var(--ink);border-radius:50%;margin:20px auto;animation:spin .8s linear infinite; }
   @keyframes spin{ to{transform:rotate(360deg)} }
-  .successcheck{ width:60px;height:60px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;margin:14px auto;animation:popIn .4s cubic-bezier(.2,1.5,.4,1); }
-  @keyframes popIn{ from{transform:scale(.3);opacity:0} to{transform:scale(1);opacity:1} }
+  .successcheck{ width:52px;height:52px;border-radius:50%;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--ink);margin:14px auto; }
 
-  .toast{ position:fixed; z-index:60; top:64px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; border-radius:8px; padding:9px 18px; font-size:13px; animation:fadein .2s ease; box-shadow:0 6px 20px rgba(26,35,51,.25); }
-  footer{ max-width:1080px; margin:0 auto; padding:4px 16px 26px; font-size:11.5px; color:#9AA3B1; text-align:center; }
-  @media (prefers-reduced-motion: reduce){ .p-sway,#mouthTalk,.livedot,.orb{ animation:none } }
+  .toast{ position:fixed; z-index:60; top:72px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; border-radius:4px; padding:9px 18px; font-size:13px; animation:fadein .15s ease; }
+  footer{ max-width:1120px; margin:0 auto; padding:0 16px 32px; font-size:11.5px; color:var(--mute); text-align:center; }
+  @media (prefers-reduced-motion: reduce){ .p-sway,#mouthTalk,.live i{ animation:none } }
 </style>
 </head>
 <body>
 
 <header>
   <div class="hwrap">
-    <div class="brand">AI<span>ライブ</span>コマース</div>
-    <span class="livebadge"><span class="livedot"></span>LIVE</span>
+    <div class="brand"><span class="brand-mark">HANA</span><span class="brand-sub">LIVE COMMERCE</span></div>
+    <span class="live"><i></i>LIVE</span>
     <div class="hmeta">
-      <span>視聴者 <b id="viewers" style="color:var(--ink)">0</b>人</span>
-      <button class="hbtn" id="soundBtn" title="音声ON/OFF">🔇 音声OFF</button>
+      <span class="viewers">視聴者 <b id="viewers">0</b></span>
+      <button class="hbtn" id="soundBtn" title="音声のオン・オフ">音声 オフ</button>
       <button class="hbtn" id="userBtn">ログイン</button>
     </div>
   </div>
@@ -253,8 +187,6 @@
   <!-- 左:配信ステージ + 注目商品 -->
   <div class="card">
     <div class="stage">
-      <div class="stage-deco"></div>
-      <i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i>
       <canvas id="vrmCanvas"></canvas>
       <div class="avatarbox" id="avatarBox">
         <svg viewBox="0 0 200 230" class="presenter p-sway" aria-label="AIアシスタント 花奈">
@@ -309,18 +241,18 @@
     </div>
 
     <div class="featured" id="productCard" style="display:none">
-      <div class="pemoji" id="pEmoji"></div>
+      <div class="pimg" id="pImg"></div>
       <div style="min-width:0">
         <span class="ptag" id="pTag"></span>
         <div class="pname" id="pName"></div>
         <div class="pdesc" id="pDesc"></div>
-        <div><span class="pprice" id="pPrice"></span><span class="porig" id="pOrig"></span>
-          <span class="pstock" id="pStock" style="margin-left:10px"></span></div>
+        <div class="prow"><span class="pprice" id="pPrice"></span><span class="porig" id="pOrig"></span>
+          <span class="poff" id="pOff"></span><span class="pstock" id="pStock"></span></div>
       </div>
       <button class="buybtn" id="buyBtn">カートに入れる</button>
     </div>
     <div class="listlink">
-      <a id="drawerBtn">▸ 本日の商品一覧・カートを見る</a>
+      <a id="drawerBtn">本日の商品一覧・カート</a>
       <span id="cartInfo" style="color:var(--sub)"></span>
     </div>
   </div>
@@ -423,7 +355,7 @@ $('userBtn').onclick = async () => {
     reconnect();
   }
 };
-function renderWho(){ $('userBtn').textContent = username ? `${username} さん ▾` : 'ログイン'; }
+function renderWho(){ $('userBtn').textContent = username ? `${username} さん` : 'ログイン'; }
 // ページ読み込み時:Cookie が有効ならログイン状態と CSRF トークンを復元
 async function checkSession(){
   const res = await fetch('/api/auth/me').catch(()=>null);
@@ -464,7 +396,7 @@ function playNext(){
 $('soundBtn').onclick = () => {
   soundOn = !soundOn;
   window.HANA && window.HANA.resumeAudio();   // 用户手势内解锁 AudioContext(口型分析用)
-  $('soundBtn').textContent = soundOn ? '🔊 音声ON' : '🔇 音声OFF';
+  $('soundBtn').textContent = soundOn ? '音声 オン' : '音声 オフ';
 };
 
 // ================= コメント =================
@@ -485,15 +417,24 @@ async function loadProducts(){
   else featured = products.find(p=>p.id===featured.id);
   renderFeatured(); renderDrawer();
 }
+// 商品画像(image_url があれば画像、なければ絵文字)
+function thumbHtml(p){
+  return p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">` : esc(p.emoji);
+}
+// 割引率(通常価格より安い場合のみ)
+function offText(p){
+  return p.original_price > p.price ? `${Math.round((1 - p.price / p.original_price) * 100)}% OFF` : '';
+}
 function renderFeatured(){
   if (!featured){ $('productCard').style.display='none'; return; }
   $('productCard').style.display='flex';
-  $('pEmoji').textContent = featured.emoji;
+  $('pImg').innerHTML = thumbHtml(featured);
   $('pTag').textContent = featured.tag || 'ご紹介中';
   $('pName').textContent = featured.name;
   $('pDesc').textContent = featured.description;
   $('pPrice').textContent = yen(featured.price);
   $('pOrig').textContent = featured.original_price > featured.price ? yen(featured.original_price) : '';
+  $('pOff').textContent = offText(featured);
   const st = $('pStock');
   st.textContent = featured.stock > 0 ? `残り${featured.stock}点` : '在庫切れ';
   st.className = 'pstock' + (featured.stock <= 15 ? ' low' : '');
@@ -510,16 +451,17 @@ async function refreshCart(){
 }
 function renderCartUI(){
   const count = cart.reduce((s,c)=>s+c.quantity,0);
-  $('cartInfo').textContent = count ? ` — カートに${count}点入っています` : '';
+  $('cartInfo').textContent = count ? `カートに${count}点` : '';
   $('cartCount').textContent = count ? `(${count}点)` : '';
   const total = cart.reduce((s,c)=>s+c.quantity*c.product.price,0);
   $('cartTotal').textContent = yen(total);
   $('toPayBtn').disabled = !count;
   $('cartList').innerHTML = cart.length
-    ? cart.map(c=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">
-        <span>${esc(c.product.emoji)} ${esc(c.product.name)} × ${c.quantity}</span>
-        <span>${yen(c.product.price*c.quantity)} <a href="#" data-rm="${c.id}" style="color:var(--accent);text-decoration:none;margin-left:8px">削除</a></span></div>`).join('')
-    : `<div style="color:var(--sub);padding:8px 0">${username?'カートは空です':'ログインするとカートをご利用いただけます'}</div>`;
+    ? cart.map(c=>`<div class="cartrow">
+        <div class="thumb sm">${thumbHtml(c.product)}</div>
+        <span class="nm">${esc(c.product.name)} × ${c.quantity}</span>
+        <span>${yen(c.product.price*c.quantity)}</span><a href="#" data-rm="${c.id}">削除</a></div>`).join('')
+    : `<div style="color:var(--sub);padding:10px 0">${username?'カートは空です':'ログインするとカートをご利用いただけます'}</div>`;
   $('cartList').querySelectorAll('[data-rm]').forEach(a=>{
     a.onclick = async (e)=>{ e.preventDefault(); await fetch(`/api/cart/${a.dataset.rm}`,{method:'DELETE',headers:authHeaders()}); refreshCart(); };
   });
@@ -535,9 +477,9 @@ $('buyBtn').onclick = () => featured && addToCart(featured.id);
 
 // ================= 決済(モック) =================
 const PAY_METHODS = [
-  { id:'credit_card', emoji:'💳', label:'クレジットカード' },
-  { id:'convenience_store', emoji:'🏪', label:'コンビニ払い' },
-  { id:'paypay', emoji:'📱', label:'PayPay' },
+  { id:'credit_card', label:'クレジットカード' },
+  { id:'convenience_store', label:'コンビニ払い' },
+  { id:'paypay', label:'PayPay' },
 ];
 let payMethod = 'credit_card';
 $('toPayBtn').onclick = () => {
@@ -550,9 +492,9 @@ $('toPayBtn').onclick = () => {
 function renderPayStep1(){
   const total = cart.reduce((s,c)=>s+c.quantity*c.product.price,0);
   $('payBody').innerHTML = `
-    <h3 style="text-align:center">お支払い方法の選択</h3>
-    <div class="note" style="text-align:center">合計 <b style="color:var(--accent);font-size:17px">${yen(total)}</b>(送料無料)</div>
-    ${PAY_METHODS.map(m=>`<div class="payopt ${m.id===payMethod?'sel':''}" data-pay="${m.id}"><span>${m.emoji}</span>${m.label}</div>`).join('')}
+    <h3 style="text-align:center">お支払い方法</h3>
+    <div class="note" style="text-align:center">合計 <b style="font-size:17px;color:var(--ink)">${yen(total)}</b>(送料無料)</div>
+    ${PAY_METHODS.map(m=>`<div class="payopt ${m.id===payMethod?'sel':''}" data-pay="${m.id}"><span class="radio"></span>${m.label}</div>`).join('')}
     <div class="note" style="text-align:center;margin-top:10px">※デモのため実際の決済は行われません</div>
     <button class="primarybtn" id="payGo">注文を確定する</button>
     <div class="switchline"><a id="payCancel">キャンセル</a></div>`;
@@ -583,12 +525,12 @@ async function doPay(){
 function renderDrawer(){
   $('drawerList').innerHTML = products.map(p=>`
     <div class="ditem">
-      <div class="de">${esc(p.emoji)}</div>
+      <div class="thumb">${thumbHtml(p)}</div>
       <div style="flex:1;min-width:0">
         <div class="dn">${esc(p.name)}</div>
         <div class="dd">${esc(p.description)}</div>
-        <span style="color:var(--accent);font-weight:800">${yen(p.price)}</span>
-        ${p.original_price>p.price?`<span style="font-size:11px;color:var(--sub);text-decoration:line-through;margin-left:6px">${yen(p.original_price)}</span>`:''}
+        <span style="font-weight:600">${yen(p.price)}</span>
+        ${p.original_price>p.price?`<span style="font-size:11px;color:var(--mute);text-decoration:line-through;margin-left:6px">${yen(p.original_price)}</span><span style="font-size:11px;color:var(--accent);margin-left:6px">${offText(p)}</span>`:''}
         <span style="font-size:11px;color:var(--sub);margin-left:6px">残り${p.stock}点</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">

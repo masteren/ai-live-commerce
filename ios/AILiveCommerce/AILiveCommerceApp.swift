@@ -31,7 +31,7 @@ struct ContentView: View {
                 .tabItem { Label("アカウント", systemImage: "person.crop.circle") }
                 .tag(AppState.Tab.account)
         }
-        .tint(Color(red: 0.86, green: 0.15, blue: 0.25))
+        .tint(Theme.ink)
         .sheet(isPresented: $state.showLogin) { LoginView() }
         .overlay(alignment: .top) {
             if let t = state.toast {

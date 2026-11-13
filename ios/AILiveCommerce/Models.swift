@@ -8,6 +8,7 @@ struct Product: Codable, Identifiable, Hashable {
     let name: String
     let description: String
     let emoji: String
+    let imageUrl: String?      // 商品画像(/static/products/xxx.png)。空なら絵文字で代替
     let price: Int
     let originalPrice: Int
     var stock: Int

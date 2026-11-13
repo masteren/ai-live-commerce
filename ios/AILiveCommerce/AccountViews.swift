@@ -84,7 +84,7 @@ struct AccountView: View {
                                 HStack {
                                     Text("#\(o.id)").bold()
                                     Spacer()
-                                    Text(yen(o.total)).foregroundStyle(.red)
+                                    Text(yen(o.total))
                                 }
                                 Text(o.items.map { "\($0.productName)×\($0.quantity)" }.joined(separator: "、"))
                                     .font(.caption).foregroundStyle(.secondary)

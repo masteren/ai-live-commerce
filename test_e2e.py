@@ -199,13 +199,13 @@ async def main():
                     continue
                 if m["type"] == "comment" and m["nickname"] == "taro":
                     got_comment_b = True
-                # 队列里可能还有前面购买产生的道谢,排除掉,只认对提问的回答
-                if m["type"] == "host_reply" and not any(w in m["text"] for w in ("購入", "ご注文", "お買い上げ")):
+                # 队列里可能还有前面购买产生的道谢,只认对「イヤホン」提问的回答
+                if m["type"] == "host_reply" and "イヤホン" in m["text"]:
                     got_host = True
                     host_msg = m
             check("弹幕跨客户端广播(Cookie认证)", got_comment_b)
-            check("AI主播回答(问题必答·降级模式)", got_host and host_msg.get("emotion") in
-                  {"normal", "happy", "excited", "troubled", "shy"},
+            check("AI主播回答(问题必答·按商品数据回答·切换商品卡)", got_host and host_msg.get("emotion") in
+                  {"normal", "happy", "excited", "troubled", "shy"} and host_msg.get("product_id") == 1,
                   f"emotion={host_msg.get('emotion')} | {host_msg.get('text', '')[:30]}")
 
             await wc.send(json.dumps({"type": "comment", "text": "iOSから参加しています"}))

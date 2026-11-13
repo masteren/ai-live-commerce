@@ -75,8 +75,9 @@ final class LiveCommerceFlowUITests: XCTestCase {
         XCTAssertTrue(app.textFields["usernameField"].waitForNonExistence(timeout: 10), "登録に失敗(シートが閉じない)")
 
         // 4. ログイン後、保留していたコメントが送信され、AI ホストが回答する
-        XCTAssertTrue(text(containing: question).waitForExistence(timeout: 10), "自分のコメントが表示されない")
-        XCTAssertTrue(app.staticTexts["hostComment"].firstMatch.waitForExistence(timeout: 20), "ホストの回答がない")
+        if !text(containing: question).waitForExistence(timeout: 10) { snap("zz_comment_debug"); dumpTree("zz_comment_tree") }
+        XCTAssertTrue(text(containing: question).exists, "自分のコメントが表示されない")
+        XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "ホストの回答がない")
         snap("03_comment_reply")
 
         // 5. 紹介中の商品をカートへ
@@ -103,7 +104,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
 
         // 7. ライブ画面に購入告知
         tab("ライブ")
-        XCTAssertTrue(app.staticTexts["systemComment"].firstMatch.waitForExistence(timeout: 10), "購入告知がない")
+        XCTAssertTrue(app.descendants(matching: .any)["systemComment"].firstMatch.waitForExistence(timeout: 10), "購入告知がない")
         snap("06_purchase_notice")
 
         // 8. アカウント:注文履歴 → ログアウト

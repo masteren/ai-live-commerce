@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 30 340 340">
+  <!-- ワイヤレスイヤホン Pro:充電ケースと、その横に置いたイヤホン2つ(マットな白) -->
+  <defs>
+    <linearGradient id="caseTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBFAF7"/><stop offset="1" stop-color="#EDEAE4"/>
+    </linearGradient>
+    <linearGradient id="caseBottom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F2F0EB"/><stop offset="1" stop-color="#DAD6CE"/>
+    </linearGradient>
+    <linearGradient id="bud" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E0DCD4"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(0 -44)">
+  <!-- 影 -->
+  <ellipse cx="160" cy="312" rx="100" ry="10" fill="#1A1A1A" opacity=".08"/>
+  <ellipse cx="300" cy="314" rx="62" ry="7" fill="#1A1A1A" opacity=".07"/>
+  <!-- ケース -->
+  <rect x="68" y="172" width="184" height="138" rx="56" fill="url(#caseBottom)"/>
+  <path d="M68 226 Q68 172 124 172 H196 Q252 172 252 226 Z" fill="url(#caseTop)"/>
+  <line x1="70" y1="226" x2="250" y2="226" stroke="#CFCAC1" stroke-width="2"/>
+  <circle cx="160" cy="262" r="3.2" fill="#8DB596"/>
+  <!-- イヤホン(横に置いた状態) -->
+  <g transform="translate(272 300) rotate(-8)">
+    <rect x="4" y="-7" width="64" height="14" rx="7" fill="url(#bud)"/>
+    <ellipse cx="0" cy="-6" rx="20" ry="16" fill="url(#bud)"/>
+    <ellipse cx="-6" cy="-10" rx="6" ry="4" fill="#A9A49B"/>
+  </g>
+  <g transform="translate(292 268) rotate(-24)">
+    <rect x="4" y="-7" width="64" height="14" rx="7" fill="url(#bud)"/>
+    <ellipse cx="0" cy="-6" rx="20" ry="16" fill="url(#bud)"/>
+    <ellipse cx="-6" cy="-10" rx="6" ry="4" fill="#A9A49B"/>
+  </g>
+  </g>
+</svg>

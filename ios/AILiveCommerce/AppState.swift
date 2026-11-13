@@ -67,10 +67,21 @@ final class AppState: ObservableObject {
             showToast("ようこそ、\(res.username)さん")
             socket.connect()                      // 新しいトークンで張り直す
             await refreshCart()
-            if let c = pendingComment { pendingComment = nil; await sendComment(c) }
+            if let c = pendingComment {
+                pendingComment = nil
+                await waitUntilConnected()        // 張り直した接続が確立する前に送ると、コメントが失われることがある
+                await sendComment(c)
+            }
             return nil
         } catch {
             return error.localizedDescription
+        }
+    }
+
+    /// WebSocket の再接続が完了する(サーバから最初のメッセージが届く)まで最大 3 秒待つ
+    private func waitUntilConnected() async {
+        for _ in 0..<30 where !connected {
+            try? await Task.sleep(nanoseconds: 100_000_000)
         }
     }
 
@@ -182,6 +193,12 @@ final class AppState: ObservableObject {
             if toast == msg { toast = nil }
         }
     }
+}
+
+/// 割引率の表示("38% OFF")。通常価格より安いときだけ
+func offText(_ p: Product) -> String? {
+    guard p.originalPrice > p.price, p.originalPrice > 0 else { return nil }
+    return "\(Int((1 - Double(p.price) / Double(p.originalPrice)) * 100 + 0.5))% OFF"
 }
 
 /// 金額表示 ¥4,980

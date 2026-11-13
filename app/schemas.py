@@ -10,6 +10,7 @@ class ProductBase(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     description: str = ""
     emoji: str = Field(default="🛍️", max_length=8)   # 与 DB 列 String(8) 一致;前端也会转义
+    image_url: str = Field(default="", max_length=255)  # 商品图片 URL(空 = 用 emoji 代替)
     price: int = Field(ge=0)
     original_price: int = Field(default=0, ge=0)
     stock: int = Field(default=0, ge=0)
@@ -25,6 +26,7 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     emoji: Optional[str] = Field(default=None, max_length=8)
+    image_url: Optional[str] = Field(default=None, max_length=255)
     price: Optional[int] = Field(default=None, ge=0)
     original_price: Optional[int] = Field(default=None, ge=0)
     stock: Optional[int] = Field(default=None, ge=0)

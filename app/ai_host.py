@@ -28,6 +28,7 @@ from typing import Optional
 import httpx
 from sqlalchemy import select
 
+from . import host_rules
 from .config import settings
 from .database import SessionLocal
 from .models import Comment, Product
@@ -46,24 +47,19 @@ _QUESTION_RE = re.compile(
     r"|在庫|送料|配送|届く|支払|返品|保証|セール|割引|クーポン"
 )
 
-FALLBACK_REPLIES = [
-    ("コメントありがとうございます。気になる商品がございましたら、商品名でお尋ねください。", "normal"),
-    ("ご質問ありがとうございます。画面下の商品カードから詳細もご確認いただけます。", "normal"),
-    ("ありがとうございます。全国送料無料でお届けしております。", "happy"),
-]
-
+# 購入のお礼(LLM を使わない定型。毎回同じにならないよう数パターン)
 THANKS_TEMPLATES = [
-    "{name}様、「{product}」をご購入いただきありがとうございます。心を込めてお届けいたします。",
-    "{name}様、「{product}」のご注文を承りました。ありがとうございます!",
-    "{name}様、お買い上げありがとうございます。「{product}」、ぜひお楽しみください。",
+    "{name}さん、「{product}」のご購入ありがとうございます。お届けまで、もう少しお待ちくださいね。",
+    "{name}さん、「{product}」をお選びいただきありがとうございます。大切にお届けします。",
+    "{name}さん、ありがとうございます。「{product}」のご注文、たしかに承りました。",
 ]
 
+# 無人時の自動トーク(店舗情報)。商品紹介(host_rules.spotlight)と交互に話す
 IDLE_LINES = [
-    ("ご視聴ありがとうございます。AIアシスタントの{host}です。ご質問はコメントでお気軽にどうぞ。", "normal"),
-    ("本日ご紹介の商品は、期間限定の特別価格でご案内しております。", "happy"),
-    ("配送は全国送料無料、ご注文から3〜5日でお届けいたします。", "normal"),
-    ("未開封の商品は到着後7日以内の返品を承っております。安心してお買い求めください。", "normal"),
-    ("在庫に限りのある商品もございます。気になる方はお早めにご検討ください。", "normal"),
+    ("{host}です。商品のことは、コメントでいつでも聞いてくださいね。", "normal"),
+    (host_rules.SHIPPING + "。", "normal"),
+    (host_rules.RETURNS + "。", "normal"),
+    ("お支払いは" + host_rules.PAYMENT + "。", "normal"),
 ]
 
 
@@ -77,13 +73,13 @@ class AIHost:
         self.history: list[dict] = []
         self.last_reply_at: float = 0.0
         self.last_activity_at: float = time.time()
-        self._product_names: list[str] = []
+        self._products: list = []          # 販売中の商品(略称での言及判定に使う)
 
     # ---------- 对外入口 ----------
     async def on_comment(self, nickname: str, text: str) -> None:
-        """混合应答策略:问题/含商品名必答;闲聊按概率接话"""
+        """混合应答策略:问题/提到商品(简称也算,如「マグ」)必答;闲聊按概率接话"""
         self.last_activity_at = time.time()
-        must = looks_like_question(text) or any(n and n in text for n in self._product_names)
+        must = looks_like_question(text) or host_rules.mentions_product(text, self._products)
         if not must and random.random() > settings.chat_reply_prob:
             return
         await self._enqueue({"kind": "reply", "nickname": nickname, "text": text})
@@ -133,13 +129,22 @@ class AIHost:
             # 异常保护:这里抛出异常的话 task 会静默结束,之后再也不会自动播报
             try:
                 if time.time() - self.last_activity_at >= settings.idle_interval and self.queue.empty():
-                    text, emotion = IDLE_LINES[i % len(IDLE_LINES)]
+                    text, product_id, emotion = await self._idle_line(i)
                     i += 1
-                    await self._speak(text.format(host=settings.host_name), None, emotion, save=False)
+                    await self._speak(text, product_id, emotion, save=False)
                     self.last_activity_at = time.time()
             except Exception:
                 logger.exception("自動トークに失敗しました(次の周期で再試行)")
                 self.last_activity_at = time.time()
+
+    async def _idle_line(self, i: int) -> "tuple[str, Optional[int], str]":
+        """無人時のトーク:店舗情報と商品紹介を交互に(商品紹介のときは商品カードも切り替わる)"""
+        products = await self._load_products()
+        if i % 2 == 1 and products:
+            p = products[(i // 2) % len(products)]
+            return host_rules.spotlight(p), p.id, "happy"
+        text, emotion = IDLE_LINES[(i // 2) % len(IDLE_LINES)]
+        return text.format(host=settings.host_name), None, emotion
 
     async def _speak(self, text: str, product_id: Optional[int], emotion: str, save: bool = True) -> None:
         """主播发言统一出口:TTS → 落库 → 广播"""
@@ -161,8 +166,8 @@ class AIHost:
     async def _generate(self, nickname: str, question: str) -> "tuple[str, Optional[int], str]":
         products = await self._load_products()
         if not settings.anthropic_api_key:
-            reply, emotion = random.choice(FALLBACK_REPLIES)
-            return reply, None, emotion
+            # LLM なし:コメントの意図と商品を判定し、DB の実データで答える(host_rules)
+            return host_rules.rule_reply(nickname, question, products)
 
         system = self._build_system_prompt(products)
         self.history = self.history[-HISTORY_TURNS * 2:]
@@ -191,8 +196,7 @@ class AIHost:
         except Exception as e:
             # 降级链:LLM 超时/限流/网络故障 → 规则回复,直播不冷场
             logger.warning("LLM 调用失败,降级为规则回复: %s", e)
-            reply, emotion = random.choice(FALLBACK_REPLIES)
-            return reply, None, emotion
+            return host_rules.rule_reply(nickname, question, products)
 
         raw = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
         raw = raw.replace("```json", "").replace("```", "").strip()
@@ -222,7 +226,7 @@ class AIHost:
 - 丁寧で落ち着いた接客のプロフェッショナル(です・ます調)
 - 商品知識(価格・在庫・仕様)が正確で、根拠のない説明はしない
 - 押し売りはせず、視聴者の質問や状況に合わせて最適な商品を簡潔に提案する
-- 視聴者は「◯◯様」または「◯◯さん」とお呼びする
+- 視聴者は「◯◯さん」とお呼びする
 - 温かみはあるが、過度にくだけた表現・若者言葉・顔文字は使わない
 
 # 販売中の商品
@@ -232,6 +236,13 @@ class AIHost:
 - 配送: 全国送料無料、3〜5日でお届け
 - 返品: 未開封なら到着後7日以内可
 - 支払い: クレジットカード / コンビニ払い / PayPay
+
+# 話し方
+- ライブ配信で実際に話しているような、自然な話し言葉(です・ます)。1〜2文で短く
+- 毎回「ありがとうございます」「ご質問ありがとうございます」から始めない。いきなり答えから話してよい
+- 視聴者の名前を呼ぶのはときどきでよい(毎回呼ぶと機械的になる)
+- 商品の話をするときは、価格・割引率・在庫・仕様のうち具体的な事実を1つ入れる
+- 決まり文句の繰り返しや大げさな表現は避ける
 
 # ルール
 - 回答は必ず日本語、{settings.reply_max_chars}文字以内、絵文字は使わない
@@ -246,7 +257,7 @@ class AIHost:
         async with SessionLocal() as db:
             rows = await db.execute(select(Product).where(Product.is_active == True))  # noqa: E712
             products = list(rows.scalars())
-        self._product_names = [p.name for p in products]
+        self._products = products
         return products
 
     async def refresh_product_names(self) -> None:

@@ -6,8 +6,6 @@ struct LiveView: View {
     @State private var input = ""
     @FocusState private var inputFocused: Bool   // キーボードの表示状態(閉じる操作に使う)
 
-    private let faces = ["normal": "🙂", "happy": "😊", "excited": "🤩", "troubled": "😥", "shy": "😳"]
-
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -16,15 +14,14 @@ struct LiveView: View {
                 commentList
                 inputBar
             }
-            .navigationTitle("AIライブコマース")
+            .navigationTitle("HANA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     // ツールバーの中では幅が詰められるため fixedSize で潰れないようにする
                     HStack(spacing: 6) {
-                        Text("LIVE").font(.caption.bold()).foregroundStyle(.white)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(state.connected ? Color.red : Color.gray, in: RoundedRectangle(cornerRadius: 4))
+                        Circle().fill(state.connected ? Theme.accent : Color.gray).frame(width: 7, height: 7)
+                        Text("LIVE").font(.caption.weight(.semibold)).kerning(1.5)
                         Text("視聴者 \(state.viewers)人").font(.caption).monospacedDigit()
                             .accessibilityIdentifier("viewers")
                     }
@@ -41,32 +38,41 @@ struct LiveView: View {
     }
 
     private var hostArea: some View {
-        VStack(spacing: 8) {
-            Text(faces[state.hostEmotion] ?? "🙂")
-                .font(.system(size: 72))
-                .animation(.spring, value: state.hostEmotion)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("花奈 AIアシスタント").font(.caption.bold()).foregroundStyle(.secondary)
-                Text(state.hostText).font(.subheadline)
+        VStack(spacing: 0) {
+            // Web 版の 3D アバターを表情ごとに書き出した立ち絵(Resources/hana_*.png)
+            // キーボード表示中は立ち絵を小さくして、コメント欄の高さを確保する
+            HostPortrait(emotion: state.hostEmotion)
+                .frame(height: inputFocused ? 84 : 190)
+                .animation(.easeInOut(duration: 0.2), value: inputFocused)
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("花奈").font(.system(.subheadline, design: .serif).weight(.semibold))
+                    Text("AIアシスタント").font(.system(size: 9)).foregroundStyle(.secondary)
+                }
+                .padding(.trailing, 12)
+                Divider()
+                Text(state.hostText).font(.subheadline).padding(.leading, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(12)
+            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 4))
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.line))
+            .padding(.horizontal).padding(.bottom, 12)
         }
-        .padding()
-        .background(LinearGradient(colors: [Color(white: 0.97), Color(red: 0.9, green: 0.93, blue: 0.97)],
-                                   startPoint: .top, endPoint: .bottom))
+        .background(Theme.stage)
         .contentShape(Rectangle())
         .onTapGesture { inputFocused = false }       // ホストの部分をタップするとキーボードを閉じる
     }
 
     private func featuredCard(_ p: Product) -> some View {
         HStack {
-            Text(p.emoji).font(.largeTitle)
-            VStack(alignment: .leading) {
-                Text(p.name).font(.subheadline.bold()).lineLimit(1)
-                HStack(spacing: 6) {
-                    Text(yen(p.price)).font(.headline).foregroundStyle(.red)
+            ProductThumb(product: p, size: 56)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(yen(p.price)).font(.headline)
+                    if let off = offText(p) { Text(off).font(.caption.weight(.semibold)).foregroundStyle(Theme.accent) }
                     Text(p.stock > 0 ? "残り\(p.stock)点" : "在庫切れ").font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -97,13 +103,13 @@ struct LiveView: View {
     private func commentRow(_ line: ChatLine) -> some View {
         switch line.kind {
         case .host:
-            (Text(line.nickname + " ").bold().foregroundColor(.pink) + Text(line.text))
+            (Text(line.nickname + " ").font(.system(.subheadline, design: .serif).weight(.semibold)) + Text(line.text))
                 .font(.subheadline)
-                .padding(8)
-                .background(Color.pink.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                .padding(.leading, 10)
+                .overlay(alignment: .leading) { Rectangle().fill(Theme.ink).frame(width: 2) }
                 .accessibilityIdentifier("hostComment")
         case .system:
-            Text(line.text).font(.caption).foregroundStyle(.orange)
+            Text(line.text).font(.caption).foregroundStyle(.secondary)
                 .accessibilityIdentifier("systemComment")
         case .mine, .user:
             (Text(line.nickname + " ").bold().foregroundColor(line.kind == .mine ? .green : .secondary) + Text(line.text))

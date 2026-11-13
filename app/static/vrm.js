@@ -35,12 +35,13 @@ function boot() {
   camera = new THREE.PerspectiveCamera(26, 1, 0.1, 20);
   camera.position.set(0, 1.3, 1.45);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1.6));
-  const key = new THREE.DirectionalLight(0xffffff, 1.4);
-  key.position.set(1, 2, 2.2);
+  // ライティング:暖色のキーライト(斜め前)+ 弱めの環境光 + 背面からのリムライト(撮影スタジオ風)
+  scene.add(new THREE.AmbientLight(0xfffaf3, 1.25));
+  const key = new THREE.DirectionalLight(0xfff1e2, 1.35);
+  key.position.set(0.8, 1.8, 2.4);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0xdfe8f5, 0.6);
-  rim.position.set(-1.5, 1.5, -1.5);
+  const rim = new THREE.DirectionalLight(0xf3f0ea, 0.5);
+  rim.position.set(-1.6, 1.4, -1.6);
   scene.add(rim);
 
   function resize() {
@@ -137,12 +138,12 @@ function boot() {
       foreL = H.getNormalizedBoneNode('leftLowerArm');
       foreR = H.getNormalizedBoneNode('rightLowerArm');
 
-      // 依据头骨位置取景为「上半身胸像」
+      // 头骨位置を基準に「上半身」を構図:頭の上に少し余白を残し(頭頂が切れない)、目線よりわずかに上から撮る
       const head = vrm.humanoid.getNormalizedBoneNode('head');
       const hp = new THREE.Vector3();
       (head || vrm.scene).getWorldPosition(hp);
-      const ty = (head ? hp.y : 1.3) - 0.12;
-      camera.position.set(0, ty, 1.42);
+      const ty = (head ? hp.y : 1.3) - 0.08;
+      camera.position.set(0, ty + 0.03, 1.72);
       camera.lookAt(0, ty, 0);
 
       window.HANA.ready = true;

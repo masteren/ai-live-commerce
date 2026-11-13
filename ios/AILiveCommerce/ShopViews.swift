@@ -8,18 +8,19 @@ struct ProductsView: View {
         NavigationStack {
             List(state.products) { p in
                 HStack(alignment: .top, spacing: 12) {
-                    Text(p.emoji).font(.largeTitle)
+                    ProductThumb(product: p, size: 72)
                     VStack(alignment: .leading, spacing: 4) {
                         if !p.tag.isEmpty {
-                            Text(p.tag).font(.caption2.bold()).foregroundStyle(.red)
+                            Text(p.tag).font(.caption2).foregroundStyle(Theme.accent)
                         }
                         Text(p.name).font(.headline)
                         Text(p.description).font(.caption).foregroundStyle(.secondary)
                         HStack {
-                            Text(yen(p.price)).font(.headline).foregroundStyle(.red)
+                            Text(yen(p.price)).font(.headline)
                             if p.originalPrice > p.price {
                                 Text(yen(p.originalPrice)).font(.caption).strikethrough().foregroundStyle(.secondary)
                             }
+                            if let off = offText(p) { Text(off).font(.caption.weight(.semibold)).foregroundStyle(Theme.accent) }
                             Text("残り\(p.stock)点").font(.caption).foregroundStyle(.secondary)
                         }
                         HStack {
@@ -77,7 +78,7 @@ struct CartView: View {
             Section {
                 ForEach(state.cart) { item in
                     HStack {
-                        Text(item.product.emoji)
+                        ProductThumb(product: item.product, size: 36)
                         Text(item.product.name).lineLimit(1)
                         Spacer()
                         Text("×\(item.quantity)").foregroundStyle(.secondary)
@@ -102,7 +103,7 @@ struct CartView: View {
                 HStack {
                     Text("合計(送料無料)")
                     Spacer()
-                    Text(yen(state.cartTotal)).font(.title3.bold()).foregroundStyle(.red)
+                    Text(yen(state.cartTotal)).font(.title3.bold())
                 }
                 Button {
                     Task { await placeOrder() }

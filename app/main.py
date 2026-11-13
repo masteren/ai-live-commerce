@@ -38,11 +38,11 @@ logger = logging.getLogger("app")
 comment_limiter = SlidingWindowLimiter(settings.comment_rate_limit, settings.comment_rate_window)
 
 SEED_PRODUCTS = [
-    dict(name="ワイヤレスイヤホン Pro", emoji="🎧", price=4980, original_price=7980, stock=30,
+    dict(name="ワイヤレスイヤホン Pro", emoji="🎧", image_url="/static/products/earphones.png", price=4980, original_price=7980, stock=30,
          tag="タイムセール", description="ノイズキャンセリング搭載、最大32時間再生、IPX5防水"),
-    dict(name="ステンレス保温マグ 480ml", emoji="🥤", price=1880, original_price=2480, stock=60,
+    dict(name="ステンレス保温マグ 480ml", emoji="🥤", image_url="/static/products/mug.png", price=1880, original_price=2480, stock=60,
          tag="人気No.1", description="12時間保温・保冷、ワンタッチ開閉、食洗機OK"),
-    dict(name="ヒアルロン酸美容液 30ml", emoji="✨", price=2680, original_price=3980, stock=15,
+    dict(name="ヒアルロン酸美容液 30ml", emoji="✨", image_url="/static/products/serum.png", price=2680, original_price=3980, stock=15,
          tag="残りわずか", description="高濃度ヒアルロン酸配合、無香料・無着色、敏感肌OK"),
 ]
 

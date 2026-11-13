@@ -15,7 +15,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 ## 主な機能
 | 分類 | 内容 |
 |---|---|
-| AI ホスト | コメントを分類(質問は必ず回答・雑談は確率で返答)し、Claude API で回答。商品データを毎回プロンプトに注入し価格・在庫を誤答しない。感情(5種)も同時に出力 |
+| AI ホスト | コメントを分類(質問は必ず回答・雑談は確率で返答)し、Claude API で回答。API なし・障害時も、質問の意図と商品を判定して DB の価格・在庫で答える。商品データを毎回プロンプトに注入し価格・在庫を誤答しない。感情(5種)も同時に出力 |
 | 音声・アバター | VOICEVOX で感情に合わせた音声合成(キャッシュあり)。three-vrm の 3D アバターが表情・口パク・まばたき |
 | ライブ配信 | WebSocket で多人数のコメントを即時配信、視聴者数表示、自動再接続、無人時の自動トーク、盛り上げ用コメントBOT |
 | EC | 商品 → カート → 決済(クレジット/コンビニ/PayPay のモック)→ 注文。購入をライブで告知し、ホストがお礼を言う |
@@ -31,7 +31,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | AI・音声 | Anthropic Claude API、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
 | iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
-| テスト・CI | pytest(39件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
+| テスト・CI | pytest(66件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
 ```mermaid
@@ -56,9 +56,13 @@ flowchart LR
 設計資料:[要件定義](docs/design/requirements.md) / [ER 図](docs/design/er.md) / [シーケンス図](docs/design/sequence.md) / [画面遷移図](docs/design/screens.md)
 
 ## 工夫した点
-1. **売り越し(在庫の過剰販売)の防止**
+1. **同時実行でも壊れない注文処理(売り越し・二重注文・カートの重複の防止)**
    在庫の減算を「`UPDATE ... SET stock = stock - :q WHERE stock >= :q`」の条件付き更新にし、判定と減算を DB 内で一度に行う。
    当初は `SELECT ... FOR UPDATE` だけで防いでいたが、自作の並行テスト(在庫1点に5人が同時注文)で **SQLite では行ロックが無視されて5件とも成功する** ことを発見し、方式を見直した。現在は SQLite / MySQL の両方で「成功1件・在庫0」をテストで保証している。
+   その後のコードレビューで、同じ「読んでから書く」問題が他にも残っていることを再現テストで確認し、修正した:
+   同じユーザーの注文が同時に届くと二重に注文される → カートの行を「id+数量を条件に削除できたか」で確認、
+   「カートへ」の同時押しで重複行ができる → 一意制約 + 「INSERT、制約に当たれば加算 UPDATE」。
+   後者は MySQL でだけデッドロックする書き方(先に UPDATE)を CI 前のローカル MySQL テストで見つけて直した。
 2. **認証:Web と iOS で方式を使い分け**
    - Web:HttpOnly Cookie(JS からトークンを読めない → XSS 対策)+ SameSite=Lax + CSRF トークン(二重送信)
    - iOS:`Authorization: Bearer`(ブラウザが自動送信しないので CSRF 対策は不要)
