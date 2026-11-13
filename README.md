@@ -1,125 +1,123 @@
 # AI Live Commerce 🌸
 
-日本のライブコマース(直播带货)全栈系统:AI 販売アシスタント「花奈」实时回答弹幕、按情绪切换表情与语音语调、专业带货。面向就职活动作品集的商用级演示。
+AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメントに答え、商品を案内する **日本向けライブコマース** の Web アプリです。
+視聴者のコメントに AI がリアルタイムで回答し(音声・表情つき)、そのまま購入まで完結します。
 
-```
-浏览器(观众) ──WebSocket──▶ FastAPI ──▶ AI主播worker ──▶ Anthropic API (LLM回答+情绪)
-     ▲                        │  │              │
-     │◀── 弹幕/回答/购买广播 ──┘  │              └──▶ VOICEVOX (情绪声线TTS → wav缓存)
-     │                           └──▶ SQLite (用户/商品/购物车/订单/弹幕)
-浏览器(管理后台 /admin) ──REST──▶ 商品CRUD · 统计 · 气氛组BOT开关
-```
+> 就職作品(ポートフォリオ)です。決済はモックで、実際の課金は行いません。
+> 中文版说明:[docs/README.zh-CN.md](docs/README.zh-CN.md)
 
-## 功能一览
-
-| 模块 | 说明 |
+## 主な機能
+| 分類 | 内容 |
 |---|---|
-| AI 主播「花奈」 | 专业販売アシスタント人设(丁寧語、不夸大、拒绝议价),问题弹幕必答、闲聊 30% 概率接话,带 6 轮上下文 |
-| 情绪系统 | LLM 每次输出 emotion(normal/happy/excited/troubled/shy)→ 前端立绘表情微变化,后端对 VOICEVOX 做克制的语速/音高微调 |
-| VOICEVOX TTS | ずんだもん声线,按「文本+声线参数」md5 缓存 wav;引擎不在线自动降级纯文字 |
-| 多用户弹幕 | WebSocket 广播,在线人数实时统计,断线自动重连;按用户限流防刷屏;Origin 检查防跨站劫持 |
-| 用户系统 | 注册/登录(pbkdf2 哈希);Web 用 HttpOnly Cookie + CSRF 令牌,iOS 等原生 App 用 Bearer 令牌;会话有有效期、DB 只存哈希、支持多端登录;登录失败限流防暴力破解 |
-| 电商闭环 | 商品 → 购物车 → 模拟支付页(信用卡/コンビニ/PayPay)→ 条件 UPDATE 原子扣库存防超卖(并发测试验证)→ 订单 |
-| 直播联动 | 购买事件全房间播报 + 主播语音道谢;主播提到的商品自动切换商品卡 |
-| 管理后台 | 商品上架/改价/改库存/下架(软删除),销售统计,气氛组 BOT 开关 |
-| 气氛组 BOT | 自动发日语弹幕防冷场(演示用),15% 为提问型会触发主播回答 |
-| 降级链 | 无 API key → 定型文回复;VOICEVOX 挂 → 纯文字。任何一环失败直播不中断 |
+| AI ホスト | コメントを分類(質問は必ず回答・雑談は確率で返答)し、Claude API で回答。商品データを毎回プロンプトに注入し価格・在庫を誤答しない。感情(5種)も同時に出力 |
+| 音声・アバター | VOICEVOX で感情に合わせた音声合成(キャッシュあり)。three-vrm の 3D アバターが表情・口パク・まばたき |
+| ライブ配信 | WebSocket で多人数のコメントを即時配信、視聴者数表示、自動再接続、無人時の自動トーク、盛り上げ用コメントBOT |
+| EC | 商品 → カート → 決済(クレジット/コンビニ/PayPay のモック)→ 注文。購入をライブで告知し、ホストがお礼を言う |
+| 管理画面 | 商品の登録・価格/在庫変更・販売停止(論理削除)、売上統計、BOT の ON/OFF |
+| フォールバック | API キーなし → 定型文、VOICEVOX 停止 → 文字のみ。どこが落ちても配信は止まらない |
 
-## 快速开始(本机)
+## 技術スタック
+| 層 | 技術 |
+|---|---|
+| バックエンド | Python / FastAPI(非同期)/ SQLAlchemy 2.0(async)/ Alembic / Pydantic |
+| DB | SQLite(開発)・MySQL 8.4(docker-compose)、`DATABASE_URL` で切り替え |
+| リアルタイム | WebSocket(FastAPI)+ asyncio のキューとバックグラウンドタスク |
+| AI・音声 | Anthropic Claude API、VOICEVOX ENGINE |
+| フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
+| テスト・CI | pytest(39件)、E2E(41件)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
-```bash
-cd ai-live-commerce
-python3 -m venv venv && source venv/bin/activate    # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env                                 # 按需填 ANTHROPIC_API_KEY 等
-uvicorn app.main:app --reload
+## アーキテクチャ
+```mermaid
+flowchart LR
+  V["視聴者ブラウザ<br/>index.html + three-vrm"] -- "WebSocket(コメント・配信)" --> API
+  V -- "REST + Cookie" --> API
+  I["iOS アプリ(予定)"] -- "REST / WebSocket + Bearer" --> API
+  A["管理画面 admin.html"] -- "REST + X-Admin-Token" --> API
+  subgraph API["FastAPI(単一プロセス)"]
+    R["REST ルーター<br/>auth / products / cart / orders / admin"]
+    W["WebSocket /ws/live"]
+    Q[("AI 回答キュー")]
+    H["AI ホスト worker"]
+    B["コメント BOT"]
+    W --> Q --> H
+    B --> Q
+  end
+  H -- "回答生成" --> C["Claude API"]
+  H -- "音声合成" --> T["VOICEVOX"]
+  API -- "SQLAlchemy" --> D[("SQLite / MySQL")]
 ```
+設計資料:[要件定義](docs/design/requirements.md) / [ER 図](docs/design/er.md) / [シーケンス図](docs/design/sequence.md) / [画面遷移図](docs/design/screens.md)
 
-- 观众端: http://127.0.0.1:8000/ (开两个浏览器窗口即可体验多用户弹幕)
-- 管理后台: http://127.0.0.1:8000/admin (令牌 = .env 的 ADMIN_TOKEN)
-- API 文档: http://127.0.0.1:8000/docs (交互式;离线版见 openapi.json)
+## 工夫した点
+1. **売り越し(在庫の過剰販売)の防止**
+   在庫の減算を「`UPDATE ... SET stock = stock - :q WHERE stock >= :q`」の条件付き更新にし、判定と減算を DB 内で一度に行う。
+   当初は `SELECT ... FOR UPDATE` だけで防いでいたが、自作の並行テスト(在庫1点に5人が同時注文)で **SQLite では行ロックが無視されて5件とも成功する** ことを発見し、方式を見直した。現在は SQLite / MySQL の両方で「成功1件・在庫0」をテストで保証している。
+2. **認証:Web と iOS で方式を使い分け**
+   - Web:HttpOnly Cookie(JS からトークンを読めない → XSS 対策)+ SameSite=Lax + CSRF トークン(二重送信)
+   - iOS:`Authorization: Bearer`(ブラウザが自動送信しないので CSRF 対策は不要)
+   - 共通:セッション表は 1 ユーザー複数端末に対応、DB にはトークンの SHA-256 ハッシュのみ保存、有効期限あり、ログイン失敗のレート制限(総当たり対策)、WebSocket 接続時の Origin 検証(CSWSH 対策)
+3. **AI 応答の制御(コストと体験)**
+   単一 worker のキューで回答を順番に処理し、最小間隔でレート制限。積み残しは最新 3 件だけ残して古い質問は捨てる。雑談は確率で返答し、購入のお礼は定型文(LLM を使わない)にして API 費用を抑えた。
+4. **外部サービスが落ちても止まらない設計**
+   TTS は Provider インターフェース(VOICEVOX / なし)で差し替え可能。LLM・TTS・BOT 用 API はすべて失敗時に縮退し、テストでは `httpx.MockTransport` でエンジン停止を再現して確認している。
 
-首次启动自动执行数据库迁移(Alembic)并播种 3 件示例商品。不填 `ANTHROPIC_API_KEY` 也能跑通全部流程(主播用定型文回复)。
-
-## VOICEVOX 语音(用 Windows 台式机跑)
-
-1. 台式机安装并启动 [VOICEVOX](https://voicevox.hiroshiba.jp/)(桌面版自带引擎,监听 `127.0.0.1:50021`)。
-2. **FastAPI 与 VOICEVOX 同一台机器** → `.env` 保持默认即可。
-3. **FastAPI 在 Mac、VOICEVOX 在台式机** → 引擎需允许局域网访问:
-   - 找到 VOICEVOX 安装目录下的 `vv-engine/run.exe`,命令行启动:
-     `run.exe --host 0.0.0.0`(Windows 防火墙放行 50021 端口)
-   - Mac 侧 `.env` 改 `VOICEVOX_URL=http://<台式机局域网IP>:50021`
-4. 验证:浏览器访问 `http://<IP>:50021/speakers` 能看到声线列表即通。
-5. 换声线:改 `VOICEVOX_SPEAKER`(3=ずんだもん、8=春日部つむぎ、2=四国めたん…全列表见 /speakers)。
-   情绪→声线风格映射在 `app/ai_host.py` 的 `EMOTION_VOICE`,可自行微调。
-
-浏览器音频自动播放有限制:进直播间后点右上角 🔊 开启声音。
-
-## AI 主播接入 Claude API
-
-`.env` 填入 `ANTHROPIC_API_KEY=sk-ant-...` 后重启即可。相关成本/体验旋钮:
-
-- `REPLY_MIN_INTERVAL` 两次回答最小间隔(限流控费)
-- `CHAT_REPLY_PROB` 闲聊接话概率(问题类弹幕始终必答)
-- 人设与硬规则在 `app/ai_host.py` 的 `_build_system_prompt()`,商品数据每次实时注入,不会答错价格库存
-
-## 数据库:SQLite(默认)/ MySQL
-
-表结构由 **Alembic** 管理(`migrations/`),应用启动时自动执行 `alembic upgrade head`(`AUTO_MIGRATE=false` 可关闭)。
-
+## 起動方法
 ```bash
-# MySQL(需要 Docker)
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env            # 必要に応じて ANTHROPIC_API_KEY・ADMIN_TOKEN などを設定
+uvicorn app.main:app --reload   # 起動時に DB マイグレーション(Alembic)を自動実行
+```
+- 視聴者ページ:http://127.0.0.1:8000/(ブラウザを 2 つ開くと複数人のコメントを体験できます)
+- 管理画面:http://127.0.0.1:8000/admin(`.env` の ADMIN_TOKEN でログイン)
+- API ドキュメント:http://127.0.0.1:8000/docs(オフライン版は `openapi.json`)
+
+`ANTHROPIC_API_KEY` がなくても全機能が動きます(AI ホストは定型文で回答)。
+音声を出すには [VOICEVOX](https://voicevox.hiroshiba.jp/) を起動し、画面右上の 🔊 を押してください。
+
+### MySQL を使う場合(Docker が必要)
+```bash
 docker compose up -d db
 # .env: DATABASE_URL=mysql+aiomysql://liveuser:livepass@127.0.0.1:3306/livecommerce?charset=utf8mb4
-uvicorn app.main:app --reload
-
-# 修改了 models.py 之后
-alembic revision --autogenerate -m "变更内容"
-alembic upgrade head
 ```
 
-- MySQL 使用 `utf8mb4` + 照合顺序 `utf8mb4_bin`(保证日文/emoji 可存、用户名按完全一致判定重复)。
-- 下单用 `UPDATE ... SET stock = stock - q WHERE stock >= q` 条件更新原子扣库存,SQLite / MySQL / PostgreSQL 都防并发超卖(SQLite 会忽略 `FOR UPDATE`,所以不能只靠行锁);MySQL/PG 下另有 `SELECT ... FOR UPDATE` 行锁。
-- PostgreSQL 也可用(`pip install asyncpg`,`DATABASE_URL=postgresql+asyncpg://...`)。
+## テスト
+```bash
+pip install -r requirements-dev.txt
+pytest                       # 単体テスト(サーバ起動不要・一時 DB を使用)
 
-## 项目结构
+# E2E(サーバを空の DB で起動してから実行。live.db には絶対に実行しない)
+DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false ANTHROPIC_API_KEY= \
+  uvicorn app.main:app --port 8001 &
+E2E_BASE=http://127.0.0.1:8001 python test_e2e.py
+```
 
+## ディレクトリ構成
 ```
 app/
-├── main.py            # 入口:路由挂载、WebSocket 端点、启动任务、种子数据
-├── config.py          # 全部配置(.env 覆盖)
-├── database.py        # 异步 SQLAlchemy 引擎(SQLite/MySQL/PG 切换)
-├── migrate.py         # 启动时执行 Alembic 迁移
-├── models.py          # User / Product / CartItem / Order / OrderItem / Comment
-├── schemas.py         # Pydantic 请求/响应模型
-├── ws.py              # WebSocket 连接管理器(广播/人数/峰值)
-├── ai_host.py         # ★ AI主播:人设prompt、情绪系统、应答策略、限流队列、道谢
-├── tts.py             # VOICEVOX 客户端(情绪声线参数、wav缓存、降级)
-├── bot.py             # 气氛组机器人
-├── routers/
-│   ├── auth.py        # 注册/登录/登出/me/token(pbkdf2 + Cookie 会话 + Bearer)
-│   ├── products.py    # 公开商品接口
-│   ├── cart.py        # 购物车(需登录)
-│   ├── orders.py      # 模拟支付下单(事务扣库存)+ 我的订单
-│   └── admin.py       # 商品CRUD/统计/BOT开关(X-Admin-Token)
-└── static/
-    ├── index.html     # 观众端直播间(原生JS,零构建)
-    └── admin.html     # 管理后台
-test_e2e.py            # 端到端测试(41项:认证/CSRF/Bearer/下单/并发超卖/限流/WS/BOT,全部通过)
-openapi.json           # 导出的 API 规格(iOS 端对接用)
+├── main.py         # エントリポイント:ルーター登録・WebSocket・起動処理(マイグレーション・初期データ)
+├── config.py       # 設定(.env / 環境変数で上書き)
+├── database.py     # 非同期エンジン(SQLite / MySQL / PostgreSQL)
+├── migrate.py      # 起動時の Alembic マイグレーション
+├── models.py       # User / AuthSession / Product / CartItem / Order / OrderItem / Comment
+├── schemas.py      # Pydantic の入出力モデル
+├── ws.py           # WebSocket 接続管理(一斉配信・視聴者数)
+├── ai_host.py      # AI ホスト:プロンプト・感情・応答戦略・キュー
+├── tts.py          # 音声合成 Provider(VOICEVOX / なし)
+├── bot.py          # 盛り上げ用コメント BOT
+├── ratelimit.py    # スライディングウィンドウ方式のレート制限
+├── routers/        # auth / products / cart / orders / admin
+└── static/         # 視聴者ページ・管理画面・VRM モデル・vendor(three.js 等)
+migrations/         # Alembic マイグレーション
+tests/              # pytest
+docs/design/        # 要件定義・ER 図・シーケンス図・画面遷移図
+test_e2e.py         # E2E テスト
 ```
 
-## FAQ
+## 今後の予定
+- iOS アプリ(SwiftUI、同じ API を Bearer 認証で利用)
+- サーバへのデプロイ(Docker + Nginx + HTTPS)
 
-- **弹幕发不出去?** 需要先注册/登录(右上角 👤)。
-- **主播不说话?** 检查 VOICEVOX 引擎是否启动、`VOICEVOX_URL` 是否可达、是否点了 🔊。后端日志会打印 `[tts] 降级纯文字` 的原因。
-- **主播不回答闲聊?** 这是混合应答策略的预期行为;把 `CHAT_REPLY_PROB` 调到 1.0 就变成每条必答。
-- **重置数据?** 停服后删除 `live.db` 再启动即可(会重新播种示例商品)。
-- **升级后注册失败(提示用户名已存在)?** 引入 Alembic 之前生成的旧 `live.db`(users 表还有已废弃的 token 列)与当前结构不兼容,请备份后删除 `live.db` 重新生成。之后的结构变更都通过迁移完成。
-- **跑单元测试?** `pip install -r requirements-dev.txt` 后执行 `pytest`(不需要启动服务,自动使用临时数据库,约 2 秒)。
-- **跑端到端测试?** 测试会注册用户、下单,且假设数据库为空 —— **不要对 live.db 跑**。用独立 DB 另开端口启动服务,再指定地址运行:
-  ```bash
-  DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false ANTHROPIC_API_KEY= \
-    uvicorn app.main:app --port 8001
-  E2E_BASE=http://127.0.0.1:8001 python3 test_e2e.py     # 结束后停服并 rm test.db
-  ```
+## クレジット
+- 音声:VOICEVOX(キャラクターの利用規約に従いクレジットを画面に表示)
+- 3D:three.js、@pixiv/three-vrm(MIT)
