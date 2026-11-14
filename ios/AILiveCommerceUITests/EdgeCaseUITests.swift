@@ -85,7 +85,8 @@ extension LiveCommerceFlowUITests {
 
     // MARK: 2. カートに入れたあとで在庫がなくなった
     func testEdgeCheckoutFailsWhenStockRunsOut() throws {
-        XCTAssertEqual(admin("PATCH", "/api/admin/products/1", ["stock": 1]), 200)
+        // 実機ではテスト実行アプリから Mac のサーバへ直接は届かない(ローカルネットワークの許可がない)ので、その場合は飛ばす
+        try XCTSkipUnless(admin("PATCH", "/api/admin/products/1", ["stock": 1]) == 200, "テストから管理 API に届かない環境(実機など)")
         register(uniqueUser("so_"))
         tab("ライブ")
         let add = app.buttons["featuredAddToCart"]
@@ -129,6 +130,7 @@ extension LiveCommerceFlowUITests {
         print("EDGE rate-limit: \(limited.label)")
         snap("e3_rate_limited")
         XCTAssertFalse(app.textFields["usernameField"].exists, "レート制限でログイン画面が出てしまう")
+        dismissKeyboard()                                  // キーボードがタブバーを隠している
         tab("アカウント")
         XCTAssertTrue(app.buttons["logoutButton"].waitForExistence(timeout: 5), "レート制限でログアウトされた")
     }
