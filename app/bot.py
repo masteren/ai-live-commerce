@@ -17,10 +17,9 @@ import random
 import time
 from typing import Optional
 
-import httpx
-
 from .ai_host import host, looks_like_question
 from .config import settings
+from .http_pool import SharedClient
 from .database import SessionLocal
 from .models import Comment
 from .queries import list_active_products
@@ -67,6 +66,9 @@ _POOL_PROMPT = """あなたは日本のライブコマース配信の視聴者�
   {{"chat": ["...", "..."], "ask": ["...", "..."]}}"""
 
 
+bot_http = SharedClient(60)      # コメント生成用の接続(使い回す)
+
+
 async def _generate_pool() -> "tuple[list[str], list[str]]":
     """按当前在售商品批量生成弹幕(OpenAI 兼容 /chat/completions)"""
     async with SessionLocal() as db:
@@ -77,17 +79,16 @@ async def _generate_pool() -> "tuple[list[str], list[str]]":
     n_chat = settings.bot_pool_batch - n_ask
     prompt = _POOL_PROMPT.format(products=lines, n_chat=n_chat, n_ask=n_ask)
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        res = await client.post(
-            f"{settings.openai_base_url.rstrip('/')}/chat/completions",
-            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
-            json={
-                "model": settings.openai_model,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
-        res.raise_for_status()
-        data = res.json()
+    res = await bot_http.get().post(
+        f"{settings.openai_base_url.rstrip('/')}/chat/completions",
+        headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+        json={
+            "model": settings.openai_model,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+    )
+    res.raise_for_status()
+    data = res.json()
 
     raw = data["choices"][0]["message"]["content"]
     raw = raw.replace("```json", "").replace("```", "").strip()

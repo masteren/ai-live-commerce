@@ -109,3 +109,16 @@ async def test_db_rejects_negative_stock_and_bad_quantity():
             with pytest.raises(DBAPIError):
                 await db.execute(text(sql))
                 await db.commit()
+
+
+async def test_order_history_is_limited(client):
+    """注文履歴は新しい順・上限付きで返す(件数が増えても重くならない)"""
+    csrf = await register(client)
+    for _ in range(3):
+        assert (await client.post("/api/cart", json={"product_id": 2, "quantity": 1}, headers=csrf)).status_code == 200
+        assert (await client.post("/api/orders/checkout", json={"payment_method": "paypay"}, headers=csrf)).status_code == 200
+    all_orders = (await client.get("/api/orders")).json()
+    two = (await client.get("/api/orders?limit=2")).json()
+    assert len(all_orders) == 3 and [o["id"] for o in two] == [o["id"] for o in all_orders[:2]]
+    assert all_orders[0]["id"] > all_orders[-1]["id"]                # 新しい順
+    assert (await client.get("/api/orders?limit=1000")).status_code == 422

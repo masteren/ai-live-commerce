@@ -13,7 +13,9 @@ VOICEVOX 两段式 API:
   1. POST /audio_query?text=...&speaker=N  → 合成参数 JSON
   2. POST /synthesis?speaker=N (body=上一步JSON) → wav
 结果按「文本+声线参数」的 md5 缓存到 app/static/audio/,同一句话不重复合成。
+キャッシュは AUDIO_CACHE_MAX_FILES 件まで。超えたら「最後に使われたのが古いもの」から消す(LRU)。
 """
+import asyncio
 import hashlib
 import logging
 import os
@@ -23,6 +25,7 @@ from typing import Optional, Protocol
 import httpx
 
 from .config import settings
+from .http_pool import SharedClient
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +55,10 @@ class TTSProvider(Protocol):
         """合成语音,返回前端可访问的 URL;失败返回 None"""
         ...
 
+    async def aclose(self) -> None:
+        """使い回している HTTP 接続を閉じる(サーバ終了時)"""
+        ...
+
 
 class NullTTS:
     name = "none"
@@ -59,6 +66,9 @@ class NullTTS:
 
     async def synthesize(self, text: str, emotion: str = "normal") -> Optional[str]:
         return None
+
+    async def aclose(self) -> None:
+        pass
 
 
 class VoicevoxTTS:
@@ -74,13 +84,18 @@ class VoicevoxTTS:
     }
 
     def __init__(self, base_url: str, speaker: int, speed: float, audio_dir: str, credit: str,
-                 transport: Optional[httpx.AsyncBaseTransport] = None) -> None:
+                 transport: Optional[httpx.AsyncBaseTransport] = None, max_files: int = 500) -> None:
         self.base_url = base_url
         self.speaker = speaker
         self.speed = speed
         self.audio_dir = audio_dir
         self.credit = credit
-        self.transport = transport   # 测试时注入 httpx.MockTransport,不连真实引擎
+        self.max_files = max_files
+        # 接続を使い回す(app/http_pool.py)。テストでは transport に httpx.MockTransport を渡し、実エンジンにつながない
+        self.http = SharedClient(30, base_url=base_url, transport=transport)
+
+    async def aclose(self) -> None:
+        await self.http.aclose()
 
     async def synthesize(self, text: str, emotion: str = "normal") -> Optional[str]:
         speech_text = clean_text(text)
@@ -95,32 +110,63 @@ class VoicevoxTTS:
         filename = f"{key}.wav"
         filepath = os.path.join(self.audio_dir, filename)
         url = f"/static/audio/{filename}"
-        if os.path.exists(filepath):
-            return url
+        if await asyncio.to_thread(_touch_if_exists, filepath):
+            return url                     # キャッシュにあった(使った印に更新時刻を新しくする → 消されにくくなる)
 
         try:
-            async with httpx.AsyncClient(base_url=self.base_url, timeout=30, transport=self.transport) as client:
-                q = await client.post("/audio_query", params={"text": speech_text, "speaker": spk})
-                q.raise_for_status()
-                query = q.json()
-                query["speedScale"] = spd
-                query["pitchScale"] = query.get("pitchScale", 0.0) + pitch
-                s = await client.post("/synthesis", params={"speaker": spk}, json=query)
-                s.raise_for_status()
-            os.makedirs(self.audio_dir, exist_ok=True)
-            with open(filepath, "wb") as f:
-                f.write(s.content)
+            client = self.http.get()
+            q = await client.post("/audio_query", params={"text": speech_text, "speaker": spk})
+            q.raise_for_status()
+            query = q.json()
+            query["speedScale"] = spd
+            query["pitchScale"] = query.get("pitchScale", 0.0) + pitch
+            s = await client.post("/synthesis", params={"speaker": spk}, json=query)
+            s.raise_for_status()
+            # ファイル操作は別スレッドで(その間も配信を止めない)
+            await asyncio.to_thread(_save_and_prune, self.audio_dir, filepath, s.content, self.max_files)
             return url
         except Exception as e:  # VOICEVOX 未启动/超时等:降级为纯文字,直播不中断
             logger.warning("VOICEVOX 合成失败,降级为纯文字: %s", e)
             return None
 
 
+def _touch_if_exists(path: str) -> bool:
+    try:
+        os.utime(path)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def _save_and_prune(audio_dir: str, path: str, content: bytes, max_files: int) -> None:
+    """音声を保存し、キャッシュが上限を超えていたら、最後に使われたのが古いものから消す"""
+    os.makedirs(audio_dir, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(content)
+    os.replace(tmp, path)          # 書きかけのファイルを配信しないよう、書き終えてから名前を付ける
+    files = []
+    for entry in os.scandir(audio_dir):
+        if entry.name.endswith(".wav") and entry.path != path:
+            try:
+                files.append((entry.stat().st_mtime, entry.path))
+            except FileNotFoundError:
+                pass
+    excess = len(files) + 1 - max_files
+    if excess > 0:
+        for _, old in sorted(files)[:excess]:
+            try:
+                os.remove(old)
+            except FileNotFoundError:
+                pass
+        logger.info("音声キャッシュを %d 件削除しました(上限 %d 件)", excess, max_files)
+
+
 def build_tts() -> TTSProvider:
     provider = settings.tts_provider.lower()
     if provider == "voicevox":
         return VoicevoxTTS(settings.voicevox_url, settings.voicevox_speaker, settings.voicevox_speed,
-                           settings.audio_dir, settings.tts_credit)
+                           settings.audio_dir, settings.tts_credit, max_files=settings.audio_cache_max_files)
     return NullTTS()
 
 

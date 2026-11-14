@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, func
 
 from .ai_host import host
-from .bot import bot
+from .bot import bot, bot_http
 from .config import settings
 from .database import SessionLocal
 from .migrate import run_migrations
@@ -76,6 +76,11 @@ async def lifespan(app: FastAPI):
     for t in tasks:
         t.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)  # 等待退出,避免关停告警
+    # 使い回していた HTTP 接続を閉じる(app/http_pool.py)
+    await tts.aclose()
+    if host.llm:
+        await host.llm.aclose()
+    await bot_http.aclose()
 
 
 app = FastAPI(title="AI Live Commerce", version="1.0.0", lifespan=lifespan)

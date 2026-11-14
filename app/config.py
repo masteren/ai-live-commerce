@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # ---- 其他 ----
     log_level: str = "INFO"              # DEBUG / INFO / WARNING / ERROR
     # TTS 音声のキャッシュ置き場(/static/audio/ で配信)。既定はプロジェクト内(起動場所に左右されない絶対パス)
+    audio_cache_max_files: int = 500     # 音声キャッシュ(wav)の上限。超えたら最後に使われたのが古い順に消す
     audio_dir: str = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "static", "audio")
     # 別オリジンのフロントエンドから API を呼ぶ場合だけ、許可するオリジンをカンマ区切りで指定する。
     # 既定は空 = 同一オリジンのみ(このアプリはフロントも同じサーバから配信しているため CORS は不要)

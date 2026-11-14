@@ -12,7 +12,7 @@ PostgreSQL 下 with_for_update() 另外加行锁,让并发请求在读取阶段�
 支付为模拟:前端支付页确认后调用本接口即视为支付成功。
 下单成功后广播购买事件,并让 AI 主播排队语音道谢。
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -109,6 +109,9 @@ async def checkout(body: CheckoutIn, user: User = Depends(get_current_user), db:
 
 
 @router.get("", response_model=list[OrderOut])
-async def my_orders(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    rows = await db.execute(select(Order).where(Order.user_id == user.id).order_by(Order.id.desc()))
+async def my_orders(limit: int = Query(30, ge=1, le=100),
+                    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """自分の注文(新しい順)。件数が増えても応答が重くならないよう、上限を付けて返す"""
+    rows = await db.execute(
+        select(Order).where(Order.user_id == user.id).order_by(Order.id.desc()).limit(limit))
     return rows.scalars().unique().all()

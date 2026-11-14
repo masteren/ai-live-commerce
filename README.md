@@ -31,7 +31,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | AI・音声 | LLM は Provider 構造で切替(Anthropic Claude API / OpenAI 互換 API)、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
 | iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
-| テスト・CI | pytest(121件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
+| テスト・CI | pytest(124件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
 ```mermaid
@@ -119,7 +119,8 @@ app/
 ├── ai_host.py      # AI ホスト:プロンプト・感情・応答戦略・キュー
 ├── llm.py          # LLM Provider(Anthropic / OpenAI 互換)
 ├── host_rules.py   # ルール応答(LLM なし・障害時)
-├── tts.py          # 音声合成 Provider(VOICEVOX / なし)
+├── tts.py          # 音声合成 Provider(VOICEVOX / なし)。音声キャッシュは上限付き(LRU)
+├── http_pool.py    # 外部サービスへの HTTP 接続の使い回し
 ├── bot.py          # 盛り上げ用コメント BOT
 ├── ratelimit.py    # スライディングウィンドウ方式のレート制限
 ├── routers/        # auth / products / cart / orders / admin

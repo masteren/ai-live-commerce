@@ -77,3 +77,25 @@ async def test_audio_is_served_from_configured_audio_dir(client):
     r = await client.get("/static/audio/probe.wav")
     assert r.status_code == 200 and r.content == b"RIFF0000WAVE"
     assert (await client.get("/static/index.html")).status_code == 200      # 通常の静的ファイルも引き続き配信
+
+
+# ---------- 音声キャッシュの上限 ----------
+async def test_audio_cache_keeps_recently_used_files_within_limit(tmp_path):
+    """上限を超えたら、最後に使われたのが古いものから消す。キャッシュから使われたものは「最近使った」扱いになり残る"""
+    import os
+    import time
+    calls = []
+    v = VoicevoxTTS("http://engine", 3, 1.0, str(tmp_path), "", transport=_mock_engine(calls), max_files=3)
+    urls = []
+    for i, text in enumerate(["いち", "に", "さん"]):
+        urls.append(await v.synthesize(text))
+        old = time.time() - 100 + i                      # 作った順に、更新時刻を古い → 新しいに並べる
+        os.utime(tmp_path / urls[-1].split("/")[-1], (old, old))
+    await v.synthesize("いち")                            # 一番古い「いち」をキャッシュから使う → 最近使った扱い
+    await v.synthesize("よん")                            # 4つ目 → 上限 3 を超える
+    files = {p.name for p in tmp_path.glob("*.wav")}
+    name = lambda u: u.split("/")[-1]  # noqa: E731
+    assert len(files) == 3
+    assert name(urls[0]) in files and name(urls[1]) not in files    # 消えたのは「に」(最後に使われたのが一番古い)
+    assert not list(tmp_path.glob("*.tmp"))                          # 書きかけのファイルが残っていない
+    await v.aclose()

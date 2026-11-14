@@ -18,6 +18,7 @@ from typing import List, Optional, Protocol
 import httpx
 
 from .config import settings
+from .http_pool import SharedClient
 
 logger = logging.getLogger(__name__)
 
@@ -31,57 +32,67 @@ class LLMProvider(Protocol):
         """返答のテキストを返す。通信エラーや HTTP エラーは例外として投げる(呼び出し側で縮退する)"""
         ...
 
+    async def aclose(self) -> None:
+        """使い回している HTTP 接続を閉じる(サーバ終了時)"""
+        ...
+
 
 class AnthropicLLM:
     def __init__(self, api_key: str, model: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> None:
-        self.api_key, self.model, self.transport = api_key, model, transport
+        self.api_key, self.model = api_key, model
+        self.http = SharedClient(TIMEOUT, transport=transport)   # 接続を使い回す(app/http_pool.py)
         self.name = f"Anthropic Claude API({model})"
 
+    async def aclose(self) -> None:
+        await self.http.aclose()
+
     async def complete(self, system: str, messages: List[dict]) -> str:
-        async with httpx.AsyncClient(timeout=TIMEOUT, transport=self.transport) as client:
-            res = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": self.api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": self.model,
-                    "max_tokens": 300,
-                    # ライブの即答が目的:短い返答を速く返すため思考はオフ
-                    "thinking": {"type": "disabled"},
-                    "system": system,                 # Anthropic は system を別フィールドで渡す
-                    "messages": messages,
-                },
-            )
-            res.raise_for_status()
-            data = res.json()
+        res = await self.http.get().post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": self.model,
+                "max_tokens": 300,
+                # ライブの即答が目的:短い返答を速く返すため思考はオフ
+                "thinking": {"type": "disabled"},
+                "system": system,                 # Anthropic は system を別フィールドで渡す
+                "messages": messages,
+            },
+        )
+        res.raise_for_status()
+        data = res.json()
         return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
 
 
 class OpenAILLM:
     def __init__(self, api_key: str, model: str, base_url: str,
                  transport: Optional[httpx.AsyncBaseTransport] = None) -> None:
-        self.api_key, self.model, self.transport = api_key, model, transport
+        self.api_key, self.model = api_key, model
         self.base_url = base_url.rstrip("/")
+        self.http = SharedClient(TIMEOUT, transport=transport)
         self.name = f"OpenAI API({model})"
 
+    async def aclose(self) -> None:
+        await self.http.aclose()
+
     async def complete(self, system: str, messages: List[dict]) -> str:
-        async with httpx.AsyncClient(timeout=TIMEOUT, transport=self.transport) as client:
-            res = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                json={
-                    "model": self.model,
-                    # OpenAI 形式は system も messages の先頭に入れる
-                    "messages": [{"role": "system", "content": system}] + messages,
-                    # 返答を必ず JSON にする(プロンプトでも JSON を指示している)
-                    "response_format": {"type": "json_object"},
-                },
-            )
-            res.raise_for_status()
-            data = res.json()
+        res = await self.http.get().post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={
+                "model": self.model,
+                # OpenAI 形式は system も messages の先頭に入れる
+                "messages": [{"role": "system", "content": system}] + messages,
+                # 返答を必ず JSON にする(プロンプトでも JSON を指示している)
+                "response_format": {"type": "json_object"},
+            },
+        )
+        res.raise_for_status()
+        data = res.json()
         return data["choices"][0]["message"]["content"] or ""
 
 

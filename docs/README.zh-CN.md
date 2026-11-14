@@ -13,7 +13,7 @@
 | AI・语音 | LLM(OpenAI 或 Anthropic,可切换;没有 key 时用规则回答)、VOICEVOX |
 | 前端 | 原生 HTML/CSS/JS + three-vrm |
 | iOS | SwiftUI(同一套 API,Bearer 认证) |
-| 测试 | pytest 121 项、E2E 41 项、iOS UI 测试、GitHub Actions |
+| 测试 | pytest 124 项、E2E 41 项、iOS UI 测试、GitHub Actions |
 
 ## 启动
 ```bash
@@ -31,5 +31,5 @@ pytest                            # 单元测试,用临时 SQLite,不碰开发�
 E2E 的跑法见日文 README 的「テスト」。**不要对开发数据库跑测试。**
 
 ## 想理解代码时
-按顺序读 [docs/learning/](learning/) 的学习笔记(01〜18),每篇末尾有自测问题。
+按顺序读 [docs/learning/](learning/) 的学习笔记(01〜19),每篇末尾有自测问题。
 设计资料在 [docs/design/](design/)(需求、ER 图、时序图、画面迁移图)。
