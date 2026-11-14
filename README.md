@@ -31,7 +31,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | AI・音声 | LLM は Provider 構造で切替(Anthropic Claude API / OpenAI 互換 API)、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
 | iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
-| テスト・CI | pytest(101件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
+| テスト・CI | pytest(113件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
 ```mermaid
@@ -66,7 +66,8 @@ flowchart LR
 2. **認証:Web と iOS で方式を使い分け**
    - Web:HttpOnly Cookie(JS からトークンを読めない → XSS 対策)+ SameSite=Lax + CSRF トークン(二重送信)
    - iOS:`Authorization: Bearer`(ブラウザが自動送信しないので CSRF 対策は不要)
-   - 共通:セッション表は 1 ユーザー複数端末に対応、DB にはトークンの SHA-256 ハッシュのみ保存、有効期限あり、ログイン失敗のレート制限(総当たり対策)、WebSocket 接続時の Origin 検証(CSWSH 対策)
+   - 共通:セッション表は 1 ユーザー複数端末に対応、DB にはトークンの SHA-256 ハッシュのみ保存、有効期限あり、ログイン失敗・新規登録・管理トークンのレート制限(総当たり対策)、WebSocket 接続時の Origin 検証(CSWSH 対策)
+   - パスワードは PBKDF2-SHA256(60万回、OWASP の推奨値)。ハッシュに回数を記録してあり、古い回数のユーザーはログイン成功時に自動で現在の強度に更新される。計算は別スレッドで行い、その間も配信(WebSocket)が止まらないようにしている
 3. **AI 応答の制御(コストと体験)**
    単一 worker のキューで回答を順番に処理し、最小間隔でレート制限。積み残しは最新 3 件だけ残して古い質問は捨てる。雑談は確率で返答し、購入のお礼は定型文(LLM を使わない)にして API 費用を抑えた。
 4. **外部サービスが落ちても止まらない設計**
@@ -99,7 +100,7 @@ pip install -r requirements-dev.txt
 pytest                       # 単体テスト(サーバ起動不要・一時 DB を使用)
 
 # E2E(サーバを空の DB で起動してから実行。live.db には絶対に実行しない)
-DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false LLM_PROVIDER=none \
+DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token TTS_PROVIDER=none LLM_PROVIDER=none \
   uvicorn app.main:app --port 8001 &
 E2E_BASE=http://127.0.0.1:8001 python test_e2e.py
 ```
@@ -112,6 +113,7 @@ app/
 ├── database.py     # 非同期エンジン(SQLite / MySQL / PostgreSQL)
 ├── migrate.py      # 起動時の Alembic マイグレーション
 ├── models.py       # User / AuthSession / Product / CartItem / Order / OrderItem / Comment
+├── queries.py      # 複数箇所で使う問い合わせ(販売中の商品一覧)
 ├── schemas.py      # Pydantic の入出力モデル
 ├── ws.py           # WebSocket 接続管理(一斉配信・視聴者数)
 ├── ai_host.py      # AI ホスト:プロンプト・感情・応答戦略・キュー

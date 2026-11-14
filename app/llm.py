@@ -21,7 +21,7 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
-TIMEOUT = 30
+TIMEOUT = 15      # 秒。回答は単一キューで順番に処理するため、LLM が固まると後ろが全部待つ → 短めにして縮退させる
 
 
 class LLMProvider(Protocol):

@@ -18,12 +18,12 @@ import time
 from typing import Optional
 
 import httpx
-from sqlalchemy import select
 
 from .ai_host import host, looks_like_question
 from .config import settings
 from .database import SessionLocal
-from .models import Comment, Product
+from .models import Comment
+from .queries import list_active_products
 from .ws import manager
 
 logger = logging.getLogger(__name__)
@@ -70,8 +70,7 @@ _POOL_PROMPT = """あなたは日本のライブコマース配信の視聴者�
 async def _generate_pool() -> "tuple[list[str], list[str]]":
     """按当前在售商品批量生成弹幕(OpenAI 兼容 /chat/completions)"""
     async with SessionLocal() as db:
-        rows = await db.execute(select(Product).where(Product.is_active == True))  # noqa: E712
-        products = list(rows.scalars())
+        products = await list_active_products(db)
     lines = "\n".join(f"- {p.name} ¥{p.price:,} - {p.description}" for p in products) or "- (商品情報なし)"
 
     n_ask = max(1, int(settings.bot_pool_batch * BOT_ASK_PROB * 2))  # 提问消耗更慢,少生成些

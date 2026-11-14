@@ -99,3 +99,60 @@ async def test_login_brute_force_lockout(client, make_client):
         assert r.status_code == 401
     r = await attacker.post("/api/auth/login", json={"username": "taro", "password": PW})
     assert r.status_code == 429
+
+
+# ---------- パスワードハッシュの強度と移行 ----------
+def test_hash_format_records_iterations():
+    from app.config import settings
+    h = hash_password("secret123")
+    assert h.startswith(f"pbkdf2_sha256${settings.password_iterations}$") and len(h.split("$")) == 4
+
+
+def test_default_iterations_follow_owasp_recommendation():
+    from app.config import Settings
+    assert Settings.model_fields["password_iterations"].default >= 600_000
+
+
+async def test_legacy_hash_still_verifies_and_is_upgraded_on_login(client):
+    """旧形式(salt$hash・12万回)のユーザーもログインでき、成功時に現在の形式へ自動で更新される"""
+    import hashlib
+    import secrets as pysecrets
+    from sqlalchemy import select
+    from app.models import User
+    from app.routers.auth import LEGACY_ITERATIONS
+    salt = pysecrets.token_bytes(16)
+    legacy = f"{salt.hex()}${hashlib.pbkdf2_hmac('sha256', PW.encode(), salt, LEGACY_ITERATIONS).hex()}"
+    async with SessionLocal() as db:
+        db.add(User(username="olduser", password_hash=legacy))
+        await db.commit()
+    assert verify_password(PW, legacy) and not verify_password("wrong", legacy)
+    assert (await client.post("/api/auth/login", json={"username": "olduser", "password": PW})).status_code == 200
+    async with SessionLocal() as db:
+        stored = (await db.execute(select(User.password_hash).where(User.username == "olduser"))).scalar_one()
+    assert stored.startswith("pbkdf2_sha256$") and stored != legacy
+    assert verify_password(PW, stored)
+
+
+# ---------- レート制限・ヘッダ ----------
+async def test_registration_is_rate_limited_per_ip(client, monkeypatch):
+    from app.routers import auth as auth_mod
+    monkeypatch.setattr(auth_mod.register_limiter, "limit", 2)
+    codes = [(await client.post("/api/auth/register", json={"username": f"user_{i}", "password": PW})).status_code
+             for i in range(3)]
+    assert codes == [200, 200, 429]
+
+
+async def test_admin_token_guessing_is_rate_limited(client, monkeypatch):
+    from app.routers import admin as admin_mod
+    monkeypatch.setattr(admin_mod.admin_limiter, "limit", 3)
+    codes = [(await client.get("/api/admin/stats", headers={"X-Admin-Token": f"guess{i}"})).status_code for i in range(3)]
+    assert codes == [401, 401, 401]
+    # 上限に達した後は、正しいトークンでも一定時間は拒否(総当たりを続けても意味がない)
+    assert (await client.get("/api/admin/stats", headers={"X-Admin-Token": "test-token"})).status_code == 429
+
+
+async def test_security_headers_and_no_cors_by_default(client):
+    r = await client.get("/api/products", headers={"Origin": "http://evil.example.com"})
+    assert r.headers["x-frame-options"] == "DENY" and r.headers["x-content-type-options"] == "nosniff"
+    assert "access-control-allow-origin" not in r.headers      # 既定では他オリジンに許可を出さない
+    assert (await client.get("/")).headers["x-frame-options"] == "DENY"

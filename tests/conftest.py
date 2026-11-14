@@ -14,8 +14,8 @@ os.environ.update(
     DATABASE_URL=os.environ.get("TEST_DATABASE_URL", f"sqlite+aiosqlite:///{_tmpdir}/test.db"),
     ADMIN_TOKEN="test-token",
     TTS_PROVIDER="none",
-    VOICEVOX_ENABLED="false",
     LLM_PROVIDER="none",
+    PASSWORD_ITERATIONS="1000",       # テストを速くする(本番の既定は 60 万回)
     ANTHROPIC_API_KEY="",
     OPENAI_API_KEY="",
     AUDIO_DIR=f"{_tmpdir}/audio",
@@ -29,6 +29,7 @@ from app import main  # noqa: E402
 from app.ai_host import host  # noqa: E402
 from app.database import Base, SessionLocal, engine  # noqa: E402
 from app.models import Product  # noqa: E402
+from app.routers import admin as admin_router  # noqa: E402
 from app.routers import auth  # noqa: E402
 
 ADMIN = {"X-Admin-Token": "test-token"}
@@ -45,6 +46,8 @@ async def fresh_db():
             db.add(Product(**p))
         await db.commit()
     auth.login_limiter._hits.clear()
+    auth.register_limiter._hits.clear()
+    admin_router.admin_limiter._hits.clear()
     main.comment_limiter._hits.clear()
     while not host.queue.empty():     # 道謝キューの残りを捨てる(worker は起動していない)
         host.queue.get_nowait()

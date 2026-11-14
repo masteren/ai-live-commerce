@@ -11,6 +11,7 @@ __pycache__/
 # ローカルDB・バックアップ
 *.db
 *.db.bak_*
+*.sql.bak_*
 *.db-journal
 
 # TTS 音声キャッシュ(実行時に生成)

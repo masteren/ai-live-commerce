@@ -1,10 +1,10 @@
 """公开商品接口(观众端)"""
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..models import Product
+from ..queries import list_active_products
 from ..schemas import ProductOut
 
 router = APIRouter(prefix="/api/products", tags=["products"])
@@ -12,10 +12,7 @@ router = APIRouter(prefix="/api/products", tags=["products"])
 
 @router.get("", response_model=list[ProductOut])
 async def list_products(db: AsyncSession = Depends(get_db)):
-    rows = await db.execute(
-        select(Product).where(Product.is_active == True).order_by(Product.id)  # noqa: E712
-    )
-    return rows.scalars().all()
+    return await list_active_products(db)
 
 
 @router.get("/{product_id}", response_model=ProductOut)

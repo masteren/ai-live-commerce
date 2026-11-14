@@ -1,7 +1,8 @@
 import XCTest
 
 /// iOS アプリの主要フローを実際にタップ・入力して確認する UI テスト
-/// 前提:Mac 上でサーバ(http://127.0.0.1:8000)が起動していること
+/// 前提:Mac 上でサーバ(http://127.0.0.1:8000)が起動していること。他の視聴者(開いたままのブラウザなど)がいると視聴者数の確認で失敗するので、
+/// テスト用サーバを別ポートで起動して API_BASE で指定するのが確実
 ///   未ログインでコメント → ログインシート → 新規登録 → コメント送信・AI 回答
 ///   → カート追加 → 注文 → 購入告知 → 注文履歴 → ログアウト
 final class LiveCommerceFlowUITests: XCTestCase {
@@ -11,6 +12,11 @@ final class LiveCommerceFlowUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["--reset-session"]   // 前回のテストのログイン状態(Keychain)を消して開始
+        // 接続先を変える:TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test ...
+        // (開発サーバとは別の、空の DB で起動したテスト用サーバに向けるため。「-キー 値」の引数は UserDefaults を上書きする)
+        if let base = ProcessInfo.processInfo.environment["API_BASE"] {
+            app.launchArguments += ["-apiBaseURL", base]
+        }
         app.launch()
     }
 

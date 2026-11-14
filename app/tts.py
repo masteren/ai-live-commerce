@@ -118,7 +118,7 @@ class VoicevoxTTS:
 
 def build_tts() -> TTSProvider:
     provider = settings.tts_provider.lower()
-    if provider == "voicevox" and settings.voicevox_enabled:
+    if provider == "voicevox":
         return VoicevoxTTS(settings.voicevox_url, settings.voicevox_speaker, settings.voicevox_speed,
                            settings.audio_dir, settings.tts_credit)
     return NullTTS()

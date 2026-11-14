@@ -91,3 +91,21 @@ async def test_cart_quantity_is_capped_at_99(client):
     await client.post("/api/cart", headers=csrf, json={"product_id": 2, "quantity": 60})
     cart = (await client.post("/api/cart", headers=csrf, json={"product_id": 2, "quantity": 60})).json()
     assert cart[0]["quantity"] == 99
+
+
+async def test_db_rejects_negative_stock_and_bad_quantity():
+    """CHECK 制約:アプリのコードを通さずに直接更新しても、在庫マイナスや数量0は DB が拒否する"""
+    import pytest
+    from sqlalchemy import text
+    from sqlalchemy.exc import DBAPIError
+    from app.database import SessionLocal
+    for sql in ("UPDATE products SET stock = -1 WHERE id = 1",
+                "UPDATE products SET price = -100 WHERE id = 1",
+                "INSERT INTO cart_items (user_id, product_id, quantity) VALUES (1, 1, 0)"):
+        async with SessionLocal() as db:
+            if sql.startswith("INSERT"):
+                await db.execute(text("INSERT INTO users (id, username, password_hash, created_at) "
+                                      "VALUES (1, 'u1', 'x', CURRENT_TIMESTAMP)"))
+            with pytest.raises(DBAPIError):
+                await db.execute(text(sql))
+                await db.commit()

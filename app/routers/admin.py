@@ -1,7 +1,7 @@
 """管理后台接口:X-Admin-Token 头鉴权(值 = 环境变量 ADMIN_TOKEN)"""
 import secrets
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,7 @@ from ..ai_host import host
 from ..bot import bot
 from ..config import settings
 from ..database import get_db
+from ..ratelimit import SlidingWindowLimiter, client_ip
 from ..models import Comment, Order, OrderItem, Product, User
 from ..schemas import OrderOut, ProductCreate, ProductOut, ProductUpdate, StatsOut
 from ..ws import manager
@@ -18,8 +19,16 @@ from ..ws import manager
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-def require_admin(x_admin_token: str = Header(default="")):
-    if not secrets.compare_digest(x_admin_token, settings.admin_token):
+admin_limiter = SlidingWindowLimiter(settings.admin_fail_limit, settings.admin_fail_window)
+
+
+def require_admin(request: Request, x_admin_token: str = Header(default="")):
+    """管理トークンの確認。誤りが続いた IP は一定時間拒否する(トークンの総当たり対策)"""
+    ip = client_ip(request)
+    if admin_limiter.is_limited(ip):
+        raise HTTPException(429, "試行回数が多すぎます。しばらくしてから再度お試しください")
+    if not secrets.compare_digest(x_admin_token.encode(), settings.admin_token.encode()):
+        admin_limiter.hit(ip)
         raise HTTPException(401, "管理者トークンが正しくありません")
 
 
@@ -37,7 +46,7 @@ async def create_product(body: ProductCreate, db: AsyncSession = Depends(get_db)
     await db.commit()
     await db.refresh(product)
     await manager.broadcast({"type": "products_changed"})
-    await host.refresh_product_names()
+    await host.refresh_products()
     return product
 
 
@@ -51,7 +60,7 @@ async def update_product(product_id: int, body: ProductUpdate, db: AsyncSession 
     await db.commit()
     await db.refresh(product)
     await manager.broadcast({"type": "products_changed"})
-    await host.refresh_product_names()
+    await host.refresh_products()
     return product
 
 

@@ -8,10 +8,11 @@
       浏览器不会自动附带这个头,所以不存在 CSRF 问题,无需 CSRF 令牌
 
 ■ 安全要点
-  - 密码:标准库 pbkdf2_hmac(sha256, 12万次迭代) + 随机盐
+  - 密码:标准库 pbkdf2_hmac(sha256, 60万次迭代·次数随哈希一起保存) + 随机盐;登录成功时自动把旧哈希升级
   - 令牌:secrets 生成的随机值;DB 只存 SHA-256 哈希;有有效期;登出即删除会话
   - 登录失败限流:同一 IP+用户名 在窗口期内失败过多 → 429(防暴力破解)
 """
+import asyncio
 import hashlib
 import secrets
 from datetime import timedelta
@@ -26,32 +27,55 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import settings
 from ..database import SessionLocal, get_db
 from ..models import AuthSession, User, now_utc
-from ..ratelimit import SlidingWindowLimiter
+from ..ratelimit import SlidingWindowLimiter, client_ip
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 COOKIE_NAME = "lc_session"
 CSRF_HEADER = "x-csrf-token"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-_ITER = 120_000
+LEGACY_ITERATIONS = 120_000      # 旧形式(salt$hash)のハッシュに使っていた回数
 
 login_limiter = SlidingWindowLimiter(settings.login_fail_limit, settings.login_fail_window)
+register_limiter = SlidingWindowLimiter(settings.register_limit, settings.register_window)
 
 
 # ---------- 密码 ----------
-def hash_password(password: str) -> str:
+def hash_password(password: str, iterations: Optional[int] = None) -> str:
+    """形式: pbkdf2_sha256$反復回数$ソルト(hex)$ハッシュ(hex)
+    反復回数をハッシュと一緒に保存する → 将来回数を増やしても、古いハッシュを検証できる"""
+    n = iterations or settings.password_iterations
     salt = secrets.token_bytes(16)
-    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, _ITER)
-    return f"{salt.hex()}${dk.hex()}"
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, n)
+    return f"pbkdf2_sha256${n}${salt.hex()}${dk.hex()}"
+
+
+def _parse_hash(stored: str) -> Tuple[int, bytes, str]:
+    parts = stored.split("$")
+    if len(parts) == 4 and parts[0] == "pbkdf2_sha256":
+        return int(parts[1]), bytes.fromhex(parts[2]), parts[3]
+    if len(parts) == 2:                       # 旧形式(salt$hash、12万回固定)
+        return LEGACY_ITERATIONS, bytes.fromhex(parts[0]), parts[1]
+    raise ValueError("unknown password hash format")
 
 
 def verify_password(password: str, stored: str) -> bool:
     try:
-        salt_hex, dk_hex = stored.split("$")
-        dk = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), _ITER)
+        n, salt, dk_hex = _parse_hash(stored)
+        dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, n)
         return secrets.compare_digest(dk.hex(), dk_hex)
     except ValueError:
         return False
+
+
+def needs_rehash(stored: str) -> bool:
+    """保存されているハッシュが、現在の設定より弱い(旧形式・反復回数が少ない)か"""
+    if not stored.startswith("pbkdf2_sha256$"):
+        return True                       # 旧形式は、回数に関係なく新形式へ移行する
+    try:
+        return _parse_hash(stored)[0] < settings.password_iterations
+    except ValueError:
+        return True
 
 
 # ---------- 会话 ----------
@@ -113,11 +137,6 @@ def _set_session_cookie(response: Response, raw: str) -> None:
     )
 
 
-def _client_ip(request: Request) -> str:
-    # 部署到 Nginx 后方时,需配合 uvicorn --proxy-headers 才能拿到真实 IP
-    return request.client.host if request.client else "unknown"
-
-
 # ---------- 依赖注入 ----------
 async def get_current_session(request: Request, db: AsyncSession = Depends(get_db)) -> Tuple[User, AuthSession]:
     raw, via = extract_token(request.headers, request.cookies)
@@ -156,26 +175,35 @@ class TokenOut(BaseModel):
 
 
 async def _authenticate(body: AuthIn, request: Request, db: AsyncSession) -> User:
-    key = f"{_client_ip(request)}:{body.username}"
+    key = f"{client_ip(request)}:{body.username}"
     if login_limiter.is_limited(key):
         raise HTTPException(429, "ログイン試行回数が多すぎます。しばらくしてから再度お試しください")
     row = await db.execute(select(User).where(User.username == body.username))
     user = row.scalar_one_or_none()
-    if not user or not verify_password(body.password, user.password_hash):
+    # ハッシュ計算は CPU を数十ms 使う。イベントループ上で直接実行すると、その間ほかの全リクエストと
+    # WebSocket の配信が止まるので、別スレッドで実行する
+    ok = bool(user) and await asyncio.to_thread(verify_password, body.password, user.password_hash)
+    if not ok:
         login_limiter.hit(key)
         raise HTTPException(401, "ユーザー名またはパスワードが正しくありません")
     login_limiter.reset(key)
+    if needs_rehash(user.password_hash):
+        # ログイン成功時(=平文パスワードが手元にある唯一のタイミング)に、現在の強度でハッシュし直す
+        user.password_hash = await asyncio.to_thread(hash_password, body.password)
+        await db.commit()
     return user
 
 
 # ---------- 端点 ----------
 @router.post("/register", response_model=WebAuthOut)
-async def register(body: AuthIn, response: Response, db: AsyncSession = Depends(get_db)):
+async def register(body: AuthIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     """Web 用:注册并直接登录(设置 Cookie)"""
+    if not register_limiter.hit(client_ip(request)):
+        raise HTTPException(429, "登録の回数が多すぎます。しばらくしてから再度お試しください")
     exists = await db.execute(select(User).where(User.username == body.username))
     if exists.scalar_one_or_none():
         raise HTTPException(409, "このユーザー名は既に使われています")
-    user = User(username=body.username, password_hash=hash_password(body.password))
+    user = User(username=body.username, password_hash=await asyncio.to_thread(hash_password, body.password))
     db.add(user)
     try:
         await db.commit()

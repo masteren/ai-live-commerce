@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -38,6 +38,11 @@ class AuthSession(Base):
 
 class Product(Base):
     __tablename__ = "products"
+    # 最後の砦:アプリのコードに不具合があっても、在庫や価格がマイナスになる更新は DB が拒否する
+    __table_args__ = (
+        CheckConstraint("stock >= 0", name="ck_products_stock_nonneg"),
+        CheckConstraint("price >= 0 AND original_price >= 0", name="ck_products_price_nonneg"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
@@ -55,7 +60,10 @@ class Product(Base):
 class CartItem(Base):
     __tablename__ = "cart_items"
     # 同じユーザーのカートに同じ商品は1行だけ(同時に「カートへ」が押されても重複行を作らせない)
-    __table_args__ = (UniqueConstraint("user_id", "product_id", name="uq_cart_user_product"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "product_id", name="uq_cart_user_product"),
+        CheckConstraint("quantity >= 1 AND quantity <= 99", name="ck_cart_quantity_range"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)

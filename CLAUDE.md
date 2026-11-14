@@ -5,7 +5,7 @@
 ## プロジェクトについて
 - 学校の「就職作品プレゼンテーション」(2027年2月18日 or 19日)に出す就職作品。作者の志望はフルスタック/バックエンド。
 - 作者は「先に動くものを作り、あとから理解する」方針。変更のたびに `docs/learning/NN-*.md`(中国語の学習ノート:何を変えたか・なぜか・自己チェック問題)を書く。
-- **機能追加は一区切り。** これからの優先は ①中核機能の実動確認(Claude API の実キーでの応答、VOICEVOX の音声)②作者自身の理解(学習ノート 01〜10)。新機能を足す前に、本当に必要か確認すること。
+- **機能追加は一区切り。** これからの優先は ①中核機能の実動確認(Claude API の実キーでの応答、VOICEVOX の音声)②作者自身の理解(学習ノート 01〜14)。新機能を足す前に、本当に必要か確認すること。
 
 ## 会話と文書の言語
 - 作者への返答・学習ノート:中国語(簡体字)
@@ -18,16 +18,19 @@
 - モデル(`app/models.py`)を変えたら Alembic のマイグレーションを作る。既存データがある前提で書く(NOT NULL 列には server_default、制約追加の前にデータを整える)。
 - サーバは単一プロセスで動かす(WebSocket 接続・AI キュー・レート制限がメモリ上にある)。
 - 変更したら `pytest` → 必要に応じて E2E(`test_e2e.py`、空の DB で起動したサーバに対して)→ コミット。push は作者の了承を得てから(GitHub は private)。
+- 同じ処理を2か所に書かない。販売中の商品の取得は `app/queries.py`、クライアント IP は `ratelimit.client_ip`、画面の割引率は `index.html` の `offRate()` を使う。
+- パスワードのハッシュ計算は重い(60万回)ので `asyncio.to_thread` で呼ぶ。テストでは `PASSWORD_ITERATIONS=1000`(`tests/conftest.py`)。
 - 「読んでから書く」処理を見つけたら同時実行を疑う(これまでに売り越し・二重注文・カート重複の3件を修正)。再現テストを書いてから直す。
 
 ## 確認コマンド
 ```bash
 pytest                                   # 単体テスト(約2秒)
 # E2E:別ポート・空の SQLite でサーバを起動してから
-DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token VOICEVOX_ENABLED=false LLM_PROVIDER=none uvicorn app.main:app --port 8001
+DATABASE_URL=sqlite+aiosqlite:///./test.db ADMIN_TOKEN=test-token TTS_PROVIDER=none LLM_PROVIDER=none uvicorn app.main:app --port 8001
 E2E_BASE=http://127.0.0.1:8001 python test_e2e.py
-# iOS(Mac のみ、サーバを 8000 で起動してから)
-xcodebuild test -project ios/AILiveCommerce.xcodeproj -scheme AILiveCommerce -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
+# iOS(Mac のみ)。テスト用サーバを別ポート(例 8011、空の SQLite・LLM_PROVIDER=none)で起動してから。
+# 開発サーバ(8000)に向けると、開いたままのブラウザが視聴者数に数えられて失敗し、LLM も呼ばれる
+TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test -project ios/AILiveCommerce.xcodeproj -scheme AILiveCommerce -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 ```
 
 ## 未着手・保留
@@ -35,4 +38,5 @@ xcodebuild test -project ios/AILiveCommerce.xcodeproj -scheme AILiveCommerce -de
 - LLM を実際に呼ぶ確認は作者の了承を得てから(費用が発生する)
 - VOICEVOX を起動しての音声・口パクの確認
 - サーバへのデプロイ(Docker + Nginx + HTTPS)は保留中
-- プロンプトインジェクション対策、管理 API の試行回数制限
+- (済)プロンプトインジェクション対策(コメントを引用として渡す)、管理 API・新規登録の試行回数制限、PBKDF2 60万回。**プロンプト変更後の実 LLM での確認は未実施**(費用が発生するため作者の了承後)
+- Nginx の後ろに置くときは uvicorn に `--proxy-headers`(付けないとレート制限が全員共通の IP になる)

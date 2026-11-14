@@ -34,18 +34,23 @@ class Settings(BaseSettings):
     bot_pool_batch: int = 60             # 每次批量生成的弹幕条数(闲聊+提问合计)
 
     # ---- TTS ----
-    tts_provider: str = "voicevox"       # voicevox / none(纯文字)。新增引擎时在 tts.build_tts() 注册
+    tts_provider: str = "voicevox"       # voicevox / none(文字のみ。音声を止めるスイッチはこれ1つ)。新しいエンジンは tts.build_tts() に登録
     tts_credit: str = "VOICEVOX:ずんだもん"   # 页面显示的音声署名(换声线时一起改)
 
     # ---- VOICEVOX TTS ----
     voicevox_url: str = "http://127.0.0.1:50021"
     voicevox_speaker: int = 3            # 3=ずんだもん(ノーマル) 8=春日部つむぎ 2=四国めたん;GET {voicevox_url}/speakers 可查全部
-    voicevox_enabled: bool = True        # False 则纯文字模式
     voicevox_speed: float = 1.05
 
     # ---- 认证 / 会话 ----
     session_ttl_hours: int = 24 * 7      # 登录会话有效期(Web Cookie 与 iOS Bearer 共用)
     cookie_secure: bool = False          # 本地 http 开发为 False;部署到 HTTPS 后必须设为 True
+    # PBKDF2 の反復回数。OWASP の推奨(PBKDF2-HMAC-SHA256 は 60 万回)に合わせる。テストでは小さくして高速化
+    password_iterations: int = 600_000
+    register_limit: int = 20             # 同一 IP からの新規登録の上限(ウィンドウ内)。大量アカウント作成の防止
+    register_window: float = 600.0
+    admin_fail_limit: int = 10           # 管理トークンの誤りを同一 IP から許す回数(総当たり対策)
+    admin_fail_window: float = 300.0
     login_fail_limit: int = 5            # 同一 IP+用户名 在窗口期内允许的登录失败次数(防暴力破解)
     login_fail_window: float = 300.0     # 秒
     comment_rate_limit: int = 5          # 每个用户在窗口期内最多发送的弹幕数(防刷屏)
@@ -58,7 +63,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"              # DEBUG / INFO / WARNING / ERROR
     # TTS 音声のキャッシュ置き場(/static/audio/ で配信)。既定はプロジェクト内(起動場所に左右されない絶対パス)
     audio_dir: str = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "static", "audio")
-    cors_origins: str = "*"
+    # 別オリジンのフロントエンドから API を呼ぶ場合だけ、許可するオリジンをカンマ区切りで指定する。
+    # 既定は空 = 同一オリジンのみ(このアプリはフロントも同じサーバから配信しているため CORS は不要)
+    cors_origins: str = ""
 
 
 settings = Settings()

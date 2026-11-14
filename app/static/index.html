@@ -206,16 +206,8 @@
   .modal{ width:100%; max-width:520px; background:var(--paper); border-radius:18px; padding:40px 36px 32px; max-height:88vh; overflow-y:auto; animation:fadein .25s ease; box-shadow:0 11px 34px rgba(0,0,0,.2); }
   .modal h3{ font-size:28px; line-height:1.14; font-weight:600; letter-spacing:.007em; margin-bottom:8px; }
   .modal .note{ font-size:14px; color:var(--sub); margin-bottom:14px; letter-spacing:-.016em; }
-  .ditem{ display:flex; gap:16px; align-items:center; padding:18px 0; border-bottom:1px solid var(--line); }
   .thumb{ width:72px; height:72px; border-radius:14px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; overflow:hidden; }
   .thumb.sm{ width:40px; height:40px; border-radius:10px; font-size:16px; }
-  .ditem .dn{ font-weight:600; font-size:17px; }
-  .ditem .dd{ font-size:12px; color:var(--sub); margin-bottom:3px; letter-spacing:-.01em; }
-  .ditem span{ font-size:14px; }
-  .sbtn{ font-size:14px; border-radius:980px; padding:7px 15px; cursor:pointer; background:transparent; color:var(--link); border:1px solid var(--link); white-space:nowrap; }
-  .sbtn:hover{ background:var(--link); color:#fff; }
-  .sbtn.cart{ background:var(--blue); color:#fff; border-color:var(--blue); }
-  .sbtn.cart:hover{ background:var(--blue-d); }
   .primarybtn{ width:100%; margin-top:20px; border:none; cursor:pointer; background:var(--blue); color:#fff; font-size:17px; border-radius:12px; padding:16px; }
   .primarybtn:hover{ background:var(--blue-d); }
   .primarybtn:disabled{ background:var(--line-2); }
@@ -235,6 +227,28 @@
   @keyframes spin{ to{transform:rotate(360deg)} }
   .successcheck{ width:56px;height:56px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;margin:6px auto 16px; }
   .toast{ position:fixed; z-index:60; top:60px; left:50%; transform:translateX(-50%); background:rgba(29,29,31,.88); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); color:#fff; border-radius:980px; padding:10px 20px; font-size:14px; animation:fadein .2s ease; }
+  /* ---------- スマホ幅 ---------- */
+  @media (max-width:600px){
+    .nav{ padding:0 12px; gap:0; } .nav a, .nav button{ padding:0 6px; } .nav .viewers{ padding:0 4px; }
+    .hero h1{ font-size:44px; }
+    .strip{ gap:18px; padding-bottom:44px; } .strip button{ width:128px; } .strip .simg{ width:120px; height:84px; }
+    .sec{ padding-bottom:52px; } .sec h2{ font-size:21px; margin-bottom:18px; }
+    .stage{ aspect-ratio:1/1; }
+    /* 字幕は顔に重ならないよう小さく・下に */
+    .lower-third{ left:10px; right:10px; bottom:10px; border-radius:12px; }
+    .lt-name{ padding:8px 10px; } .lt-name b{ font-size:13px; } .lt-name small{ display:none; }
+    .lt-text{ padding:8px 12px; font-size:14px; min-height:40px; }
+    /* 紹介中の商品:画像+説明を1行、ボタンは下に全幅 */
+    .featured{ flex-wrap:wrap; gap:14px; padding:18px 18px 6px; }
+    .featured > div:nth-child(2){ flex:1; }
+    .pimg{ width:72px; height:72px; border-radius:12px; } .pname{ font-size:19px; }
+    .buybtn{ margin-left:0; flex-basis:100%; text-align:center; }
+    .listlink{ padding:8px 18px 20px; }
+    .c-head{ padding:18px 18px 10px; font-size:21px; } .c-list{ padding:6px 18px 12px; }
+    .askbubble{ display:none; }                 /* 入力欄がすぐ下にあるので不要(ボタンや字幕に重なるのを避ける) */
+    .modal{ padding:28px 22px 24px; } .modal h3{ font-size:24px; }
+    .gcard{ padding:24px; }
+  }
   @media (prefers-reduced-motion: reduce){ .p-sway,#mouthTalk,.nav .live i{ animation:none } html{ scroll-behavior:auto; } }
 </style>
 </head>
@@ -341,7 +355,7 @@
           <button class="buybtn" id="buyBtn">カートに入れる</button>
         </div>
         <div class="listlink">
-          <a id="drawerBtn">本日の商品一覧・カートを見る</a>
+          <a id="drawerBtn">カートを見る</a>
           <span id="cartInfo" style="color:var(--sub)"></span>
         </div>
       </div>
@@ -397,7 +411,7 @@
     </div>
     <div class="crumbs"><b>HANA</b><i>›</i><span>ライブ</span></div>
     <div class="dir">
-      <div><h4>商品</h4><div id="footProducts"></div><a id="footAll">すべての商品を見る</a></div>
+      <div><h4>商品</h4><div id="footProducts"></div><a href="#products">すべての商品を見る</a></div>
       <div><h4>アカウント</h4><a id="footLogin">ログイン / 新規登録</a><a id="footCart">カートを見る</a></div>
       <div><h4>お買い物ガイド</h4><a href="#guide">送料・お届け</a><a href="#guide">返品について</a><a href="#guide">お支払い方法</a></div>
       <div><h4>このサイトについて</h4><a href="/docs">API ドキュメント</a><a href="/admin">管理画面</a></div>
@@ -412,13 +426,11 @@
 
 <button class="askbubble" id="askBubble" aria-label="花奈に質問する" title="花奈に質問する"></button>
 
-<!-- 商品一覧・カート -->
+<!-- カート -->
 <div class="mask" id="drawerMask">
   <div class="modal">
-    <h3>本日の商品</h3>
-    <div id="drawerList"></div>
-    <h3 style="margin-top:18px">カート <span id="cartCount" style="font-weight:400;color:var(--sub)"></span></h3>
-    <div id="cartList" style="font-size:13px"></div>
+    <h3>カート <span id="cartCount" style="font-weight:400;color:var(--sub)"></span></h3>
+    <div id="cartList"></div>
     <button class="primarybtn" id="toPayBtn">レジに進む(<span id="cartTotal">¥0</span>)</button>
     <div class="switchline"><a id="drawerClose">閉じる</a></div>
   </div>
@@ -557,16 +569,17 @@ async function loadProducts(){
   products = await (await fetch('/api/products')).json();
   if (!featured || !products.find(p=>p.id===featured.id)) featured = products[0] || null;
   else featured = products.find(p=>p.id===featured.id);
-  renderFeatured(); renderDrawer(); renderStrip(); renderShelf(); renderChrome();
+  renderFeatured(); renderStrip(); renderShelf(); renderChrome();
 }
 // 商品画像(image_url があれば画像、なければ絵文字)
 function thumbHtml(p){
   return p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">` : esc(p.emoji);
 }
-// 割引率(通常価格より安い場合のみ)
-function offText(p){
-  return p.original_price > p.price ? `${Math.round((1 - p.price / p.original_price) * 100)}% OFF` : '';
+// 割引率(%)。通常価格より安いときだけ。計算はここ1か所(サーバ側の host_rules.off_rate と同じ式)
+function offRate(p){
+  return p.original_price > p.price && p.price > 0 ? Math.round((1 - p.price / p.original_price) * 100) : 0;
 }
+function offText(p){ const r = offRate(p); return r ? `${r}% OFF` : ''; }
 function renderFeatured(){
   if (!featured){ $('productCard').style.display='none'; return; }
   $('productCard').style.display='flex';
@@ -575,7 +588,7 @@ function renderFeatured(){
   $('pName').textContent = featured.name;
   $('pDesc').textContent = featured.description;
   $('pPrice').textContent = yen(featured.price);
-  $('pOrig').textContent = featured.original_price > featured.price ? yen(featured.original_price) : '';
+  $('pOrig').textContent = offRate(featured) ? yen(featured.original_price) : '';
   $('pOff').textContent = offText(featured);
   const st = $('pStock');
   st.textContent = featured.stock > 0 ? `残り${featured.stock}点` : '在庫切れ';
@@ -606,7 +619,7 @@ function renderShelf(){
     <article class="tile" style="background:${TINTS[i % TINTS.length]}">
       <div class="tile-eyebrow">${esc(p.tag || '本日の商品')}</div>
       <h3 class="tile-name">${esc(p.name)}</h3>
-      <div class="tile-price">${yen(p.price)}${p.original_price>p.price ? `<s>${yen(p.original_price)}</s><em>${offText(p)}</em>` : ''}</div>
+      <div class="tile-price">${yen(p.price)}${offRate(p) ? `<s>${yen(p.original_price)}</s><em>${offText(p)}</em>` : ''}</div>
       <div class="tile-actions">
         <button class="pill" data-cart="${p.id}" ${p.stock<=0 ? 'disabled' : ''}>${p.stock<=0 ? '在庫切れ' : 'カートに入れる'}</button>
         <a data-ask="${p.id}">花奈に質問する</a>
@@ -629,7 +642,7 @@ $('shelfNext').onclick = ()=>$('shelf').scrollBy({ left: 420, behavior:'smooth' 
 
 // お知らせの帯・フッターの商品リンク(数字は商品データから作る)
 function renderChrome(){
-  const maxOff = Math.max(0, ...products.map(p=>p.original_price>p.price ? Math.round((1-p.price/p.original_price)*100) : 0));
+  const maxOff = Math.max(0, ...products.map(offRate));
   $('ribbonText').textContent = (maxOff ? `ライブ限定価格で、最大${maxOff}%オフ。` : '') + '全国どこでも送料無料でお届けします。';
   $('footProducts').innerHTML = products.map(p=>`<a data-foot="${p.id}">${esc(p.name)}</a>`).join('');
   $('footProducts').querySelectorAll('[data-foot]').forEach(a=>{ a.onclick = ()=>{ setFeaturedById(+a.dataset.foot); $('live').scrollIntoView(); }; });
@@ -716,33 +729,10 @@ async function doPay(){
   refreshCart(); loadProducts();
 }
 
-// ================= 商品一覧モーダル =================
-function renderDrawer(){
-  $('drawerList').innerHTML = products.map(p=>`
-    <div class="ditem">
-      <div class="thumb">${thumbHtml(p)}</div>
-      <div style="flex:1;min-width:0">
-        <div class="dn">${esc(p.name)}</div>
-        <div class="dd">${esc(p.description)}</div>
-        <span style="font-weight:600">${yen(p.price)}</span>
-        ${p.original_price>p.price?`<span style="font-size:11px;color:var(--mute);text-decoration:line-through;margin-left:6px">${yen(p.original_price)}</span><span style="font-size:11px;color:var(--accent);margin-left:6px">${offText(p)}</span>`:''}
-        <span style="font-size:11px;color:var(--sub);margin-left:6px">残り${p.stock}点</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <button class="sbtn ask" data-ask="${p.id}">質問する</button>
-        <button class="sbtn cart" data-cart="${p.id}">カートへ</button>
-      </div>
-    </div>`).join('');
-  $('drawerList').querySelectorAll('[data-ask]').forEach(b=>{
-    b.onclick = ()=>{ const p = products.find(x=>x.id===+b.dataset.ask); setFeaturedById(p.id);
-      $('drawerMask').classList.remove('open'); trySend(`${p.name}について教えてください`); };
-  });
-  $('drawerList').querySelectorAll('[data-cart]').forEach(b=>{ b.onclick = ()=>addToCart(+b.dataset.cart); });
-}
+// ================= カートのモーダル =================
 const openDrawer = ()=>{ $('drawerMask').classList.add('open'); refreshCart(); };
 $('drawerBtn').onclick = openDrawer;
 $('bagBtn').onclick = openDrawer;
-$('footAll').onclick = openDrawer;
 $('footCart').onclick = openDrawer;
 $('footLogin').onclick = ()=>$('userBtn').click();
 $('heroAsk').onclick = focusAsk;
@@ -774,7 +764,7 @@ function connect(){
         break;
       case 'purchase': {
         addComment('お知らせ', `${m.nickname}さんが ${m.items.map(i=>`${i.name}×${i.quantity}`).join('、')} を購入しました`, 'sys');
-        if (m.stocks){ products.forEach(p=>{ if (m.stocks[p.id]!==undefined) p.stock=m.stocks[p.id]; }); renderFeatured(); renderDrawer(); renderShelf(); }
+        if (m.stocks){ products.forEach(p=>{ if (m.stocks[p.id]!==undefined) p.stock=m.stocks[p.id]; }); renderFeatured(); renderShelf(); }
         break;
       }
       case 'products_changed': loadProducts(); break;
@@ -796,6 +786,21 @@ function trySend(text){
 }
 $('sendBtn').onclick = ()=>{ trySend($('input').value); $('input').value=''; };
 $('input').addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ trySend($('input').value); $('input').value=''; } });
+
+// ================= アクセシビリティ =================
+// href のない <a>(クリックで動作するもの)は、そのままだと Tab キーで選べず Enter でも押せない。
+// ボタンとして扱えるようにする(あとから描画される要素にも効くよう、イベントは document で受ける)
+function markLinkButtons(root){
+  root.querySelectorAll('a:not([href]):not([role])').forEach(a=>{ a.setAttribute('role','button'); a.tabIndex = 0; });
+}
+new MutationObserver(()=>markLinkButtons(document.body)).observe(document.body, { childList:true, subtree:true });
+markLinkButtons(document.body);
+document.addEventListener('keydown', (e)=>{
+  if ((e.key==='Enter' || e.key===' ') && e.target.matches && e.target.matches('a[role="button"]')){ e.preventDefault(); e.target.click(); }
+});
+document.addEventListener('keydown', (e)=>{     // Esc でモーダルを閉じる
+  if (e.key==='Escape') document.querySelectorAll('.mask.open').forEach(m=>m.classList.remove('open'));
+});
 
 // ================= 起動 =================
 setAuthMode('login');

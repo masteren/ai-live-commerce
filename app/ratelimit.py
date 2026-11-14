@@ -12,6 +12,12 @@ import time
 from collections import deque
 
 
+def client_ip(request) -> str:
+    """レート制限のキーに使うクライアントの IP。
+    Nginx などの後ろに置く場合は uvicorn を --proxy-headers 付きで起動しないと、全員がプロキシの IP になる"""
+    return request.client.host if request.client else "unknown"
+
+
 class SlidingWindowLimiter:
     def __init__(self, limit: int, window: float) -> None:
         self.limit = limit

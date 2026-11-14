@@ -47,7 +47,7 @@ async def test_generate_without_api_key_answers_from_db():
 
 async def test_product_short_name_always_gets_reply(monkeypatch):
     monkeypatch.setattr(ai_host.random, "random", lambda: 0.99)    # 雑談なら答えない値
-    await host.refresh_product_names()
+    await host.refresh_products()
     await host.on_comment("taro", "マグ気になる")                   # 疑問形ではないが商品の略称を含む
     assert host.queue.qsize() == 1
 
@@ -62,3 +62,16 @@ async def test_meta_endpoint_shows_credit_and_mode(client):
     m = (await client.get("/api/meta")).json()
     assert m["tts_credit"] == ""                      # TTS_PROVIDER=none ならクレジット不要
     assert m["llm"] == "ルール応答(デモモード)"
+
+
+def test_idle_talk_only_when_someone_is_watching(monkeypatch):
+    """視聴者が0人のときは自動トークをしない(誰もいないのに音声合成を続けない)"""
+    import time
+    from app.ws import manager
+    host.last_activity_at = time.time() - 9999
+    monkeypatch.setattr(manager, "connections", set())
+    assert host._should_idle_talk() is False
+    monkeypatch.setattr(manager, "connections", {object()})
+    assert host._should_idle_talk() is True
+    host.last_activity_at = time.time()
+    assert host._should_idle_talk() is False

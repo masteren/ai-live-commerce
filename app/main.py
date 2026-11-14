@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
             await db.commit()
             logger.info("示例商品已写入(首次启动)")
     os.makedirs(settings.audio_dir, exist_ok=True)
-    await host.refresh_product_names()
+    await host.refresh_products()
     logger.info("TTS: %s / LLM: %s", tts.name,
                 host.llm.name if host.llm else "なし(ルール応答モード)")
     tasks = host.start() + [bot.start()]   # AI主播 worker ×2 + 气氛组机器人
@@ -71,12 +71,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AI Live Commerce", version="1.0.0", lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.cors_origins.split(",")],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+if _cors:   # 既定は空 = CORS ヘッダを出さない(同一オリジンのみ)
+    app.add_middleware(CORSMiddleware, allow_origins=_cors, allow_methods=["*"], allow_headers=["*"])
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    """全レスポンスに基本的なセキュリティヘッダを付ける"""
+    response = await call_next(request)
+    response.headers.setdefault("X-Frame-Options", "DENY")               # 他サイトの iframe に埋め込ませない(クリックジャッキング対策)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")     # Content-Type を無視した解釈をさせない
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    return response
 
 app.include_router(auth.router)
 app.include_router(products.router)

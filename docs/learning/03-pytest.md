@@ -6,7 +6,7 @@
 | 怎么跑 | `pytest`,不需要启动服务器 | 先启动服务器,再 `python test_e2e.py` |
 | 速度 | 35 项约 1.5 秒 | 41 项约 15 秒 |
 | 测什么 | 单个函数、单个 API 的行为,包括很难手动制造的情况(会话过期、VOICEVOX 挂掉) | 真实的服务器 + WebSocket + 后台任务,整条流程 |
-| 外部服务 | 用假的代替(MockTransport、NullTTS) | 关掉(VOICEVOX_ENABLED=false) |
+| 外部服务 | 用假的代替(MockTransport、NullTTS) | 关掉(TTS_PROVIDER=none) |
 
 ## 2. 关键技巧
 - **`conftest.py`**:pytest 自动加载的共通设定。这里在 **import app 之前** 设置环境变量(settings 在 import 时就读取了),让测试用临时 DB。
