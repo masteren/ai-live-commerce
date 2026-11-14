@@ -6,84 +6,85 @@
 <title>HANA LIVE COMMERCE | ライブ配信中</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23161616'/><text x='50' y='70' font-size='58' text-anchor='middle' fill='white' font-family='serif'>H</text></svg>">
 <style>
-  /* デザイン方針:明るいグレーの地に白いカード、大きく太い見出し、角丸、青いピル型ボタン、広い余白。
-     色は黒・グレー・白が基本。青はリンクと主要ボタン、橙は「セール」などのラベルだけに使う */
+  /* デザイン方針:明るいグレーの地、白と淡い色の大きな角丸カード、太く大きい見出し(前半は色・後半はグレー)、
+     青いリンクとピル型ボタン、横に流れるカードの棚、広い余白、細かい文字のフッター */
   :root{
     --bg:#F5F5F7; --paper:#FFFFFF; --ink:#1D1D1F; --ink-2:#424245; --sub:#6E6E73; --mute:#86868B;
-    --line:#E8E8ED; --line-2:#D2D2D7; --stage-a:#FBFBFD; --stage-b:#E8E8ED;
+    --line:#E8E8ED; --line-2:#D2D2D7;
+    --brand:#84133F;           /* 見出しの色(深いベリー) */
     --blue:#0071E3; --blue-d:#0077ED; --link:#0066CC;
-    --accent:#BF4800;          /* 橙:タグ・割引・エラー */
-    --live:#E30000;
-    --ok:#03A10E;
-    --radius:18px;
-    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",sans-serif;
+    --accent:#BF4800;          /* 橙:タグ・割引 */
+    --live:#E30000; --ok:#03A10E;
+    --r-lg:28px; --r-md:18px;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",sans-serif;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
-  body{
-    min-height:100vh; color:var(--ink); background:var(--bg);
-    font-family:var(--sans); font-size:14px; line-height:1.5; letter-spacing:-.01em;
-    -webkit-font-smoothing:antialiased;
-  }
-  a{ color:var(--link); }
-  button{ font-family:inherit; letter-spacing:inherit; transition:background .2s ease, color .2s ease, transform .2s ease, box-shadow .2s ease; }
+  html{ scroll-behavior:smooth; }
+  body{ min-height:100vh; color:var(--ink); background:var(--bg); font-family:var(--sans); font-size:17px; line-height:1.47; letter-spacing:-.022em; -webkit-font-smoothing:antialiased; }
+  a{ color:var(--link); text-decoration:none; cursor:pointer; }
+  a:hover{ text-decoration:underline; }
+  button{ font-family:inherit; letter-spacing:inherit; transition:background .2s ease, color .2s ease, transform .25s ease, box-shadow .25s ease, opacity .2s ease; }
   :focus-visible{ outline:3px solid rgba(0,113,227,.45); outline-offset:2px; }
+  .w{ max-width:1260px; margin:0 auto; padding:0 44px; }
+  @media (max-width:880px){ .w{ padding:0 20px; } }
 
-  /* ---------- ナビゲーションバー(半透明) ---------- */
-  header{
-    background:rgba(250,250,252,.8); -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px);
-    border-bottom:1px solid rgba(0,0,0,.08); position:sticky; top:0; z-index:20;
-  }
-  .hwrap{ max-width:1080px; margin:0 auto; padding:0 22px; height:48px; display:flex; align-items:center; gap:16px; }
-  .brand{ display:flex; align-items:baseline; gap:8px; }
-  .brand-mark{ font-size:17px; font-weight:700; letter-spacing:.02em; }
-  .brand-sub{ font-size:12px; color:var(--sub); }
-  .live{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--ink); }
-  .live i{ width:7px; height:7px; border-radius:50%; background:var(--live); animation:pulse 2s ease-in-out infinite; }
+  /* ---------- グローバルナビ ---------- */
+  header{ background:rgba(250,250,252,.8); -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px); position:sticky; top:0; z-index:20; }
+  .nav{ max-width:1024px; margin:0 auto; padding:0 22px; height:44px; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; }
+  .nav a, .nav button{ color:rgba(0,0,0,.8); font-size:12px; background:none; border:none; cursor:pointer; padding:0 8px; height:44px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+  .nav a:hover, .nav button:hover{ color:#000; text-decoration:none; }
+  .brand-mark{ font-size:17px; font-weight:600; letter-spacing:.01em; }
+  .nav .live{ gap:5px; font-weight:600; cursor:default; }
+  .nav .live i{ width:6px; height:6px; border-radius:50%; background:var(--live); animation:pulse 2s ease-in-out infinite; }
   @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.3} }
-  .hmeta{ margin-left:auto; display:flex; align-items:center; gap:4px; font-size:12px; color:var(--sub); }
-  .viewers{ margin-right:10px; }
-  .viewers b{ color:var(--ink); font-weight:600; font-feature-settings:"tnum"; }
-  .hbtn{ border:none; background:transparent; border-radius:980px; padding:6px 12px; font-size:12px; cursor:pointer; color:var(--ink); }
-  .hbtn:hover{ background:rgba(0,0,0,.06); }
+  .nav .viewers{ color:var(--sub); padding:0 8px; }
+  .nav .viewers b{ color:var(--ink); font-weight:600; font-feature-settings:"tnum"; }
+  .bag{ position:relative; }
+  .bag svg{ width:15px; height:17px; }
+  .bag b{ position:absolute; right:0; top:22px; min-width:14px; height:14px; border-radius:7px; background:var(--ink); color:#fff; font-size:9px; font-weight:600; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+  .bag b:empty{ display:none; }
+  @media (max-width:760px){ .nav .opt{ display:none; } }
 
-  /* ---------- ヒーロー(大きな見出し) ---------- */
-  .hero{ max-width:1080px; margin:0 auto; padding:56px 22px 28px; display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
-  .hero h1{ font-size:64px; line-height:1.05; font-weight:700; letter-spacing:-.02em; }
-  .hero p{ font-size:24px; line-height:1.25; font-weight:600; max-width:360px; text-align:right; color:var(--ink); }
-  .hero p span{ color:var(--sub); }
-  @media (max-width:880px){ .hero{ padding:36px 22px 20px; } .hero h1{ font-size:44px; } .hero p{ font-size:19px; text-align:left; } }
+  /* ---------- お知らせの帯 ---------- */
+  .ribbon{ background:var(--paper); text-align:center; font-size:14px; padding:14px 22px; color:var(--ink); }
+
+  /* ---------- ヒーロー ---------- */
+  .hero{ display:flex; align-items:center; justify-content:space-between; gap:32px; padding-top:76px; padding-bottom:60px; flex-wrap:wrap; }
+  .hero h1{ font-size:80px; line-height:1.05; font-weight:600; letter-spacing:-.015em; color:var(--brand); }
+  .hero-side{ text-align:right; max-width:420px; }
+  .hero-side p{ font-size:28px; line-height:1.21; font-weight:600; letter-spacing:.004em; color:var(--brand); }
+  .hero-side .links{ margin-top:14px; display:flex; flex-direction:column; gap:8px; align-items:flex-end; font-size:17px; }
+  .hero-side .links a::after{ content:" ↗"; font-size:.85em; }
+  @media (max-width:880px){ .hero{ padding-top:44px; padding-bottom:32px; } .hero h1{ font-size:48px; } .hero-side{ text-align:left; } .hero-side p{ font-size:21px; } .hero-side .links{ align-items:flex-start; } }
 
   /* ---------- 商品の横並び ---------- */
-  .strip{ max-width:1080px; margin:0 auto; padding:8px 22px 30px; display:flex; gap:26px; overflow-x:auto; scrollbar-width:none; }
+  .strip{ display:flex; align-items:flex-start; gap:34px; overflow-x:auto; scrollbar-width:none; padding-bottom:64px; }
   .strip::-webkit-scrollbar{ display:none; }
-  .strip button{ border:none; background:none; cursor:pointer; text-align:center; flex:0 0 auto; width:128px; color:var(--ink); }
-  .strip .simg{ width:120px; height:84px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; font-size:40px; }
-  .strip .simg img{ max-width:100%; max-height:100%; object-fit:contain; transition:transform .3s ease; }
-  .strip button:hover .simg img{ transform:scale(1.06); }
+  .strip button{ border:none; background:none; cursor:pointer; text-align:center; flex:0 0 auto; width:150px; color:var(--ink); }
+  .strip .simg{ width:140px; height:96px; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; font-size:48px; }
+  .strip .simg img{ max-width:100%; max-height:100%; object-fit:contain; transition:transform .35s ease; }
+  .strip button:hover .simg img{ transform:scale(1.07); }
   .strip .sname{ font-size:14px; font-weight:600; line-height:1.3; }
   .strip .sprice{ font-size:12px; color:var(--sub); margin-top:2px; }
   .strip button.on .sname{ color:var(--link); }
 
-  /* ---------- レイアウト ---------- */
-  .wrap{ max-width:1080px; margin:0 auto; padding:0 22px 40px; display:grid; grid-template-columns:1fr 340px; gap:20px; align-items:start; }
-  @media (max-width: 880px){ .wrap{ grid-template-columns:1fr; } .comments-card{ height:400px !important; } }
-  .card{ background:var(--paper); border-radius:var(--radius); overflow:hidden; box-shadow:2px 4px 12px rgba(0,0,0,.04); }
+  /* ---------- セクション見出し ---------- */
+  .sec{ padding-bottom:72px; scroll-margin-top:60px; }
+  .sec h2{ font-size:28px; line-height:1.14; font-weight:600; letter-spacing:.007em; margin-bottom:24px; color:var(--sub); }
+  .sec h2 b{ color:var(--brand); font-weight:600; }
+  @media (max-width:880px){ .sec h2{ font-size:24px; } }
 
-  /* ---------- 配信ステージ ---------- */
-  .stage{
-    position:relative; overflow:hidden;
-    background:linear-gradient(180deg,var(--stage-a) 0%,var(--stage-b) 100%);
-    aspect-ratio:16/10; display:flex; align-items:flex-end; justify-content:center;
-  }
+  /* ---------- ライブ(配信 + コメント) ---------- */
+  .livegrid{ display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:20px; align-items:stretch; }
+  @media (max-width:980px){ .livegrid{ grid-template-columns:1fr; } .comments-card{ height:440px !important; min-height:0 !important; } }
+  .card{ background:var(--paper); border-radius:var(--r-lg); overflow:hidden; box-shadow:2px 4px 12px rgba(0,0,0,.08); }
+  .stage{ position:relative; overflow:hidden; background:linear-gradient(180deg,#FBFBFD 0%,#E8E8ED 100%); aspect-ratio:16/10; display:flex; align-items:flex-end; justify-content:center; }
   @media (max-width:880px){ .stage{ aspect-ratio:4/3; } }
   .avatarbox{ position:relative; z-index:1; width:min(46%,300px); }
   .presenter{ width:100%; display:block; }
-  /* VRM 立绘(three-vrm);加载成功后 .stage.vrm-on 接管,失败则保留上面的 SVG */
   #vrmCanvas{ position:absolute; inset:0; width:100%; height:100%; z-index:1; display:none; }
   .stage.vrm-on #avatarBox{ display:none; }
   .stage.vrm-on #vrmCanvas{ display:block; }
-
-  /* SVG 立ち絵(WebGL が使えない環境用) */
   .p-sway{ animation:sway 4s ease-in-out infinite; transform-origin:50% 100%; }
   @keyframes sway{ 0%,100%{transform:rotate(0)} 50%{transform:rotate(.6deg)} }
   .p-blink{ animation:blink 5s infinite; transform-origin:100px 96px; }
@@ -97,131 +98,187 @@
   .troubled #browTroubled{ display:block; }
   .blush{ opacity:0; transition:opacity .3s; }
   .shy .blush,.happy .blush{ opacity:.55; }
+  .lower-third{ position:absolute; z-index:2; left:20px; right:20px; bottom:20px; display:flex; align-items:stretch; border-radius:16px; overflow:hidden;
+    background:rgba(255,255,255,.72); -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px); box-shadow:0 4px 16px rgba(0,0,0,.08); }
+  .lt-name{ padding:14px 18px; border-right:1px solid rgba(0,0,0,.08); display:flex; flex-direction:column; justify-content:center; white-space:nowrap; }
+  .lt-name b{ font-size:17px; font-weight:600; }
+  .lt-name small{ font-size:11px; color:var(--sub); letter-spacing:0; }
+  .lt-text{ flex:1; padding:14px 18px; font-size:17px; font-weight:500; display:flex; align-items:center; min-height:60px; }
 
-  /* 字幕(名前+発言):すりガラスの帯 */
-  .lower-third{
-    position:absolute; z-index:2; left:16px; right:16px; bottom:16px;
-    display:flex; align-items:stretch; border-radius:14px; overflow:hidden;
-    background:rgba(255,255,255,.72); -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px);
-    box-shadow:0 4px 16px rgba(0,0,0,.08);
-  }
-  .lt-name{ padding:12px 16px; border-right:1px solid rgba(0,0,0,.08); display:flex; flex-direction:column; justify-content:center; white-space:nowrap; }
-  .lt-name b{ font-size:15px; font-weight:700; }
-  .lt-name small{ font-size:10px; color:var(--sub); }
-  .lt-text{ flex:1; padding:12px 16px; font-size:15px; font-weight:500; display:flex; align-items:center; min-height:56px; color:var(--ink); }
-
-  /* ---------- 紹介中の商品 ---------- */
-  .featured{ display:flex; gap:20px; align-items:center; padding:24px 26px 12px; }
-  .pimg{ width:104px; height:104px; flex-shrink:0; border-radius:14px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:38px; overflow:hidden; }
+  .featured{ display:flex; gap:22px; align-items:center; padding:26px 30px 10px; }
+  .pimg{ width:108px; height:108px; flex-shrink:0; border-radius:16px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:40px; overflow:hidden; }
   .pimg img, .thumb img{ width:100%; height:100%; object-fit:contain; display:block; }
-  .ptag{ display:block; font-size:12px; font-weight:600; color:var(--accent); margin-bottom:2px; }
-  .pname{ font-weight:700; font-size:21px; line-height:1.2; letter-spacing:-.015em; }
-  .pdesc{ font-size:13px; color:var(--sub); margin-top:3px; }
-  .prow{ display:flex; align-items:baseline; gap:10px; margin-top:8px; flex-wrap:wrap; }
-  .pprice{ font-size:17px; font-weight:600; font-feature-settings:"tnum"; }
-  .porig{ font-size:13px; color:var(--mute); text-decoration:line-through; }
-  .poff{ font-size:13px; color:var(--accent); font-weight:600; }
+  .ptag{ display:block; font-size:12px; font-weight:600; color:var(--accent); letter-spacing:-.01em; margin-bottom:2px; }
+  .pname{ font-weight:600; font-size:24px; line-height:1.17; letter-spacing:.009em; }
+  .pdesc{ font-size:14px; color:var(--sub); margin-top:4px; letter-spacing:-.016em; }
+  .prow{ display:flex; align-items:baseline; gap:10px; margin-top:8px; flex-wrap:wrap; font-size:14px; }
+  .pprice{ font-size:17px; font-weight:400; font-feature-settings:"tnum"; }
+  .porig{ color:var(--mute); text-decoration:line-through; }
+  .poff{ color:var(--accent); font-weight:600; }
   .pstock{ font-size:12px; color:var(--sub); }
   .pstock.low{ color:var(--accent); }
-  .buybtn{
-    margin-left:auto; flex-shrink:0; border:none; cursor:pointer; color:#fff; background:var(--blue);
-    font-weight:500; font-size:15px; border-radius:980px; padding:10px 20px;
-  }
-  .buybtn:hover{ background:var(--blue-d); }
-  .buybtn:active{ transform:scale(.97); }
-  .buybtn:disabled{ background:var(--line-2); cursor:not-allowed; }
-  .listlink{ padding:6px 26px 22px; font-size:14px; display:flex; align-items:center; gap:12px; }
-  .listlink a{ cursor:pointer; text-decoration:none; color:var(--link); }
+  .buybtn, .pill{ flex-shrink:0; border:none; cursor:pointer; color:#fff; background:var(--blue); font-weight:400; font-size:17px; border-radius:980px; padding:11px 21px; white-space:nowrap; }
+  .buybtn{ margin-left:auto; }
+  .buybtn:hover, .pill:hover{ background:var(--blue-d); }
+  .buybtn:active, .pill:active{ transform:scale(.97); }
+  .buybtn:disabled, .pill:disabled{ background:var(--line-2); cursor:not-allowed; }
+  .listlink{ padding:8px 30px 26px; font-size:17px; display:flex; align-items:center; gap:14px; }
   .listlink a::after{ content:" ›"; }
-  .listlink a:hover{ text-decoration:underline; }
+  .listlink span{ font-size:14px; }
 
-  /* ---------- コメント欄 ---------- */
-  .comments-card{ display:flex; flex-direction:column; height:640px; }
-  .c-head{ padding:18px 20px 12px; font-weight:700; font-size:19px; letter-spacing:-.015em; display:flex; justify-content:space-between; align-items:baseline; }
-  .c-head small{ font-weight:400; font-size:12px; color:var(--sub); }
-  .c-list{ flex:1; overflow-y:auto; padding:6px 20px 14px; display:flex; flex-direction:column; gap:12px; scrollbar-width:thin; scrollbar-color:var(--line-2) transparent; }
-  .c-list:empty::before{ content:"まだコメントはありません"; text-align:center; margin:auto; color:var(--mute); font-size:13px; }
-  .cm{ font-size:14px; line-height:1.45; animation:fadein .25s ease; }
+  /* コメント欄:左のカードと同じ高さにそろえる */
+  .comments-card{ display:flex; flex-direction:column; height:0; min-height:100%; }
+  .c-head{ padding:24px 24px 12px; font-weight:600; font-size:24px; letter-spacing:.009em; display:flex; justify-content:space-between; align-items:baseline; }
+  .c-head small{ font-weight:400; font-size:12px; color:var(--sub); letter-spacing:-.01em; }
+  .c-list{ flex:1; min-height:0; overflow-y:auto; padding:6px 24px 16px; display:flex; flex-direction:column; gap:12px; scrollbar-width:thin; scrollbar-color:var(--line-2) transparent; }
+  .c-list:empty::before{ content:"まだコメントはありません。\A最初の質問をどうぞ。"; white-space:pre; text-align:center; margin:auto; color:var(--mute); font-size:14px; }
+  .cm{ font-size:14px; line-height:1.43; letter-spacing:-.016em; animation:fadein .25s ease; }
   .cm b{ color:var(--sub); margin-right:8px; font-size:12px; font-weight:600; }
-  .cm.me b{ color:var(--link); }
-  .cm.host{ background:var(--bg); border-radius:14px; padding:10px 14px; color:var(--ink); }
+  .cm.me{ align-self:flex-end; background:var(--blue); color:#fff; border-radius:18px; padding:8px 14px; max-width:86%; }
+  .cm.me b{ display:none; }
+  .cm.host{ background:var(--bg); border-radius:18px; padding:10px 14px; max-width:92%; align-self:flex-start; }
   .cm.host b{ color:var(--ink); display:block; margin-bottom:2px; }
   .cm.sys{ color:var(--sub); font-size:12px; text-align:center; padding:2px 0; }
   @keyframes fadein{ from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none} }
-  .c-input{ display:flex; gap:8px; padding:12px 14px 14px; border-top:1px solid var(--line); }
-  .c-input input{ flex:1; min-width:0; border:1px solid var(--line-2); border-radius:980px; padding:10px 16px; font-size:14px; outline:none; font-family:inherit; background:var(--paper); }
+  .c-input{ display:flex; gap:8px; padding:14px 16px 18px; border-top:1px solid var(--line); }
+  .c-input input{ flex:1; min-width:0; border:1px solid var(--line-2); border-radius:980px; padding:10px 16px; font-size:17px; outline:none; font-family:inherit; letter-spacing:inherit; background:var(--paper); }
   .c-input input:focus{ border-color:var(--blue); box-shadow:0 0 0 4px rgba(0,113,227,.15); }
-  .sendbtn{ border:none; cursor:pointer; border-radius:980px; padding:10px 18px; font-weight:500; font-size:14px; background:var(--blue); color:#fff; }
+  .sendbtn{ border:none; cursor:pointer; border-radius:980px; padding:10px 18px; font-size:17px; background:var(--blue); color:#fff; }
   .sendbtn:hover{ background:var(--blue-d); }
 
+  /* ---------- カードの棚(横スクロール) ---------- */
+  .shelf{ display:flex; gap:20px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; padding:8px 44px 28px; margin:0 -44px; scroll-padding-left:44px; }
+  .shelf::-webkit-scrollbar{ display:none; }
+  @media (max-width:880px){ .shelf{ padding:8px 20px 24px; margin:0 -20px; scroll-padding-left:20px; } }
+  .tile{ flex:0 0 400px; height:500px; border-radius:var(--r-lg); padding:30px 30px 0; scroll-snap-align:start; display:flex; flex-direction:column; overflow:hidden; position:relative;
+    box-shadow:2px 4px 12px rgba(0,0,0,.08); transition:transform .3s cubic-bezier(0,0,.5,1), box-shadow .3s cubic-bezier(0,0,.5,1); }
+  .tile:hover{ transform:scale(1.012); box-shadow:2px 4px 16px rgba(0,0,0,.16); }
+  @media (max-width:520px){ .tile{ flex-basis:82vw; height:460px; } }
+  .tile-eyebrow{ font-size:12px; font-weight:600; letter-spacing:-.01em; text-transform:uppercase; color:var(--ink); }
+  .tile-name{ font-size:28px; line-height:1.14; font-weight:600; letter-spacing:.007em; margin-top:4px; }
+  .tile-price{ font-size:14px; margin-top:8px; letter-spacing:-.016em; }
+  .tile-price s{ color:rgba(0,0,0,.48); margin-left:6px; }
+  .tile-price em{ font-style:normal; font-weight:600; color:var(--accent); margin-left:6px; }
+  .tile-actions{ display:flex; align-items:center; gap:18px; margin-top:16px; font-size:17px; position:relative; z-index:1; }
+  .tile-actions a::after{ content:" ›"; }
+  .tile-actions .pill{ font-size:14px; padding:8px 16px; }
+  .tile-img{ flex:1; min-height:0; display:flex; align-items:flex-end; justify-content:center; font-size:120px; margin:0 -30px; }
+  .tile-img img{ width:86%; max-height:100%; object-fit:contain; object-position:bottom; display:block; }
+  .paddles{ display:flex; justify-content:flex-end; gap:16px; }
+  .paddles button{ width:36px; height:36px; border-radius:50%; border:none; background:rgba(210,210,215,.64); color:rgba(0,0,0,.56); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .paddles button:hover{ background:rgba(223,223,227,.69); color:rgba(0,0,0,.72); }
+  .paddles button:disabled{ opacity:.42; cursor:default; }
+  .paddles svg{ width:9px; height:14px; }
+
+  /* ---------- お買い物ガイド ---------- */
+  .guide{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+  @media (max-width:880px){ .guide{ grid-template-columns:1fr; } }
+  .gcard{ background:var(--paper); border-radius:var(--r-md); padding:30px; box-shadow:2px 4px 12px rgba(0,0,0,.08); }
+  .gcard svg{ width:40px; height:40px; color:var(--ink); margin-bottom:22px; }
+  .gcard h3{ font-size:21px; line-height:1.19; font-weight:600; letter-spacing:.011em; }
+  .gcard p{ font-size:14px; color:var(--sub); margin-top:8px; letter-spacing:-.016em; }
+
+  /* ---------- フッター ---------- */
+  footer{ font-size:12px; line-height:1.33; letter-spacing:-.01em; color:var(--sub); padding-bottom:28px; }
+  footer .inner{ max-width:1024px; margin:0 auto; padding:0 22px; }
+  .notes{ padding:17px 0 11px; border-bottom:1px solid var(--line-2); }
+  .notes p{ margin-bottom:.8em; }
+  .crumbs{ padding:17px 0; display:flex; align-items:center; gap:10px; }
+  .crumbs b{ color:var(--ink); font-size:17px; font-weight:600; }
+  .crumbs i{ font-style:normal; color:var(--mute); }
+  .dir{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px; padding:10px 0 24px; border-bottom:1px solid var(--line-2); }
+  @media (max-width:760px){ .dir{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .dir h4{ font-size:12px; font-weight:600; color:var(--ink); margin-bottom:10px; }
+  .dir a{ display:block; color:var(--ink-2); margin-bottom:10px; }
+  .legal{ padding-top:19px; display:flex; flex-wrap:wrap; gap:8px 28px; justify-content:space-between; }
+  .legal .lk a{ color:var(--ink-2); padding:0 10px; border-right:1px solid var(--line-2); }
+  .legal .lk a:first-child{ padding-left:0; } .legal .lk a:last-child{ border-right:none; }
+
+  /* ---------- 右下の質問ボタン ---------- */
+  .askbubble{ position:fixed; right:28px; bottom:28px; z-index:30; width:64px; height:64px; border-radius:50%; border:none; cursor:pointer; overflow:hidden; padding:0;
+    background:#DCE6F5 url(/static/host/hana.png) 50% 27% / 240% auto no-repeat; box-shadow:0 4px 16px rgba(0,0,0,.2); }
+  .askbubble:hover{ transform:scale(1.06); }
+  @media (max-width:880px){ .askbubble{ right:16px; bottom:16px; width:56px; height:56px; } }
+
   /* ---------- モーダル ---------- */
-  .mask{ position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.32); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; padding:16px; }
+  .mask{ position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.48); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); display:none; align-items:center; justify-content:center; padding:16px; }
   .mask.open{ display:flex; }
-  .modal{ width:100%; max-width:480px; background:var(--paper); border-radius:18px; padding:30px; max-height:86vh; overflow-y:auto; animation:fadein .2s ease; box-shadow:0 20px 60px rgba(0,0,0,.2); }
-  .modal h3{ font-size:24px; font-weight:700; letter-spacing:-.02em; margin-bottom:6px; }
-  .modal .note{ font-size:13px; color:var(--sub); margin-bottom:12px; }
-  .ditem{ display:flex; gap:14px; align-items:center; padding:16px 0; border-bottom:1px solid var(--line); }
-  .thumb{ width:64px; height:64px; border-radius:12px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; overflow:hidden; }
-  .thumb.sm{ width:36px; height:36px; border-radius:8px; font-size:16px; }
-  .ditem .dn{ font-weight:600; font-size:15px; }
-  .ditem .dd{ font-size:12px; color:var(--sub); margin-bottom:2px; }
-  .sbtn{ font-size:13px; font-weight:500; border-radius:980px; padding:6px 14px; cursor:pointer; background:transparent; color:var(--link); border:1px solid var(--link); white-space:nowrap; }
+  .modal{ width:100%; max-width:520px; background:var(--paper); border-radius:18px; padding:40px 36px 32px; max-height:88vh; overflow-y:auto; animation:fadein .25s ease; box-shadow:0 11px 34px rgba(0,0,0,.2); }
+  .modal h3{ font-size:28px; line-height:1.14; font-weight:600; letter-spacing:.007em; margin-bottom:8px; }
+  .modal .note{ font-size:14px; color:var(--sub); margin-bottom:14px; letter-spacing:-.016em; }
+  .ditem{ display:flex; gap:16px; align-items:center; padding:18px 0; border-bottom:1px solid var(--line); }
+  .thumb{ width:72px; height:72px; border-radius:14px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; overflow:hidden; }
+  .thumb.sm{ width:40px; height:40px; border-radius:10px; font-size:16px; }
+  .ditem .dn{ font-weight:600; font-size:17px; }
+  .ditem .dd{ font-size:12px; color:var(--sub); margin-bottom:3px; letter-spacing:-.01em; }
+  .ditem span{ font-size:14px; }
+  .sbtn{ font-size:14px; border-radius:980px; padding:7px 15px; cursor:pointer; background:transparent; color:var(--link); border:1px solid var(--link); white-space:nowrap; }
   .sbtn:hover{ background:var(--link); color:#fff; }
   .sbtn.cart{ background:var(--blue); color:#fff; border-color:var(--blue); }
   .sbtn.cart:hover{ background:var(--blue-d); }
-  .primarybtn{ width:100%; margin-top:18px; border:none; cursor:pointer; background:var(--blue); color:#fff; font-weight:500; font-size:17px; border-radius:12px; padding:14px; }
+  .primarybtn{ width:100%; margin-top:20px; border:none; cursor:pointer; background:var(--blue); color:#fff; font-size:17px; border-radius:12px; padding:16px; }
   .primarybtn:hover{ background:var(--blue-d); }
   .primarybtn:disabled{ background:var(--line-2); }
-  .field{ width:100%; border:1px solid var(--line-2); border-radius:12px; padding:14px 16px; font-size:17px; margin-top:10px; outline:none; font-family:inherit; }
+  .field{ width:100%; border:1px solid var(--mute); border-radius:12px; padding:16px; font-size:17px; margin-top:12px; outline:none; font-family:inherit; letter-spacing:inherit; }
   .field:focus{ border-color:var(--blue); box-shadow:0 0 0 4px rgba(0,113,227,.15); }
-  .switchline{ text-align:center; font-size:14px; color:var(--sub); margin-top:18px; }
-  .switchline a{ cursor:pointer; text-decoration:none; color:var(--link); }
-  .switchline a:hover{ text-decoration:underline; }
+  .switchline{ text-align:center; font-size:14px; color:var(--sub); margin-top:20px; }
   .errline{ color:var(--live); font-size:12px; margin-top:8px; min-height:16px; }
-  .cartrow{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .cartrow{ display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); font-size:14px; }
   .cartrow .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .cartrow a{ color:var(--link); text-decoration:none; font-size:13px; margin-left:8px; }
-  .cartrow a:hover{ text-decoration:underline; }
-
-  .payopt{ display:flex; align-items:center; gap:12px; border:1px solid var(--line-2); border-radius:12px; padding:16px; margin-top:10px; cursor:pointer; font-size:15px; font-weight:500; }
-  .payopt:hover{ border-color:var(--mute); }
+  .cartrow a{ font-size:14px; margin-left:8px; }
+  .payopt{ display:flex; align-items:center; gap:12px; border:1px solid var(--mute); border-radius:12px; padding:18px 16px; margin-top:12px; cursor:pointer; font-size:17px; font-weight:600; }
+  .payopt:hover{ border-color:var(--ink); }
   .payopt .radio{ width:16px; height:16px; border-radius:50%; border:1px solid var(--mute); flex-shrink:0; }
   .payopt.sel{ border-color:var(--blue); box-shadow:inset 0 0 0 1px var(--blue); }
   .payopt.sel .radio{ border:5px solid var(--blue); }
-  .spinner{ width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--mute);border-radius:50%;margin:22px auto;animation:spin .8s linear infinite; }
+  .spinner{ width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--mute);border-radius:50%;margin:24px auto;animation:spin .8s linear infinite; }
   @keyframes spin{ to{transform:rotate(360deg)} }
-  .successcheck{ width:56px;height:56px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;margin:10px auto 14px; }
-
-  .toast{ position:fixed; z-index:60; top:64px; left:50%; transform:translateX(-50%); background:rgba(29,29,31,.9); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); color:#fff; border-radius:980px; padding:10px 20px; font-size:14px; animation:fadein .2s ease; }
-  footer{ max-width:1080px; margin:0 auto; padding:18px 22px 40px; font-size:12px; color:var(--sub); border-top:1px solid var(--line-2); }
-  @media (prefers-reduced-motion: reduce){ .p-sway,#mouthTalk,.live i{ animation:none } }
+  .successcheck{ width:56px;height:56px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;margin:6px auto 16px; }
+  .toast{ position:fixed; z-index:60; top:60px; left:50%; transform:translateX(-50%); background:rgba(29,29,31,.88); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); color:#fff; border-radius:980px; padding:10px 20px; font-size:14px; animation:fadein .2s ease; }
+  @media (prefers-reduced-motion: reduce){ .p-sway,#mouthTalk,.nav .live i{ animation:none } html{ scroll-behavior:auto; } }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="hwrap">
-    <div class="brand"><span class="brand-mark">HANA</span><span class="brand-sub">ライブコマース</span></div>
+  <nav class="nav" aria-label="グローバル">
+    <a href="#top" class="brand-mark">HANA</a>
+    <a href="#live" class="opt">ライブ</a>
+    <a href="#products" class="opt">商品</a>
+    <a href="#guide" class="opt">お買い物ガイド</a>
     <span class="live"><i></i>LIVE</span>
-    <div class="hmeta">
-      <span class="viewers">視聴者 <b id="viewers">0</b></span>
-      <button class="hbtn" id="soundBtn" title="音声のオン・オフ">音声 オフ</button>
-      <button class="hbtn" id="userBtn">ログイン</button>
-    </div>
-  </div>
+    <span class="viewers">視聴者 <b id="viewers">0</b></span>
+    <button id="soundBtn" title="音声のオン・オフ">音声 オフ</button>
+    <button id="userBtn">ログイン</button>
+    <button class="bag" id="bagBtn" aria-label="カート">
+      <svg viewBox="0 0 15 17" fill="none" stroke="currentColor" stroke-width="1.1"><path d="M2 5.5h11l.8 10H1.2L2 5.5Z"/><path d="M5 5.5V4a2.5 2.5 0 0 1 5 0v1.5"/></svg>
+      <b id="bagCount"></b>
+    </button>
+  </nav>
 </header>
 
-<section class="hero">
-  <h1>ライブ</h1>
-  <p>気になることは、<span>その場で花奈に聞いてみよう。</span></p>
-</section>
-<nav class="strip" id="productStrip" aria-label="本日の商品"></nav>
+<div class="ribbon" id="top"><span id="ribbonText">全国どこでも送料無料でお届けします。</span> <a href="#products">商品を見る ›</a></div>
 
-<div class="wrap">
-  <!-- 左:配信ステージ + 注目商品 -->
-  <div class="card">
-    <div class="stage">
-      <canvas id="vrmCanvas"></canvas>
+<main class="w">
+  <section class="hero">
+    <h1>ライブ</h1>
+    <div class="hero-side">
+      <p>気になることは、<br>その場で花奈に聞いてみよう。</p>
+      <div class="links">
+        <a id="heroAsk">花奈に質問する</a>
+        <a href="#products">本日の商品を見る</a>
+      </div>
+    </div>
+  </section>
+
+  <nav class="strip" id="productStrip" aria-label="本日の商品"></nav>
+
+  <section class="sec" id="live">
+    <h2><b>ただいま配信中。</b>コメントに、花奈がすぐお答えします。</h2>
+    <div class="livegrid">
+      <div class="card">
+        <div class="stage">
+          <canvas id="vrmCanvas"></canvas>
       <div class="avatarbox" id="avatarBox">
         <svg viewBox="0 0 200 230" class="presenter p-sway" aria-label="AIアシスタント 花奈">
           <!-- 髪(後ろ) -->
@@ -267,42 +324,93 @@
           <circle cx="143" cy="112" r="2.6" fill="#C9A44C"/>
         </svg>
       </div>
-      <!-- 放送風テロップ -->
-      <div class="lower-third">
-        <div class="lt-name"><b>花奈</b><small>AIアシスタント</small></div>
-        <div class="lt-text" id="bubbleText">ご視聴ありがとうございます。ご質問はコメントでお気軽にどうぞ。</div>
+          <div class="lower-third">
+            <div class="lt-name"><b>花奈</b><small>AIアシスタント</small></div>
+            <div class="lt-text" id="bubbleText">ご視聴ありがとうございます。ご質問はコメントでお気軽にどうぞ。</div>
+          </div>
+        </div>
+        <div class="featured" id="productCard" style="display:none">
+          <div class="pimg" id="pImg"></div>
+          <div style="min-width:0">
+            <span class="ptag" id="pTag"></span>
+            <div class="pname" id="pName"></div>
+            <div class="pdesc" id="pDesc"></div>
+            <div class="prow"><span class="pprice" id="pPrice"></span><span class="porig" id="pOrig"></span>
+              <span class="poff" id="pOff"></span><span class="pstock" id="pStock"></span></div>
+          </div>
+          <button class="buybtn" id="buyBtn">カートに入れる</button>
+        </div>
+        <div class="listlink">
+          <a id="drawerBtn">本日の商品一覧・カートを見る</a>
+          <span id="cartInfo" style="color:var(--sub)"></span>
+        </div>
+      </div>
+
+      <div class="card comments-card">
+        <div class="c-head">コメント <small id="connState">接続中…</small></div>
+        <div class="c-list" id="comments"></div>
+        <div class="c-input">
+          <input id="input" maxlength="200" placeholder="質問・コメントを入力">
+          <button class="sendbtn" id="sendBtn">送信</button>
+        </div>
       </div>
     </div>
+  </section>
 
-    <div class="featured" id="productCard" style="display:none">
-      <div class="pimg" id="pImg"></div>
-      <div style="min-width:0">
-        <span class="ptag" id="pTag"></span>
-        <div class="pname" id="pName"></div>
-        <div class="pdesc" id="pDesc"></div>
-        <div class="prow"><span class="pprice" id="pPrice"></span><span class="porig" id="pOrig"></span>
-          <span class="poff" id="pOff"></span><span class="pstock" id="pStock"></span></div>
+  <section class="sec" id="products">
+    <h2><b>本日の商品。</b>ライブ限定の価格でどうぞ。</h2>
+    <div class="shelf" id="shelf"></div>
+    <div class="paddles">
+      <button id="shelfPrev" aria-label="前へ" disabled><svg viewBox="0 0 9 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1 1.5 7l6 6"/></svg></button>
+      <button id="shelfNext" aria-label="次へ"><svg viewBox="0 0 9 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 1l6 6-6 6"/></svg></button>
+    </div>
+  </section>
+
+  <section class="sec" id="guide">
+    <h2><b>お買い物ガイド。</b>はじめてでも安心です。</h2>
+    <div class="guide">
+      <div class="gcard">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3 11h20v17H3zM23 16h7l6 6v6H23z"/><circle cx="11" cy="29.5" r="3" fill="#fff"/><circle cx="29" cy="29.5" r="3" fill="#fff"/></svg>
+        <h3>送料無料でお届け</h3>
+        <p>全国どこでも送料無料。ご注文から3〜5日ほどでお届けします。</p>
       </div>
-      <button class="buybtn" id="buyBtn">カートに入れる</button>
+      <div class="gcard">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M6 14 20 7l14 7v14l-14 7-14-7z"/><path d="M6 14l14 7 14-7M20 21v14"/><path d="M13 10.500 27 17.500"/></svg>
+        <h3>7日以内は返品OK</h3>
+        <p>未開封であれば、到着から7日以内の返品を承ります。</p>
+      </div>
+      <div class="gcard">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="9" width="32" height="22" rx="4"/><path d="M4 16h32M10 25h8"/></svg>
+        <h3>お支払い方法を選べる</h3>
+        <p>クレジットカード、コンビニ払い、PayPay からお選びいただけます。</p>
+      </div>
     </div>
-    <div class="listlink">
-      <a id="drawerBtn">本日の商品一覧・カートを見る</a>
-      <span id="cartInfo" style="color:var(--sub)"></span>
+  </section>
+</main>
+
+<footer>
+  <div class="inner">
+    <div class="notes">
+      <p>※ 本サイトは就職作品(ポートフォリオ)のデモです。実際の販売・決済・配送は行いません。表示の商品・価格は架空のものです。</p>
+      <p>※ 花奈は AI アシスタントです。回答は商品データをもとに生成しています。回答生成: <span id="llmCredit">—</span></p>
+      <p>※ 音声合成: <span id="ttsCredit">VOICEVOX</span></p>
+    </div>
+    <div class="crumbs"><b>HANA</b><i>›</i><span>ライブ</span></div>
+    <div class="dir">
+      <div><h4>商品</h4><div id="footProducts"></div><a id="footAll">すべての商品を見る</a></div>
+      <div><h4>アカウント</h4><a id="footLogin">ログイン / 新規登録</a><a id="footCart">カートを見る</a></div>
+      <div><h4>お買い物ガイド</h4><a href="#guide">送料・お届け</a><a href="#guide">返品について</a><a href="#guide">お支払い方法</a></div>
+      <div><h4>このサイトについて</h4><a href="/docs">API ドキュメント</a><a href="/admin">管理画面</a></div>
+    </div>
+    <div class="legal">
+      <span>Copyright © 2026 HANA Live Commerce(ポートフォリオ作品)</span>
+      <span class="lk"><a href="#live">ライブ</a><a href="#products">商品</a><a href="#guide">お買い物ガイド</a></span>
+      <span>日本</span>
     </div>
   </div>
+</footer>
 
-  <!-- 右:コメント -->
-  <div class="card comments-card">
-    <div class="c-head">コメント <small id="connState">接続中…</small></div>
-    <div class="c-list" id="comments"></div>
-    <div class="c-input">
-      <input id="input" maxlength="200" placeholder="質問・コメントを入力">
-      <button class="sendbtn" id="sendBtn">送信</button>
-    </div>
-  </div>
-</div>
-
-<footer>本サイトはポートフォリオ用のデモです。決済は行われません。音声合成: <span id="ttsCredit">VOICEVOX</span> / 回答生成: <span id="llmCredit">—</span></footer>
+<button class="askbubble" id="askBubble" aria-label="花奈に質問する" title="花奈に質問する"></button>
 
 <!-- 商品一覧・カート -->
 <div class="mask" id="drawerMask">
@@ -449,7 +557,7 @@ async function loadProducts(){
   products = await (await fetch('/api/products')).json();
   if (!featured || !products.find(p=>p.id===featured.id)) featured = products[0] || null;
   else featured = products.find(p=>p.id===featured.id);
-  renderFeatured(); renderDrawer(); renderStrip();
+  renderFeatured(); renderDrawer(); renderStrip(); renderShelf(); renderChrome();
 }
 // 商品画像(image_url があれば画像、なければ絵文字)
 function thumbHtml(p){
@@ -486,6 +594,48 @@ function renderStrip(){
 }
 function setFeaturedById(id){ const p = products.find(x=>x.id===id); if (p){ featured=p; renderFeatured(); renderStrip(); } }
 
+// 「本日の商品」の棚:大きな色つきカードを横に並べる
+const TINTS = ['#F8D2DF', '#C7DDF1', '#DAD1F1', '#FBE1CB', '#CFEADB'];
+function askAbout(p){
+  setFeaturedById(p.id);
+  $('live').scrollIntoView();
+  trySend(`${p.name}について教えてください`);
+}
+function renderShelf(){
+  $('shelf').innerHTML = products.map((p,i)=>`
+    <article class="tile" style="background:${TINTS[i % TINTS.length]}">
+      <div class="tile-eyebrow">${esc(p.tag || '本日の商品')}</div>
+      <h3 class="tile-name">${esc(p.name)}</h3>
+      <div class="tile-price">${yen(p.price)}${p.original_price>p.price ? `<s>${yen(p.original_price)}</s><em>${offText(p)}</em>` : ''}</div>
+      <div class="tile-actions">
+        <button class="pill" data-cart="${p.id}" ${p.stock<=0 ? 'disabled' : ''}>${p.stock<=0 ? '在庫切れ' : 'カートに入れる'}</button>
+        <a data-ask="${p.id}">花奈に質問する</a>
+      </div>
+      <div class="tile-img">${thumbHtml(p)}</div>
+    </article>`).join('');
+  $('shelf').querySelectorAll('[data-cart]').forEach(b=>{ b.onclick = ()=>addToCart(+b.dataset.cart); });
+  $('shelf').querySelectorAll('[data-ask]').forEach(a=>{ a.onclick = ()=>askAbout(products.find(x=>x.id===+a.dataset.ask)); });
+  updatePaddles();
+}
+function updatePaddles(){
+  const el = $('shelf');
+  $('shelfPrev').disabled = el.scrollLeft <= 4;
+  $('shelfNext').disabled = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+}
+$('shelf').addEventListener('scroll', updatePaddles, { passive:true });
+window.addEventListener('resize', updatePaddles);
+$('shelfPrev').onclick = ()=>$('shelf').scrollBy({ left:-420, behavior:'smooth' });
+$('shelfNext').onclick = ()=>$('shelf').scrollBy({ left: 420, behavior:'smooth' });
+
+// お知らせの帯・フッターの商品リンク(数字は商品データから作る)
+function renderChrome(){
+  const maxOff = Math.max(0, ...products.map(p=>p.original_price>p.price ? Math.round((1-p.price/p.original_price)*100) : 0));
+  $('ribbonText').textContent = (maxOff ? `ライブ限定価格で、最大${maxOff}%オフ。` : '') + '全国どこでも送料無料でお届けします。';
+  $('footProducts').innerHTML = products.map(p=>`<a data-foot="${p.id}">${esc(p.name)}</a>`).join('');
+  $('footProducts').querySelectorAll('[data-foot]').forEach(a=>{ a.onclick = ()=>{ setFeaturedById(+a.dataset.foot); $('live').scrollIntoView(); }; });
+}
+function focusAsk(){ $('live').scrollIntoView(); setTimeout(()=>$('input').focus({ preventScroll:true }), 350); }
+
 // ================= カート =================
 async function refreshCart(){
   if (!username){ cart=[]; renderCartUI(); return; }
@@ -496,6 +646,7 @@ async function refreshCart(){
 function renderCartUI(){
   const count = cart.reduce((s,c)=>s+c.quantity,0);
   $('cartInfo').textContent = count ? `カートに${count}点` : '';
+  $('bagCount').textContent = count || '';
   $('cartCount').textContent = count ? `(${count}点)` : '';
   const total = cart.reduce((s,c)=>s+c.quantity*c.product.price,0);
   $('cartTotal').textContent = yen(total);
@@ -588,7 +739,14 @@ function renderDrawer(){
   });
   $('drawerList').querySelectorAll('[data-cart]').forEach(b=>{ b.onclick = ()=>addToCart(+b.dataset.cart); });
 }
-$('drawerBtn').onclick = ()=>{ $('drawerMask').classList.add('open'); refreshCart(); };
+const openDrawer = ()=>{ $('drawerMask').classList.add('open'); refreshCart(); };
+$('drawerBtn').onclick = openDrawer;
+$('bagBtn').onclick = openDrawer;
+$('footAll').onclick = openDrawer;
+$('footCart').onclick = openDrawer;
+$('footLogin').onclick = ()=>$('userBtn').click();
+$('heroAsk').onclick = focusAsk;
+$('askBubble').onclick = focusAsk;
 $('drawerClose').onclick = ()=>$('drawerMask').classList.remove('open');
 [['drawerMask'],['payMask'],['authMask']].forEach(([id])=>{
   $(id).addEventListener('click', (e)=>{ if (e.target===$(id)) $(id).classList.remove('open'); });
@@ -616,7 +774,7 @@ function connect(){
         break;
       case 'purchase': {
         addComment('お知らせ', `${m.nickname}さんが ${m.items.map(i=>`${i.name}×${i.quantity}`).join('、')} を購入しました`, 'sys');
-        if (m.stocks){ products.forEach(p=>{ if (m.stocks[p.id]!==undefined) p.stock=m.stocks[p.id]; }); renderFeatured(); renderDrawer(); }
+        if (m.stocks){ products.forEach(p=>{ if (m.stocks[p.id]!==undefined) p.stock=m.stocks[p.id]; }); renderFeatured(); renderDrawer(); renderShelf(); }
         break;
       }
       case 'products_changed': loadProducts(); break;
