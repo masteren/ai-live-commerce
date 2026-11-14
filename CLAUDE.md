@@ -32,6 +32,8 @@ E2E_BASE=http://127.0.0.1:8001 python test_e2e.py
 # iOS(Mac のみ)。テスト用サーバを別ポート(例 8011、空の SQLite・LLM_PROVIDER=none)で起動してから。
 # 開発サーバ(8000)に向けると、開いたままのブラウザが視聴者数に数えられて失敗し、LLM も呼ばれる
 TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test -project ios/AILiveCommerce.xcodeproj -scheme AILiveCommerce -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
+# UI テストが「アプリが静止するのを待つ」ところで止まる(時間切れ)ときは、シミュレータの画面が固まっていることがある
+# (録画が動かない・アプリのメインスレッドは待機中)。xcrun simctl shutdown → boot で直る。アプリの不具合ではない
 ```
 
 ## 未着手・保留

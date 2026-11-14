@@ -12,7 +12,8 @@ final class LiveCommerceFlowUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         // --reset-session:前回のテストのログイン状態(Keychain)を消して開始
-        // --ui-testing:iOS のパスワード自動入力を止める(OS の確認画面がテストの操作を横取りするため)
+        // --ui-testing:iOS のパスワード自動入力を止める(OS の確認画面がテストの操作を横取りするため)。
+        //   パスワード欄も普通の入力欄になるので、テストでは app.textFields["passwordField"] で探す
         app.launchArguments = ["--reset-session", "--ui-testing"]
         // 接続先を変える:TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test ...
         // (開発サーバとは別の、空の DB で起動したテスト用サーバに向けるため。「-キー 値」の引数は UserDefaults を上書きする)
@@ -108,7 +109,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
         // 3. 新規登録
         app.buttons["新規登録"].firstMatch.tap()
         type(user, into: username)
-        let password = app.secureTextFields["passwordField"]
+        let password = app.textFields["passwordField"]
         type("pass1234", into: password)
         snap("02_register")
         app.buttons["authSubmit"].tap()
@@ -194,7 +195,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
         XCTAssertTrue(username.waitForExistence(timeout: 5))
         app.buttons["新規登録"].firstMatch.tap()
         type(user, into: username)
-        let password = app.secureTextFields["passwordField"]
+        let password = app.textFields["passwordField"]
         type("pass1234", into: password)
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "戻ったあとコメントが送れない(ホストの回答がない)")
@@ -217,7 +218,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
         XCTAssertTrue(username.waitForExistence(timeout: 5))
         app.buttons["新規登録"].firstMatch.tap()
         type(user, into: username)
-        let password = app.secureTextFields["passwordField"]
+        let password = app.textFields["passwordField"]
         type("pass1234", into: password)
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(text(containing: "1つ目の質問です").waitForExistence(timeout: 15), "登録後のコメントが出ない")

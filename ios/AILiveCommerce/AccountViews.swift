@@ -10,6 +10,21 @@ struct LoginView: View {
     @State private var error: String?
     @State private var busy = false
 
+    /// パスワード欄。UI テストのときだけ普通の入力欄にする:
+    /// 隠し入力欄(SecureField)には iOS のパスワード自動入力が付き、シミュレータでは XCUITest が
+    /// 「アプリが静止するまで待つ」ところで止まり続けることがあった(アプリ自体は止まっていないことを診断ログで確認)。
+    /// ふだんの利用では、これまでどおり隠し入力欄
+    @ViewBuilder private var passwordField: some View {
+        if AppConfig.isUITesting {
+            TextField("パスワード(6文字以上)", text: $password)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        } else {
+            SecureField("パスワード(6文字以上)", text: $password)
+                .textContentType(.password)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -26,8 +41,7 @@ struct LoginView: View {
                         .textContentType(AppConfig.isUITesting ? nil : .username)
                         .accessibilityIdentifier("usernameField")
                     // .newPassword だと「強力なパスワード」の自動入力が割り込み、入力内容が変わることがあるため .password に統一
-                    SecureField("パスワード(6文字以上)", text: $password)
-                        .textContentType(AppConfig.isUITesting ? nil : .password)
+                    passwordField
                         .accessibilityIdentifier("passwordField")
                 }
                 if let error {

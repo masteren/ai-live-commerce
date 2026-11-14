@@ -44,7 +44,7 @@ extension LiveCommerceFlowUITests {
         openLoginSheet()
         app.buttons["新規登録"].firstMatch.tap()
         type(user, into: app.textFields["usernameField"])
-        type("pass1234", into: app.secureTextFields["passwordField"])
+        type("pass1234", into: app.textFields["passwordField"])
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(app.buttons["logoutButton"].waitForExistence(timeout: 10), "登録できない")
         // シートが閉じきる前に次の操作をすると、タップが空振りする
@@ -61,7 +61,7 @@ extension LiveCommerceFlowUITests {
 
         // 存在しないユーザーでログイン
         type("nobody_\(Int.random(in: 1000...9999))", into: app.textFields["usernameField"])
-        type("wrongpass", into: app.secureTextFields["passwordField"])
+        type("wrongpass", into: app.textFields["passwordField"])
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(error.waitForExistence(timeout: 10), "ログイン失敗の理由が表示されない")
         print("EDGE login-unknown-user: \(error.label)")
@@ -69,7 +69,7 @@ extension LiveCommerceFlowUITests {
 
         // 短すぎるパスワードで登録
         app.buttons["新規登録"].firstMatch.tap()
-        let pw = app.secureTextFields["passwordField"]
+        let pw = app.textFields["passwordField"]
         pw.tap()
         pw.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 12))
         pw.typeText("123")
