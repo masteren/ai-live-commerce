@@ -1,0 +1,107 @@
+{
+ "camera": {
+  "fov": 26,
+  "dy": -0.02,
+  "up": 0.02,
+  "dist": 1.18,
+  "x": 0.045,
+  "tx": 0.045
+ },
+ "sceneRotY": 0.0,
+ "expressions": {
+  "relaxed": 0.6,
+  "happy": 0.3
+ },
+ "bones": {
+  "rightUpperArm": [
+   0,
+   0,
+   1.22
+  ],
+  "rightLowerArm": [
+   0,
+   0,
+   0.14
+  ],
+  "leftUpperArm": [
+   0,
+   0.3,
+   -0.85
+  ],
+  "leftLowerArm": [
+   0,
+   0,
+   2.62
+  ],
+  "leftHand": [
+   -1.5,
+   0,
+   0.1
+  ],
+  "leftRingProximal": [
+   0,
+   0,
+   -1.4
+  ],
+  "leftRingIntermediate": [
+   0,
+   0,
+   -1.5
+  ],
+  "leftRingDistal": [
+   0,
+   0,
+   -1.0
+  ],
+  "leftLittleProximal": [
+   0,
+   0,
+   -1.4
+  ],
+  "leftLittleIntermediate": [
+   0,
+   0,
+   -1.5
+  ],
+  "leftLittleDistal": [
+   0,
+   0,
+   -1.0
+  ],
+  "leftIndexProximal": [
+   0,
+   0.42,
+   0
+  ],
+  "leftMiddleProximal": [
+   0,
+   -0.38,
+   0
+  ],
+  "leftThumbMetacarpal": [
+   0,
+   0.5,
+   0
+  ],
+  "leftThumbProximal": [
+   0,
+   0.7,
+   0
+  ],
+  "leftThumbDistal": [
+   0,
+   0.6,
+   0
+  ],
+  "head": [
+   0.02,
+   0,
+   -0.12
+  ],
+  "neck": [
+   0,
+   0,
+   -0.04
+  ]
+ }
+}
