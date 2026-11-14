@@ -1,12 +1,12 @@
-"""滑动窗口限流器(进程内存版)
+"""スライディングウィンドウ方式のレート制限(プロセスのメモリ上で管理)
 
 用途:
-- 弹幕防刷屏:每个用户 N 秒内最多发 M 条
-- 登录防暴力破解:同一 IP+用户名 的失败次数超过上限后暂时拒绝
+- コメントの連投防止:1人あたり N 秒に M 件まで
+- ログインの総当たり対策:同じ IP+ユーザー名 の失敗が上限を超えたら、しばらく拒否する
 
-注意:状态保存在进程内存里,只在「单进程运行」时准确。
-本应用本来就因 WebSocket 连接表 / AI 队列在内存中而必须单进程运行,所以一致;
-将来要多进程/多台服务器扩展时,需改用 Redis 等共享存储。
+注意:状態はプロセスのメモリにあるので、「1プロセスで動かす」ときだけ正確。
+このアプリは WebSocket の接続一覧や AI のキューもメモリ上にあり、もともと1プロセスで動かす前提なので問題ない。
+複数プロセス・複数サーバに広げるときは、Redis などの共有ストレージに移す必要がある。
 """
 import time
 from collections import deque
@@ -25,7 +25,7 @@ class SlidingWindowLimiter:
         self._hits: "dict[str, deque[float]]" = {}
 
     def _prune(self, key: str, now: float) -> "deque[float]":
-        """删除窗口外的旧记录;队列变空时把 key 从字典移除,避免内存无限增长"""
+        """ウィンドウより古い記録を消す。空になったキーは辞書から外す(メモリが増え続けないように)"""
         q = self._hits.get(key)
         if q is None:
             return deque()
@@ -36,11 +36,11 @@ class SlidingWindowLimiter:
         return q
 
     def is_limited(self, key: str) -> bool:
-        """只检查不记录:窗口内次数是否已达上限"""
+        """記録はせず確認だけ:ウィンドウ内の回数が上限に達しているか"""
         return len(self._prune(key, time.monotonic())) >= self.limit
 
     def hit(self, key: str) -> bool:
-        """记录一次;未超限返回 True,已超限返回 False(超限的这次不计入)"""
+        """1回記録する。上限内なら True、上限を超えていれば False(超えた分は記録しない)"""
         now = time.monotonic()
         q = self._prune(key, now)
         if len(q) >= self.limit:

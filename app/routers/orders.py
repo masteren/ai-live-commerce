@@ -1,16 +1,16 @@
-"""下单结算(模拟支付):单事务内 校验库存 → 认领购物车 → 原子扣减库存 → 生成订单
+"""注文の確定(決済は模擬):1つのトランザクションで 在庫の確認 → カートの確保 → 在庫を減らす → 注文を作る
 
-并发下的两个保证(都靠「带条件的写入 + 检查影响行数」,而不是先读后写):
-  - 不超卖:   不同用户抢同一件商品 → 条件 UPDATE
-  - 不重复下单:同一用户的请求重复到达 → 按 id+数量 删除购物车行,删不到就回滚
+同時にリクエストが来ても守る2つのこと(どちらも「条件付きの書き込み+変わった行数の確認」で守る。読んでから書く方式は使わない):
+  - 売り越さない:     別々の人が同じ商品を買う → 条件付き UPDATE
+  - 二重に注文しない:同じ人のリクエストが重なって届く → カートの行を id+数量 で削除し、削除できなければロールバック
 
-防超卖的核心是「条件 UPDATE」:
+売り越し防止の中心は「条件付き UPDATE」:
     UPDATE products SET stock = stock - :q WHERE id = :id AND is_active AND stock >= :q
-判断与扣减在 DB 内一步完成,影响行数 != 1 即库存不足 → 回滚返回 409。
-SQLite / PostgreSQL 都成立(SQLite 会忽略 FOR UPDATE,不能单靠行锁)。
-PostgreSQL 下 with_for_update() 另外加行锁,让并发请求在读取阶段就排队。
-支付为模拟:前端支付页确认后调用本接口即视为支付成功。
-下单成功后广播购买事件,并让 AI 主播排队语音道谢。
+判定と減算を DB の中で一度に行い、変わった行数が 1 でなければ在庫不足 → ロールバックして 409。
+SQLite でも MySQL でも成り立つ(SQLite は FOR UPDATE を無視するので、行ロックだけには頼れない)。
+MySQL では with_for_update() が行ロックもかけ、同時のリクエストを読み取りの段階で順番に並ばせる。
+決済は模擬:画面の支払い画面で確定すると、このエンドポイントが呼ばれて支払い成功として扱う。
+注文が成功したら購入を全員に知らせ、AI ホストのお礼をキューに入れる。
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, delete, update
@@ -39,11 +39,11 @@ async def checkout(body: CheckoutIn, user: User = Depends(get_current_user), db:
         raise HTTPException(400, "カートが空です")
 
     ids = [c.product_id for c in cart]
-    # PostgreSQL: SELECT ... FOR UPDATE 行锁;SQLite 忽略该子句(真正的保证在下方条件 UPDATE)
+    # MySQL: SELECT ... FOR UPDATE で行ロック。SQLite はこの句を無視する(本当の保証は下の条件付き UPDATE)
     prows = await db.execute(select(Product).where(Product.id.in_(ids)).with_for_update())
     products = {p.id: p for p in prows.scalars()}
 
-    # 预检查:给出友好的错误信息(并发下的最终判定以条件 UPDATE 为准)
+    # 事前チェック:分かりやすいエラーを返すため(同時に来た場合の最終判定は条件付き UPDATE)
     for c in cart:
         p = products.get(c.product_id)
         if not p or not p.is_active:
@@ -51,9 +51,9 @@ async def checkout(body: CheckoutIn, user: User = Depends(get_current_user), db:
         if p.stock < c.quantity:
             raise HTTPException(409, f"「{p.name}」の在庫が不足しています(残り{p.stock}点)")
 
-    # ① 先「认领」购物车:按 id + 数量 删除自己读到的每一行,检查确实删掉了。
-    #    同一用户的下单请求同时到达时(双击、网络重发),后到的请求在这里删不到行 → 整单回滚,
-    #    不会用同一个购物车生成两张订单。(和扣库存一样:不相信之前读到的值,让 DB 在一条语句里判定)
+    # ① まずカートを「確保」する:読み取った行を id + 数量 で1行ずつ削除し、本当に削除できたかを確認する。
+    #    同じ人の注文が同時に届いたとき(ダブルクリック、通信の再送)、後から来た方はここで削除できない → 全体をロールバック。
+    #    同じカートから注文が2つできることはない(在庫と同じく、前に読んだ値を信用せず、DB に1文で判定させる)
     for c in cart:
         res = await db.execute(
             delete(CartItem)
@@ -64,7 +64,7 @@ async def checkout(body: CheckoutIn, user: User = Depends(get_current_user), db:
             await db.rollback()
             raise HTTPException(409, "カートの内容が変更されました。もう一度お試しください")
 
-    # ② 逐件原子扣减库存:不在 Python 里算好绝对值再写回(那样并发时会 lost update)
+    # ② 1件ずつ在庫を減らす:Python で計算した値を書き戻すことはしない(同時に来ると更新が失われる=lost update)
     for c in cart:
         p = products[c.product_id]
         res = await db.execute(
@@ -74,11 +74,11 @@ async def checkout(body: CheckoutIn, user: User = Depends(get_current_user), db:
             .execution_options(synchronize_session=False)
         )
         if res.rowcount != 1:
-            name = p.name           # rollback 会让 ORM 对象过期,先取出再回滚
+            name = p.name           # rollback すると ORM オブジェクトが失効するので、先に取り出してからロールバック
             await db.rollback()
             raise HTTPException(409, f"「{name}」の在庫が不足しています")
 
-    # ③ 全部扣减成功后再建订单(放在 UPDATE 之后,避免 autoflush 后访问 order.items 触发异步 lazy load)
+    # ③ すべて減らせてから注文を作る(UPDATE の後に置く。先に作ると autoflush 後に order.items が非同期の遅延読み込みを起こす)
     order = Order(
         user_id=user.id, nickname=user.username, payment_method=body.payment_method,
         total=sum(products[c.product_id].price * c.quantity for c in cart),
@@ -92,7 +92,7 @@ async def checkout(body: CheckoutIn, user: User = Depends(get_current_user), db:
     await db.commit()
     await db.refresh(order)
 
-    # 广播扣减后的真实库存(内存中的 p.stock 是扣减前的旧值)
+    # 減らした後の実際の在庫を配信する(メモリ上の p.stock は減らす前の古い値)
     srows = await db.execute(select(Product.id, Product.stock).where(Product.id.in_(ids)))
     await manager.broadcast({
         "type": "purchase",
@@ -100,10 +100,10 @@ async def checkout(body: CheckoutIn, user: User = Depends(get_current_user), db:
         "items": [{"name": i.product_name, "quantity": i.quantity} for i in order.items],
         "stocks": {str(pid): stock for pid, stock in srows},
     })
-    # AI 主播语音道谢(模板生成,不耗 LLM;走队列保证与回答不抢话)
+    # AI ホストのお礼(定型文。LLM は使わない。キューを通して、ほかの返答と重ならないようにする)
     names = [i.product_name for i in order.items]
     product_label = names[0] if len(names) == 1 else f"{names[0]}」と「{names[1]}" if len(names) == 2 \
-        else f"{names[0]}」など{len(names)}点の商品"   # 模板外层已有「」
+        else f"{names[0]}」など{len(names)}点の商品"   # 外側の「」は定型文の側にある
     await host.enqueue_thanks(order.nickname, product_label)
     return order
 

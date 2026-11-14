@@ -1,4 +1,4 @@
-"""管理后台接口:X-Admin-Token 头鉴权(值 = 环境变量 ADMIN_TOKEN)"""
+"""管理画面の API:X-Admin-Token ヘッダで認証する(値は環境変数 ADMIN_TOKEN)"""
 import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -32,7 +32,7 @@ def require_admin(request: Request, x_admin_token: str = Header(default="")):
         raise HTTPException(401, "管理者トークンが正しくありません")
 
 
-# ---- 商品管理 ----
+# ---- 商品の管理 ----
 @router.get("/products", response_model=list[ProductOut], dependencies=[Depends(require_admin)])
 async def all_products(db: AsyncSession = Depends(get_db)):
     rows = await db.execute(select(Product).order_by(Product.id))
@@ -66,7 +66,7 @@ async def update_product(product_id: int, body: ProductUpdate, db: AsyncSession 
 
 @router.delete("/products/{product_id}", dependencies=[Depends(require_admin)])
 async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
-    """软删除:下架而非物理删除,保住历史订单引用"""
+    """論理削除:行を消さずに販売停止にする(過去の注文から参照されているため)"""
     product = await db.get(Product, product_id)
     if not product:
         raise HTTPException(404, "商品が見つかりません")
@@ -76,7 +76,7 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
     return {"ok": True}
 
 
-# ---- 数据统计 ----
+# ---- 集計 ----
 @router.get("/stats", response_model=StatsOut, dependencies=[Depends(require_admin)])
 async def stats(db: AsyncSession = Depends(get_db)):
     total_orders = (await db.execute(select(func.count(Order.id)))).scalar() or 0
@@ -115,7 +115,7 @@ async def recent_orders(db: AsyncSession = Depends(get_db)):
     return rows.scalars().unique().all()
 
 
-# ---- 气氛组机器人开关 ----
+# ---- 盛り上げ用 BOT のオン・オフ ----
 class BotToggle(BaseModel):
     enabled: bool
 

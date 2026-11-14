@@ -1,4 +1,4 @@
-"""ORM 模型"""
+"""ORM のモデル(テーブル定義)"""
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -17,21 +17,21 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(20), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(200))   # 格式: salt_hex$pbkdf2_hex
+    password_hash: Mapped[str] = mapped_column(String(200))   # 形式: pbkdf2_sha256$回数$ソルト$ハッシュ(旧形式 ソルト$ハッシュ も検証できる)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
 class AuthSession(Base):
-    """登录会话:一个用户可同时持有多个(Web 浏览器 + iOS App 等多端登录)
+    """ログインのセッション:1人が複数持てる(Web ブラウザと iOS アプリなど、複数の端末で同時にログイン)
 
-    DB 只保存令牌的 SHA-256 哈希:即使 DB 泄露,也无法直接拿哈希值冒充用户登录。
+    DB にはトークンの SHA-256 ハッシュだけを保存する:DB が漏れても、ハッシュからは利用者になりすませない。
     """
     __tablename__ = "auth_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    csrf_token: Mapped[str] = mapped_column(String(64))       # Cookie 认证时的 CSRF 对策(双重提交)
+    csrf_token: Mapped[str] = mapped_column(String(64))       # Cookie で認証するときの CSRF 対策(二重送信)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
@@ -50,7 +50,7 @@ class Product(Base):
     emoji: Mapped[str] = mapped_column(String(8), default="🛍️")               # 画像がない場合の代替表示
     image_url: Mapped[str] = mapped_column(String(255), default="", server_default="")  # 商品画像(/static/products/xxx.png)
     price: Mapped[int] = mapped_column(Integer)                        # 単価(円)
-    original_price: Mapped[int] = mapped_column(Integer, default=0)    # 通常価格(划线价)
+    original_price: Mapped[int] = mapped_column(Integer, default=0)    # 通常価格(取り消し線で表示する価格)
     stock: Mapped[int] = mapped_column(Integer, default=0)
     tag: Mapped[str] = mapped_column(String(30), default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -78,10 +78,10 @@ class Order(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    nickname: Mapped[str] = mapped_column(String(40))                  # 下单时用户名快照
+    nickname: Mapped[str] = mapped_column(String(40))                  # 注文時点のユーザー名(あとで変わっても注文の記録は変えない)
     total: Mapped[int] = mapped_column(Integer)
     payment_method: Mapped[str] = mapped_column(String(30), default="credit_card")
-    status: Mapped[str] = mapped_column(String(20), default="paid")    # 模拟支付:确认即支付成功
+    status: Mapped[str] = mapped_column(String(20), default="paid")    # 決済は模擬:確定した時点で支払い済み
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
     items: Mapped[list["OrderItem"]] = relationship(back_populates="order", lazy="selectin")
@@ -93,7 +93,7 @@ class OrderItem(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
     product_id: Mapped[int] = mapped_column(Integer)
-    product_name: Mapped[str] = mapped_column(String(120))             # 冗余快照
+    product_name: Mapped[str] = mapped_column(String(120))             # 注文時点の商品名(あとで商品名が変わっても注文の記録は変えない)
     unit_price: Mapped[int] = mapped_column(Integer)
     quantity: Mapped[int] = mapped_column(Integer)
 
@@ -104,7 +104,7 @@ class Comment(Base):
     __tablename__ = "comments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)  # bot/主播为空
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)  # BOT・AI ホストのコメントは空
     nickname: Mapped[str] = mapped_column(String(40))
     text: Mapped[str] = mapped_column(Text)
     is_host: Mapped[bool] = mapped_column(Boolean, default=False)

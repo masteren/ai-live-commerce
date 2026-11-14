@@ -1,4 +1,4 @@
-"""购物车接口:登录用户绑定"""
+"""カートの API(ログインしたユーザーごと)"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, delete, select, update
 from sqlalchemy.exc import IntegrityError

@@ -1,4 +1,4 @@
-"""公开商品接口(观众端)"""
+"""公開の商品 API(視聴者向け)"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 

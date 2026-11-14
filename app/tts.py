@@ -1,18 +1,18 @@
-"""语音合成(TTS):可替换的 Provider 结构
+"""音声合成(TTS):差し替えできる Provider 構造
 
-调用方(ai_host)只依赖 TTSProvider 接口:
-    audio_url = await tts.synthesize(text, emotion)   # 失败或未启用时返回 None(纯文字模式)
+呼び出し側(ai_host)は TTSProvider のインターフェースだけに依存する:
+    audio_url = await tts.synthesize(text, emotion)   # 失敗・無効のときは None(文字だけで続ける)
 
-现有实现:
-  - VoicevoxTTS : VOICEVOX ENGINE(日语专用,情绪 → 语速/音高微调)
-  - NullTTS     : 不发声(纯文字模式;测试、无引擎环境用)
-新增引擎(例如 OmniVoice)时只需再写一个类并在 build_tts() 注册,其他代码不用改。
-用 .env 的 TTS_PROVIDER 切换。
+実装:
+  - VoicevoxTTS : VOICEVOX ENGINE(日本語。感情に応じて話す速さ・高さを少し変える)
+  - NullTTS     : 音を出さない(文字だけ。テストやエンジンのない環境用)
+新しいエンジンを足すときは、クラスを1つ書いて build_tts() に登録するだけで、ほかのコードは変えなくてよい。
+.env の TTS_PROVIDER で切り替える。
 
-VOICEVOX 两段式 API:
-  1. POST /audio_query?text=...&speaker=N  → 合成参数 JSON
-  2. POST /synthesis?speaker=N (body=上一步JSON) → wav
-结果按「文本+声线参数」的 md5 缓存到 app/static/audio/,同一句话不重复合成。
+VOICEVOX の API は2段階:
+  1. POST /audio_query?text=...&speaker=N  → 合成用のパラメータ(JSON)
+  2. POST /synthesis?speaker=N (本文=1 の JSON) → wav
+結果は「文章+声の設定」の md5 を名前にして AUDIO_DIR に保存し、同じ文章は合成し直さない。
 キャッシュは AUDIO_CACHE_MAX_FILES 件まで。超えたら「最後に使われたのが古いもの」から消す(LRU)。
 """
 import asyncio
@@ -43,16 +43,16 @@ _EMOJI_RE = re.compile(
 
 
 def clean_text(text: str) -> str:
-    """去掉表情符号等 TTS 读不了的字符"""
+    """絵文字など、TTS が読めない文字を取り除く"""
     return _EMOJI_RE.sub("", text).strip()
 
 
 class TTSProvider(Protocol):
     name: str
-    credit: str      # 页面上显示的署名(例:VOICEVOX:ずんだもん);无需署名则为空
+    credit: str      # 画面に出すクレジット(例:VOICEVOX:ずんだもん)。不要なら空
 
     async def synthesize(self, text: str, emotion: str = "normal") -> Optional[str]:
-        """合成语音,返回前端可访问的 URL;失败返回 None"""
+        """音声を合成し、画面から取得できる URL を返す。失敗したら None"""
         ...
 
     async def aclose(self) -> None:
@@ -74,7 +74,7 @@ class NullTTS:
 class VoicevoxTTS:
     name = "voicevox"
 
-    # 情绪 → 语速/音高的微调(声线统一以保持专业感;speaker=None 表示沿用 .env 设置)
+    # 感情 → 話す速さ・高さの微調整(声は1つにそろえて落ち着いた印象に。speaker=None は .env の設定を使う)
     EMOTION_VOICE = {
         "normal":   {"speaker": None, "speed": 1.0,  "pitch": 0.0},
         "happy":    {"speaker": None, "speed": 1.04, "pitch": 0.01},
@@ -125,8 +125,8 @@ class VoicevoxTTS:
             # ファイル操作は別スレッドで(その間も配信を止めない)
             await asyncio.to_thread(_save_and_prune, self.audio_dir, filepath, s.content, self.max_files)
             return url
-        except Exception as e:  # VOICEVOX 未启动/超时等:降级为纯文字,直播不中断
-            logger.warning("VOICEVOX 合成失败,降级为纯文字: %s", e)
+        except Exception as e:  # VOICEVOX が起動していない・時間切れなど:文字だけにして、配信は止めない
+            logger.warning("VOICEVOX の合成に失敗したため、文字だけにします: %s", e)
             return None
 
 

@@ -1,9 +1,9 @@
-"""AI ライブコマース — FastAPI 主入口
+"""AI ライブコマース — FastAPI のエントリポイント
 
-启动: uvicorn app.main:app --reload
-观众端:  http://127.0.0.1:8000/
-管理后台: http://127.0.0.1:8000/admin
-API 文档: http://127.0.0.1:8000/docs
+起動: uvicorn app.main:app --reload
+視聴者ページ: http://127.0.0.1:8000/
+管理画面:     http://127.0.0.1:8000/admin
+API ドキュメント: http://127.0.0.1:8000/docs
 """
 import asyncio
 import json
@@ -57,7 +57,7 @@ SEED_PRODUCTS = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 表结构由 Alembic 迁移管理(migrations/);首次启动播种示例商品
+    # テーブル構造は Alembic のマイグレーション(migrations/)で管理。初回起動時は見本の商品を入れる
     if settings.auto_migrate:
         await run_migrations()
     async with SessionLocal() as db:
@@ -66,16 +66,16 @@ async def lifespan(app: FastAPI):
             for p in SEED_PRODUCTS:
                 db.add(Product(**p))
             await db.commit()
-            logger.info("示例商品已写入(首次启动)")
+            logger.info("見本の商品を登録しました(初回起動)")
     os.makedirs(settings.audio_dir, exist_ok=True)
     await host.refresh_products()
     logger.info("TTS: %s / LLM: %s", tts.name,
                 host.llm.name if host.llm else "なし(ルール応答モード)")
-    tasks = host.start() + [bot.start()]   # AI主播 worker ×2 + 气氛组机器人
+    tasks = host.start() + [bot.start()]   # AI ホストの worker ×2 + 盛り上げ用 BOT
     yield
     for t in tasks:
         t.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)  # 等待退出,避免关停告警
+    await asyncio.gather(*tasks, return_exceptions=True)  # 終了を待つ(待たないと終了時に警告が出る)
     # 使い回していた HTTP 接続を閉じる(app/http_pool.py)
     await tts.aclose()
     if host.llm:
@@ -151,11 +151,11 @@ async def admin_page():
 
 
 def _origin_allowed(ws: WebSocket) -> bool:
-    """防止跨站 WebSocket 劫持(CSWSH)
+    """他サイトからの WebSocket 乗っ取り(CSWSH)を防ぐ
 
-    浏览器连接 WebSocket 时会自动附带 Cookie,但 WebSocket 不受同源策略/CORS 保护,
-    恶意网站也能连到这里并借用用户的 Cookie。所以浏览器发来的握手必须检查 Origin。
-    原生 App / 测试脚本通常不发送 Origin(它们用 Bearer 令牌认证),直接放行。
+    ブラウザは WebSocket の接続時にも Cookie を自動で付けるが、WebSocket は同一オリジンポリシー/CORS の対象外。
+    そのため悪意のあるサイトからも接続でき、利用者の Cookie を使われてしまう。ブラウザからの接続は Origin を確認する。
+    アプリやテスト用スクリプトは通常 Origin を送らない(Bearer トークンで認証する)ので、そのまま通す。
     """
     origin = ws.headers.get("origin")
     if not origin:
@@ -169,23 +169,23 @@ def _origin_allowed(ws: WebSocket) -> bool:
 
 @app.websocket("/ws/live")
 async def live_ws(ws: WebSocket):
-    """直播间 WebSocket
+    """ライブ配信の WebSocket
 
-    认证:握手时携带(未登录也可以观看,只是不能发言)
-      浏览器 → 同源连接时自动附带 HttpOnly Cookie(登录/登出后前端会重新连接)
-      原生 App → 握手请求头 Authorization: Bearer <token>
-    客户端 → 服务端: {"type":"comment","text":"..."}
-    服务端 → 客户端:
-      {"type":"viewers","count":N}                                   在线人数
-      {"type":"comment","nickname","text"}                           观众/机器人弹幕
+    認証:接続時に付ける(ログインしていなくても視聴はできる。コメントは不可)
+      ブラウザ → 同一オリジンなので HttpOnly Cookie が自動で付く(ログイン・ログアウト後は画面側が接続し直す)
+      アプリ   → 接続時のヘッダ Authorization: Bearer <token>
+    クライアント → サーバ: {"type":"comment","text":"..."}
+    サーバ → クライアント:
+      {"type":"viewers","count":N}                                   視聴者数
+      {"type":"comment","nickname","text"}                           視聴者・BOT のコメント
       {"type":"host_reply","id","nickname","text","product_id","emotion","audio_pending"}  AI主播(文字。先に届く)
       {"type":"host_audio","id","audio_url"}                         上の id の発言の音声(合成が終わってから届く)
-      {"type":"purchase","nickname","items","stocks"}                购买播报
-      {"type":"products_changed"}                                    商品变更
-      {"type":"error","message"}                                     仅发给当前连接
+      {"type":"purchase","nickname","items","stocks"}                購入のお知らせ
+      {"type":"products_changed"}                                    商品の変更
+      {"type":"error","message"}                                     エラー(この接続にだけ送る)
     """
     if not _origin_allowed(ws):
-        await ws.close(code=1008)   # 握手前关闭 → 客户端收到 403
+        await ws.close(code=1008)   # 接続を受け付ける前に閉じる → クライアントには 403 が返る
         return
     raw_token, _ = extract_token(ws.headers, ws.cookies)
     await manager.connect(ws)
@@ -195,14 +195,14 @@ async def live_ws(ws: WebSocket):
             try:
                 data = json.loads(raw)
             except (json.JSONDecodeError, ValueError):
-                # 畸形帧只丢弃,不断开连接
+                # 形式の壊れたメッセージは捨てるだけで、接続は切らない
                 continue
             if not isinstance(data, dict) or data.get("type") != "comment":
                 continue
             text = (data.get("text") or "").strip()[:200]
             if not text:
                 continue
-            # 每条弹幕都重新校验会话:登出或过期后立即失去发言权限
+            # コメントのたびにセッションを確認する:ログアウト・期限切れになったらすぐにコメントできなくなる
             found = await resolve_session(raw_token)
             if not found:
                 await ws.send_json({"type": "error", "message": "コメントするにはログインが必要です"})
@@ -211,7 +211,7 @@ async def live_ws(ws: WebSocket):
             if not comment_limiter.hit(f"user:{user.id}"):
                 await ws.send_json({"type": "error", "message": "コメントの送信が早すぎます。少し待ってから送信してください"})
                 continue
-            # 落库 → 广播 → 交给 AI 主播(混合应答策略判断是否回答)
+            # 保存 → 全員に配信 → AI ホストに渡す(答えるかどうかは応答の方針で決める)
             async with SessionLocal() as db:
                 db.add(Comment(user_id=user.id, nickname=user.username, text=text))
                 await db.commit()

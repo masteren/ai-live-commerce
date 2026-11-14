@@ -1,21 +1,21 @@
-"""AI 虚拟主播「ハナ」核心逻辑
+"""AI ホスト「花奈」の中心となる処理
 
-■ 人设(与前端立绘、VOICEVOX 声线联动)
+■ キャラクター(画面の立ち絵・VOICEVOX の声と連動)
   花奈(はな)— 公式オンラインストア所属のAI販売アシスタント。
   丁寧で落ち着いた接客(です・ます調)。商品知識が正確で、押し売りをしない。
   視聴者の質問に的確に答え、必要な情報だけを簡潔に案内するプロフェッショナル。
 
-■ 情绪系统
-  LLM 每次回答同时输出 emotion ∈ {normal, happy, excited, troubled, shy}
-  → 前端切换立绘表情;后端映射 VOICEVOX 声线风格与语速(EMOTION_VOICE)
+■ 感情
+  LLM は返答と一緒に emotion ∈ {normal, happy, excited, troubled, shy} を返す
+  → 画面は立ち絵の表情を切り替え、TTS は感情に応じて話す速さ・高さを少し変える
 
-■ 应答策略(混合模式)
-  规则判定"像问题"的弹幕必答;纯闲聊按 chat_reply_prob 概率随机接一句
-  单一 worker 顺序消费队列 + 最小回答间隔限流;积压只保留最新几条
+■ 応答の方針(混合方式)
+  「質問らしい」コメントには必ず答え、雑談には chat_reply_prob の確率で答える
+  1つの worker がキューを順番に処理し、回答の最小間隔で速さを制限。積み残しは最新の数件だけ残す
 
-■ 降级链
-  无 API key / LLM 失败 → 规则回复;TTS 失败 → 纯文字。任何一环挂掉直播不中断
-  (情绪 → 声音参数的对应关系由各 TTS Provider 自己决定,见 tts.py)
+■ 縮退(どこかが止まっても配信は止めない)
+  API キーなし / LLM の失敗 → ルール応答。TTS の失敗 → 文字だけ
+  (感情を声の速さ・高さにどう反映するかは各 TTS Provider が決める。tts.py を参照)
 """
 import asyncio
 import json
@@ -38,10 +38,10 @@ from .ws import manager
 
 logger = logging.getLogger(__name__)
 
-MAX_BACKLOG = 3       # 弹幕队列积压上限(旧问题直接放弃)
-HISTORY_TURNS = 6     # 携带的历史问答轮数
+MAX_BACKLOG = 3       # キューに溜めておく上限(古い質問は捨てる)
+HISTORY_TURNS = 6     # LLM に渡す過去のやり取りの往復数
 
-# 「像问题」的规则特征:疑问符 / 疑问词 / 购买意图词
+# 「質問らしい」コメントの特徴:疑問符 / 疑問詞 / 購入を考えている言葉
 _QUESTION_RE = re.compile(
     r"[??]|どう|どんな|いくら|何|なに|できる|いつ|どこ|だれ|誰"
     r"|なぜ|どれ|どっち|教えて|ください|おすすめ|オススメ|比べ|違い|サイズ|色|カラー"
@@ -157,9 +157,9 @@ class AIHost:
         self.last_activity_at: float = time.time()
         self._products: list = []          # 販売中の商品(略称での言及判定に使う)
 
-    # ---------- 对外入口 ----------
+    # ---------- 外から呼ばれる入口 ----------
     async def on_comment(self, nickname: str, text: str) -> None:
-        """混合应答策略:问题/提到商品(简称也算,如「マグ」)必答;闲聊按概率接话"""
+        """応答の方針:質問、または商品への言及(「マグ」のような略称も含む)には必ず答え、雑談には確率で答える"""
         self.last_activity_at = time.time()
         must = looks_like_question(text) or host_rules.mentions_product(text, self._products)
         if not must and random.random() > settings.chat_reply_prob:
@@ -167,7 +167,7 @@ class AIHost:
         await self._enqueue({"kind": "reply", "nickname": nickname, "text": text})
 
     async def enqueue_thanks(self, nickname: str, product_name: str) -> None:
-        """购买后语音道谢(模板生成,不耗 LLM)"""
+        """購入へのお礼(定型文で作る。LLM は使わない)"""
         await self._enqueue({"kind": "thanks", "nickname": nickname, "product": product_name})
 
     def start(self) -> list[asyncio.Task]:
@@ -208,7 +208,7 @@ class AIHost:
         i = 0
         while True:
             await asyncio.sleep(5)
-            # 异常保护:这里抛出异常的话 task 会静默结束,之后再也不会自动播报
+            # 例外を捕まえる:ここで例外が漏れるとタスクが黙って終了し、以後の自動トークが止まってしまう
             try:
                 if self._should_idle_talk():
                     text, product_id, emotion = await self._idle_line(i)
@@ -279,19 +279,19 @@ class AIHost:
             raw = await self.llm.complete(system, messages)
         except Exception as e:
             # 縮退:タイムアウト・レート制限・通信障害 → ルール応答。配信は止めない
-            logger.warning("LLM 调用失败,降级为规则回复: %s", e)
+            logger.warning("LLM の呼び出しに失敗したため、ルール応答に切り替えます: %s", e)
             return host_rules.rule_reply(nickname, question, products)
 
         parsed = parse_llm_reply(raw, {p.id for p in products})
         if parsed is None:
             # 指示した JSON 形式で返ってこなかった → そのまま視聴者に見せず、ルール応答に切り替える
-            logger.warning("LLM の返答を解釈できません,降级为规则回复: %.80r", raw)
+            logger.warning("LLM の返答を解釈できないため、ルール応答に切り替えます: %.80r", raw)
             return host_rules.rule_reply(nickname, question, products)
 
         reply, product_id, emotion = parsed
         if not facts_are_consistent(reply, products):
             # 数字が DB と違う返答は視聴者に見せない(履歴にも残さない)
-            logger.warning("LLM の返答の数字が商品データと一致しません,降级为规则回复: %.80r", reply)
+            logger.warning("LLM の返答の数字が商品データと一致しないため、ルール応答に切り替えます: %.80r", reply)
             return host_rules.rule_reply(nickname, question, products)
         reply = strip_fake_referrals(reply)
         self.history = messages + [{"role": "assistant", "content": raw}]

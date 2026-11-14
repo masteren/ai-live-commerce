@@ -1,16 +1,17 @@
-"""用户认证:注册 / 登录 / 登出 / 当前用户
+"""ユーザー認証:新規登録 / ログイン / ログアウト / 現在のユーザー
 
-■ 两种客户端,两种携带方式(共用同一张 auth_sessions 表)
-  - Web 浏览器: HttpOnly Cookie(lc_session)
-      JS 读不到 Cookie → 即使发生 XSS,令牌也偷不走(对比:放 localStorage 会被 XSS 读取)
-      SameSite=Lax + CSRF 令牌双重提交 → 防止其他网站借用 Cookie 发起请求(CSRF)
-  - iOS 等原生 App: Authorization: Bearer <token>(POST /api/auth/token 获取)
-      浏览器不会自动附带这个头,所以不存在 CSRF 问题,无需 CSRF 令牌
+■ 2種類のクライアントと、それぞれのトークンの持ち方(セッション表 auth_sessions は共通)
+  - Web ブラウザ: HttpOnly Cookie(lc_session)
+      JS から Cookie を読めない → XSS が起きてもトークンは盗まれない(localStorage に置くと XSS で読まれる)
+      SameSite=Lax + CSRF トークンの二重送信 → 他のサイトが Cookie を使ってリクエストを送るのを防ぐ(CSRF)
+  - iOS などのアプリ: Authorization: Bearer <token>(POST /api/auth/token で取得)
+      ブラウザはこのヘッダを自動で付けないので、CSRF は起きない。CSRF トークンは不要
 
-■ 安全要点
-  - 密码:标准库 pbkdf2_hmac(sha256, 60万次迭代·次数随哈希一起保存) + 随机盐;登录成功时自动把旧哈希升级
-  - 令牌:secrets 生成的随机值;DB 只存 SHA-256 哈希;有有效期;登出即删除会话
-  - 登录失败限流:同一 IP+用户名 在窗口期内失败过多 → 429(防暴力破解)
+■ 安全面の要点
+  - パスワード:標準ライブラリの pbkdf2_hmac(sha256、60万回。回数もハッシュと一緒に保存)+ ランダムなソルト。
+    ログイン成功時に古い形式のハッシュを自動で更新する
+  - トークン:secrets で作るランダムな値。DB には SHA-256 のハッシュだけを保存。有効期限あり。ログアウトでセッションを削除
+  - ログイン失敗の回数制限:同じ IP+ユーザー名 で短時間に失敗が多すぎる → 429(総当たり対策)
 """
 import asyncio
 import hashlib
@@ -40,7 +41,7 @@ login_limiter = SlidingWindowLimiter(settings.login_fail_limit, settings.login_f
 register_limiter = SlidingWindowLimiter(settings.register_limit, settings.register_window)
 
 
-# ---------- 密码 ----------
+# ---------- パスワード ----------
 def hash_password(password: str, iterations: Optional[int] = None) -> str:
     """形式: pbkdf2_sha256$反復回数$ソルト(hex)$ハッシュ(hex)
     反復回数をハッシュと一緒に保存する → 将来回数を増やしても、古いハッシュを検証できる"""
@@ -78,15 +79,15 @@ def needs_rehash(stored: str) -> bool:
         return True
 
 
-# ---------- 会话 ----------
+# ---------- セッション ----------
 def _hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
 async def _create_session(db: AsyncSession, user: User) -> Tuple[str, AuthSession]:
-    """新建会话,返回 (原始令牌, 会话行)。原始令牌只在这里出现一次,DB 里只有哈希"""
+    """セッションを作り、(元のトークン, セッションの行) を返す。元のトークンが出てくるのはここだけで、DB にはハッシュだけを置く"""
     now = now_utc()
-    # 顺便清理已过期的会话,避免表无限增长
+    # ついでに期限切れのセッションを消す(表が増え続けないように)
     await db.execute(delete(AuthSession).where(AuthSession.expires_at < now))
     raw = secrets.token_urlsafe(32)
     sess = AuthSession(
@@ -101,13 +102,13 @@ async def _create_session(db: AsyncSession, user: User) -> Tuple[str, AuthSessio
 
 
 async def resolve_session(raw: str, db: Optional[AsyncSession] = None) -> Optional[Tuple[User, AuthSession]]:
-    """原始令牌 → (User, AuthSession);无效/过期返回 None。WebSocket 等无依赖注入场景也可直接调用"""
+    """元のトークン → (User, AuthSession)。無効・期限切れなら None。WebSocket など依存性注入が使えない場所からも呼べる"""
     if not raw or len(raw) < 32:
         return None
     stmt = (
         select(User, AuthSession)
         .join(AuthSession, AuthSession.user_id == User.id)
-        # 过期判断放在 SQL 里做(SQLite 取回的时间不带时区,在 Python 里比较容易出错)
+        # 期限切れの判定は SQL の中で行う(SQLite から取り出した時刻にはタイムゾーンがなく、Python で比べると間違えやすい)
         .where(AuthSession.token_hash == _hash_token(raw), AuthSession.expires_at > now_utc())
     )
     if db is not None:
@@ -119,7 +120,7 @@ async def resolve_session(raw: str, db: Optional[AsyncSession] = None) -> Option
 
 
 def extract_token(headers, cookies) -> Tuple[str, str]:
-    """从请求中取出令牌:优先 Authorization: Bearer(原生 App),其次 Cookie(浏览器)。返回 (令牌, 方式)"""
+    """リクエストからトークンを取り出す:Authorization: Bearer(アプリ)を優先し、なければ Cookie(ブラウザ)。(トークン, 方式) を返す"""
     authz = headers.get("authorization", "")
     if authz[:7].lower() == "bearer ":
         return authz[7:].strip(), "bearer"
@@ -130,21 +131,21 @@ def _set_session_cookie(response: Response, raw: str) -> None:
     response.set_cookie(
         COOKIE_NAME, raw,
         max_age=settings.session_ttl_hours * 3600,
-        httponly=True,                  # JS 无法读取
-        samesite="lax",                 # 跨站的 POST 等请求不附带 Cookie
-        secure=settings.cookie_secure,  # HTTPS 环境下只通过加密连接发送
+        httponly=True,                  # JS から読めない
+        samesite="lax",                 # 他サイトからの POST などには Cookie を付けない
+        secure=settings.cookie_secure,  # HTTPS で運用するときは、暗号化された通信でだけ送る
         path="/",
     )
 
 
-# ---------- 依赖注入 ----------
+# ---------- 依存性注入(各エンドポイントで使うログイン確認) ----------
 async def get_current_session(request: Request, db: AsyncSession = Depends(get_db)) -> Tuple[User, AuthSession]:
     raw, via = extract_token(request.headers, request.cookies)
     found = await resolve_session(raw, db)
     if not found:
         raise HTTPException(401, "ログインが必要です")
     user, sess = found
-    # Cookie 认证 + 会修改数据的请求 → 必须带正确的 CSRF 令牌(双重提交)
+    # Cookie で認証していて、データを変更するリクエスト → 正しい CSRF トークンが必要(二重送信方式)
     if via == "cookie" and request.method not in SAFE_METHODS:
         sent = request.headers.get(CSRF_HEADER, "")
         if not secrets.compare_digest(sent, sess.csrf_token):
@@ -156,7 +157,7 @@ async def get_current_user(ctx: Tuple[User, AuthSession] = Depends(get_current_s
     return ctx[0]
 
 
-# ---------- 请求/响应模型 ----------
+# ---------- リクエスト・レスポンスの型 ----------
 class AuthIn(BaseModel):
     username: str = Field(min_length=2, max_length=20, pattern=r"^[\w\-ぁ-んァ-ヶ一-龠ー]+$")
     password: str = Field(min_length=6, max_length=64)
@@ -164,7 +165,7 @@ class AuthIn(BaseModel):
 
 class WebAuthOut(BaseModel):
     username: str
-    csrf_token: str      # 前端放在内存里,修改类请求时放进 X-CSRF-Token 头
+    csrf_token: str      # 画面側はメモリに持ち、変更系のリクエストで X-CSRF-Token ヘッダに入れる
 
 
 class TokenOut(BaseModel):
@@ -194,10 +195,10 @@ async def _authenticate(body: AuthIn, request: Request, db: AsyncSession) -> Use
     return user
 
 
-# ---------- 端点 ----------
+# ---------- エンドポイント ----------
 @router.post("/register", response_model=WebAuthOut)
 async def register(body: AuthIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    """Web 用:注册并直接登录(设置 Cookie)"""
+    """Web 用:新規登録して、そのままログインする(Cookie を設定)"""
     if not register_limiter.hit(client_ip(request)):
         raise HTTPException(429, "登録の回数が多すぎます。しばらくしてから再度お試しください")
     exists = await db.execute(select(User).where(User.username == body.username))
@@ -208,7 +209,7 @@ async def register(body: AuthIn, request: Request, response: Response, db: Async
     try:
         await db.commit()
     except IntegrityError:
-        # 并发注册同名用户:查重通过但 commit 撞唯一约束 → 统一返回 409
+        # 同じ名前の登録が同時に来た場合:重複チェックは通っても、commit で一意制約に当たる → 409 にそろえる
         await db.rollback()
         raise HTTPException(409, "このユーザー名は既に使われています")
     raw, sess = await _create_session(db, user)
@@ -218,7 +219,7 @@ async def register(body: AuthIn, request: Request, response: Response, db: Async
 
 @router.post("/login", response_model=WebAuthOut)
 async def login(body: AuthIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    """Web 用:登录(设置 HttpOnly Cookie,令牌本身不出现在响应体里)"""
+    """Web 用のログイン(HttpOnly Cookie を設定する。トークン自体はレスポンスの本文に出さない)"""
     user = await _authenticate(body, request, db)
     raw, sess = await _create_session(db, user)
     _set_session_cookie(response, raw)
@@ -227,7 +228,7 @@ async def login(body: AuthIn, request: Request, response: Response, db: AsyncSes
 
 @router.post("/token", response_model=TokenOut)
 async def issue_token(body: AuthIn, request: Request, db: AsyncSession = Depends(get_db)):
-    """原生 App 用:返回 Bearer 令牌(不设置 Cookie)"""
+    """アプリ用:Bearer トークンを返す(Cookie は設定しない)"""
     user = await _authenticate(body, request, db)
     raw, sess = await _create_session(db, user)
     return TokenOut(username=user.username, access_token=raw, expires_at=sess.expires_at.isoformat())
@@ -237,7 +238,7 @@ async def issue_token(body: AuthIn, request: Request, db: AsyncSession = Depends
 async def logout(response: Response,
                  ctx: Tuple[User, AuthSession] = Depends(get_current_session),
                  db: AsyncSession = Depends(get_db)):
-    """登出:删除当前会话(只影响当前设备,其他设备的登录不受影响)"""
+    """ログアウト:このセッションだけを削除する(他の端末のログインはそのまま)"""
     await db.execute(delete(AuthSession).where(AuthSession.id == ctx[1].id))
     await db.commit()
     response.delete_cookie(COOKIE_NAME, path="/")
@@ -248,7 +249,7 @@ async def logout(response: Response,
 async def me(request: Request, response: Response,
              ctx: Tuple[User, AuthSession] = Depends(get_current_session),
              db: AsyncSession = Depends(get_db)):
-    """当前用户。页面刷新后前端用它恢复登录状态和 CSRF 令牌
+    """現在のユーザー。画面を再読み込みしたとき、ログイン状態と CSRF トークンをここから復元する
 
     ログイン状態の維持:Web もアプリも起動(再読み込み)のたびにここを呼ぶので、このとき有効期限を延長する。
     使い続けている限りログインしたままになり、SESSION_TTL_HOURS の間まったく使わなければ切れる(スライディング方式)。
