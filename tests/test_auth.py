@@ -172,3 +172,51 @@ async def test_validation_errors_are_one_japanese_sentence(client):
     assert r.status_code == 422 and "数量は1〜99" in r.json()["detail"]
     r = await client.post("/api/cart", json={"product_id": "x"}, headers=csrf)
     assert r.status_code == 422 and r.json()["detail"] == "入力内容を確認してください"
+
+
+# ---------- ログイン状態の維持(スライディング方式) ----------
+async def _expiry_seconds_from_now() -> float:
+    from datetime import timezone
+    async with SessionLocal() as db:
+        exp = (await db.execute(AuthSession.__table__.select())).first().expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    return (exp - now_utc()).total_seconds()
+
+
+async def test_me_extends_session_when_less_than_half_remains(client):
+    """使い続けていれば切れない:残りが半分を切ったセッションは /me で延長され、Cookie も出し直される"""
+    from app.config import settings
+    await register(client)
+    ttl = settings.session_ttl_hours * 3600
+    async with SessionLocal() as db:
+        await db.execute(update(AuthSession).values(expires_at=now_utc() + timedelta(hours=1)))
+        await db.commit()
+    r = await client.get("/api/auth/me")
+    assert r.status_code == 200 and COOKIE_NAME in r.headers.get("set-cookie", "")
+    assert await _expiry_seconds_from_now() > ttl - 60
+
+
+async def test_me_does_not_rewrite_fresh_session(client):
+    """延長は残りが半分を切ったときだけ(毎回の書き込みを避ける)"""
+    await register(client)
+    before = await _expiry_seconds_from_now()
+    r = await client.get("/api/auth/me")
+    assert r.status_code == 200 and "set-cookie" not in r.headers
+    assert abs(await _expiry_seconds_from_now() - before) < 5
+
+
+async def test_bearer_session_is_extended_too(client, make_client):
+    await register(client)
+    app_client = await make_client()
+    tok = (await app_client.post("/api/auth/token", json={"username": "taro", "password": PW})).json()["access_token"]
+    async with SessionLocal() as db:
+        await db.execute(update(AuthSession).values(expires_at=now_utc() + timedelta(minutes=5)))
+        await db.commit()
+    r = await app_client.get("/api/auth/me", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 200 and "set-cookie" not in r.headers       # アプリには Cookie を出さない
+    async with SessionLocal() as db:
+        rows = (await db.execute(AuthSession.__table__.select())).all()
+    from datetime import timezone
+    extended = [(r.expires_at.replace(tzinfo=timezone.utc) if r.expires_at.tzinfo is None else r.expires_at) > now_utc() + timedelta(days=1) for r in rows]
+    assert sorted(extended) == [False, True]      # 延長されるのは今回使ったセッション(アプリ)だけ。ブラウザ側はそのまま

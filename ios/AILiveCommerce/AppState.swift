@@ -36,6 +36,14 @@ final class AppState: ObservableObject {
     /// 最後まで再生できた音声の数(動作確認・UI テスト用。音声ボタンの accessibilityValue に出す)
     @Published var audioPlayedCount = 0
     private var pendingComment: String?
+    /// 保存済みトークンをサーバに確認できたか(起動時にサーバへ届かなかった場合は、つながった時点で確認する)
+    private var sessionVerified = false
+    /// 前回ログインしていたユーザー名(接続先ごと)。秘密ではないので UserDefaults に置く。
+    /// 起動直後、サーバの返事を待たずにログイン済みの表示にするために使う
+    private var rememberedUsername: String? {
+        get { UserDefaults.standard.string(forKey: "username@" + AppConfig.baseURL.absoluteString) }
+        set { UserDefaults.standard.set(newValue, forKey: "username@" + AppConfig.baseURL.absoluteString) }
+    }
     private var lastSentComment: String?      // セッション切れで拒否されたとき、再ログイン後に送り直すため
 
     var isLoggedIn: Bool { username != nil }
@@ -45,26 +53,50 @@ final class AppState: ObservableObject {
 
     init() {
         socket.onEvent = { [weak self] in self?.handle($0) }
-        socket.onStatus = { [weak self] in self?.connected = $0 }
+        socket.onStatus = { [weak self] up in
+            guard let self else { return }
+            self.connected = up
+            // 起動時にサーバへ届かず確認できていなかった場合は、つながった時点で確認する
+            if up, !self.sessionVerified, Keychain.load() != nil { Task { await self.verifySession() } }
+        }
         api.onUnauthorized = { [weak self] in self?.sessionExpired() }
     }
 
     // MARK: 起動
     func bootstrap() async {
         // UI テストは毎回「未ログイン」から始めるため、起動引数でトークンを消せるようにする
-        if ProcessInfo.processInfo.arguments.contains("--reset-session") { Keychain.delete() }
-        if Keychain.load() != nil {
-            // 保存済みトークンが有効か確認(期限切れなら破棄)
-            // 401 のときは onUnauthorized がトークンを消す。通信エラーのときは消さない(サーバが落ちているだけかもしれない)
-            if let me = try? await api.me() { username = me.username }
-        }
+        if ProcessInfo.processInfo.arguments.contains("--reset-session") { Keychain.delete(); rememberedUsername = nil }
+        await restoreSession()
+    }
+
+    /// 自動ログイン:保存済みのトークンがあれば、前回のアカウントのまま使い始める
+    /// - まず覚えているユーザー名でログイン済みの表示にする(サーバの返事を待たない。圏外でも前回のまま開ける)
+    /// - そのあとサーバに確認する。401(期限切れ・無効)のときだけログアウト扱いにする
+    private func restoreSession() async {
+        sessionVerified = false
+        username = Keychain.load() != nil ? rememberedUsername : nil
+        cart = []
+        orders = []
+        if Keychain.load() != nil { await verifySession() }
         await loadProducts()
         await refreshCart()
         socket.connect()
     }
 
-    func reconnect() {
-        socket.connect()
+    private func verifySession() async {
+        // 401 のときは onUnauthorized → sessionExpired がトークンを消す。通信エラーのときは何もしない(次につながったときに再確認)
+        guard let me = try? await api.me() else { return }
+        sessionVerified = true
+        if username != me.username {
+            username = me.username
+            await refreshCart()
+        }
+        rememberedUsername = me.username
+    }
+
+    /// 接続先サーバを変更したとき:そのサーバ用に保存してあるログインに切り替える
+    func switchServer() async {
+        await restoreSession()
     }
 
     // MARK: 認証
@@ -73,6 +105,8 @@ final class AppState: ObservableObject {
             let res = register ? try await api.register(username: username, password: password)
                                : try await api.login(username: username, password: password)
             self.username = res.username
+            rememberedUsername = res.username
+            sessionVerified = true
             showLogin = false
             showToast("ようこそ、\(res.username)さん")
             socket.connect()                      // 新しいトークンで張り直す
@@ -100,6 +134,7 @@ final class AppState: ObservableObject {
         guard Keychain.load() != nil || username != nil else { return }
         let wasLoggedIn = username != nil
         Keychain.delete()
+        rememberedUsername = nil
         username = nil
         cart = []
         orders = []
@@ -113,12 +148,14 @@ final class AppState: ObservableObject {
     /// アプリが前面に戻ったとき:接続が切れていれば張り直し、表示を最新にする
     func becameActive() async {
         if !connected { socket.connect() }
+        if Keychain.load() != nil { await verifySession() }    // 期限の延長と、期限切れの検出
         await loadProducts()
         await refreshCart()
     }
 
     func logout() async {
         await api.logout()
+        rememberedUsername = nil
         username = nil
         cart = []
         orders = []

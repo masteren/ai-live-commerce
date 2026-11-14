@@ -23,11 +23,11 @@ struct LoginView: View {
                     TextField("ユーザー名(2〜20文字)", text: $username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .textContentType(.username)
+                        .textContentType(AppConfig.isUITesting ? nil : .username)
                         .accessibilityIdentifier("usernameField")
                     // .newPassword だと「強力なパスワード」の自動入力が割り込み、入力内容が変わることがあるため .password に統一
                     SecureField("パスワード(6文字以上)", text: $password)
-                        .textContentType(.password)
+                        .textContentType(AppConfig.isUITesting ? nil : .password)
                         .accessibilityIdentifier("passwordField")
                 }
                 if let error {
@@ -109,12 +109,12 @@ struct AccountView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     Button("再接続") {
-                        Task { await state.loadProducts(); state.reconnect() }
+                        Task { await state.switchServer() }
                     }
                 } header: {
                     Text("接続先サーバ")
                 } footer: {
-                    Text("シミュレータは 127.0.0.1、実機は Mac の LAN の IP アドレスを指定します。")
+                    Text("シミュレータは 127.0.0.1、実機は Mac の LAN の IP アドレスを指定します。ログインは接続先ごとに保存されます。")
                 }
             }
             .navigationTitle("アカウント")

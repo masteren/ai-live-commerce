@@ -7,6 +7,10 @@ enum AppConfig {
     static let baseURLKey = "apiBaseURL"
     static let defaultBaseURL = "http://127.0.0.1:8000"
 
+    /// UI テストから起動されたか。テスト中は iOS のパスワード自動入力(候補の表示・「保存しますか?」の確認)を止める。
+    /// これらは OS が出す画面で、テストの操作を横取りして結果が不安定になるため
+    static let isUITesting = ProcessInfo.processInfo.arguments.contains("--ui-testing")
+
     static var baseURL: URL {
         let s = UserDefaults.standard.string(forKey: baseURLKey) ?? defaultBaseURL
         return URL(string: s) ?? URL(string: defaultBaseURL)!

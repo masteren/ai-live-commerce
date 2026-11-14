@@ -20,7 +20,7 @@ from typing import Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -245,7 +245,26 @@ async def logout(response: Response,
 
 
 @router.get("/me", response_model=WebAuthOut)
-async def me(ctx: Tuple[User, AuthSession] = Depends(get_current_session)):
-    """当前用户。页面刷新后前端用它恢复登录状态和 CSRF 令牌"""
+async def me(request: Request, response: Response,
+             ctx: Tuple[User, AuthSession] = Depends(get_current_session),
+             db: AsyncSession = Depends(get_db)):
+    """当前用户。页面刷新后前端用它恢复登录状态和 CSRF 令牌
+
+    ログイン状態の維持:Web もアプリも起動(再読み込み)のたびにここを呼ぶので、このとき有効期限を延長する。
+    使い続けている限りログインしたままになり、SESSION_TTL_HOURS の間まったく使わなければ切れる(スライディング方式)。
+    毎回書き込むと無駄なので、残りが半分を切ったときだけ延長する。"""
     user, sess = ctx
-    return WebAuthOut(username=user.username, csrf_token=sess.csrf_token)
+    username, csrf, sess_id = user.username, sess.csrf_token, sess.id
+    now, ttl = now_utc(), timedelta(hours=settings.session_ttl_hours)
+    extended = await db.execute(
+        update(AuthSession)
+        .where(AuthSession.id == sess_id, AuthSession.expires_at < now + ttl / 2)   # 判定は SQL 側で(SQLite の時刻は時差情報を持たない)
+        .values(expires_at=now + ttl)
+        .execution_options(synchronize_session=False)
+    )
+    if extended.rowcount:
+        await db.commit()
+        raw, via = extract_token(request.headers, request.cookies)
+        if via == "cookie":
+            _set_session_cookie(response, raw)       # ブラウザ側の Cookie の期限も延ばす
+    return WebAuthOut(username=username, csrf_token=csrf)

@@ -11,7 +11,9 @@ final class LiveCommerceFlowUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["--reset-session"]   // 前回のテストのログイン状態(Keychain)を消して開始
+        // --reset-session:前回のテストのログイン状態(Keychain)を消して開始
+        // --ui-testing:iOS のパスワード自動入力を止める(OS の確認画面がテストの操作を横取りするため)
+        app.launchArguments = ["--reset-session", "--ui-testing"]
         // 接続先を変える:TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test ...
         // (開発サーバとは別の、空の DB で起動したテスト用サーバに向けるため。「-キー 値」の引数は UserDefaults を上書きする)
         if let base = ProcessInfo.processInfo.environment["API_BASE"] {

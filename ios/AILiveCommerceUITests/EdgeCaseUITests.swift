@@ -139,7 +139,7 @@ extension LiveCommerceFlowUITests {
     func testEdgeInvalidServerURLDoesNotCrash() throws {
         for bad in ["not a url", "ftp://example", "http://", "192.168.0.1:99999"] {
             app.terminate()
-            app.launchArguments = ["--reset-session", "-apiBaseURL", bad]
+            app.launchArguments = ["--reset-session", "--ui-testing", "-apiBaseURL", bad]
             app.launch()
             sleep(4)
             XCTAssertEqual(app.state, .runningForeground, "接続先「\(bad)」でアプリが落ちた")
@@ -169,6 +169,73 @@ extension LiveCommerceFlowUITests {
         snap("e5_large_live")
         tab("商品"); sleep(1); snap("e5_large_products")
         tab("カート"); sleep(1); snap("e5_large_cart")
+    }
+
+    // MARK: 自動ログイン:アプリを終了して起動し直しても同じアカウントのまま
+    func testEdgeStaysLoggedInAfterRelaunch() throws {
+        let user = uniqueUser("keep_")
+        register(user)
+        tab("ライブ")
+        app.buttons["featuredAddToCart"].tap()             // カートの中身も引き継がれることを見る
+        XCTAssertTrue(text(containing: "カートに追加しました").waitForExistence(timeout: 5))
+
+        // 1. ふつうに終了 → 起動(--reset-session を付けない)
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "--reset-session" }
+        app.launch()
+        tab("アカウント")
+        let name = app.staticTexts["accountUsername"]
+        XCTAssertTrue(name.waitForExistence(timeout: 10), "起動し直したらログアウトされていた")
+        XCTAssertTrue(name.label.contains(user), "別のアカウントになっている: \(name.label)")
+        tab("カート")
+        XCTAssertTrue(app.buttons["checkoutButton"].waitForExistence(timeout: 8), "カートの中身が引き継がれていない")
+        snap("e7_relaunched")
+
+        // 2. サーバに届かない状態で起動しても、前回のアカウントのまま開ける(ログアウト扱いにしない)
+        app.terminate()
+        app.launchArguments += ["-apiBaseURL", "http://127.0.0.1:9"]      // 誰も待ち受けていないポート
+        app.launch()
+        tab("アカウント")
+        XCTAssertTrue(app.buttons["openLogin"].waitForExistence(timeout: 8), "別のサーバなのにログイン済みになっている")
+        // (↑接続先が違えばログインも別。元の接続先に戻すと元のアカウントに戻る ↓)
+        app.terminate()
+        app.launchArguments.removeLast(2)
+        app.launch()
+        tab("アカウント")
+        XCTAssertTrue(name.waitForExistence(timeout: 10), "接続先を戻したらログインが消えていた")
+        XCTAssertTrue(name.label.contains(user))
+
+        // 3. ログアウトしたら、次の起動ではログインしていない
+        app.buttons["logoutButton"].tap()
+        XCTAssertTrue(app.buttons["openLogin"].waitForExistence(timeout: 10))
+        app.terminate()
+        app.launch()
+        tab("アカウント")
+        XCTAssertTrue(app.buttons["openLogin"].waitForExistence(timeout: 10), "ログアウトしたのに次の起動でログイン済みになっている")
+    }
+
+    // MARK: 自動ログイン:サーバが止まっているときに起動しても、前回のアカウントのまま
+    /// サーバを外から止めて再起動する操作が必要(SERVER_RESTART_TEST=1 のときだけ)。
+    /// 手順:ユーザー名が off_ で始まる登録を見つけたら 8 秒後に止め、30 秒後に同じ DB で起動し直す
+    func testEdgeOfflineLaunchKeepsLogin() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["SERVER_RESTART_TEST"] == "1", "サーバの再起動が必要なため通常は実行しない")
+        let user = uniqueUser("off_")
+        register(user)
+        sleep(14)                                          // この間にサーバが止まる
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "--reset-session" }
+        app.launch()
+        tab("アカウント")
+        let name = app.staticTexts["accountUsername"]
+        XCTAssertTrue(name.waitForExistence(timeout: 20), "サーバに届かないだけでログアウト扱いになった")
+        XCTAssertTrue(name.label.contains(user))
+        snap("e8_offline_launch")
+        tab("ライブ")
+        XCTAssertTrue(text(containing: "ライブ接続中").waitForExistence(timeout: 60), "サーバが戻っても再接続しない")
+        type("もどったあとのコメントです?", into: app.textFields["commentField"])
+        app.buttons["sendButton"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "サーバ復帰後、ログインし直さないとコメントできない")
+        XCTAssertFalse(app.textFields["usernameField"].exists, "ログイン画面が出てしまった")
     }
 
     // MARK: 6. 利用中にサーバが落ちて、しばらくして戻る
