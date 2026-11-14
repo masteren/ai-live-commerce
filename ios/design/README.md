@@ -26,6 +26,8 @@ node render_icon.mjs appicon.html ../AILiveCommerce/Assets.xcassets/AppIcon.appi
 - 腕を下ろす:`leftUpperArm` の z を負に。ひじを曲げて手を上げる:`leftLowerArm` の z を正に。
 - 手のひらをカメラに向ける:`leftHand` の x(腕の軸まわりのひねり)。
 - 指を曲げる:各指の z を負に。人差し指と中指を開く:それぞれの y を逆向きに。
+- こぶしをしっかり握る:薬指・小指の3つの関節をどれも深く曲げる(-1.5 前後)。親指は3軸とも少しずつ回して、握った指の上にかぶせる。
+- 手だけを確認したいときは、`camera` の `dist` を 0.5、`x`/`tx` を 0.21 くらいにして手に寄せる。
 - 髪より手前に手を出すには、ひじを外側に(`leftUpperArm` の z を 0 に近づける)。
 
 iOS が角を丸く切り抜くので、画像は四角のまま・透過なしで作る。各サイズは Xcode がビルド時に生成する。

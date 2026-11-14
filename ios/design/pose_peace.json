@@ -34,64 +34,64 @@
    2.62
   ],
   "leftHand": [
-   -1.5,
+   -1.9,
    0,
-   0.1
+   -0.05
   ],
   "leftRingProximal": [
    0,
    0,
-   -1.4
+   -1.55
   ],
   "leftRingIntermediate": [
    0,
    0,
-   -1.5
+   -1.75
   ],
   "leftRingDistal": [
    0,
    0,
-   -1.0
+   -1.2
   ],
   "leftLittleProximal": [
    0,
    0,
-   -1.4
+   -1.55
   ],
   "leftLittleIntermediate": [
    0,
    0,
-   -1.5
+   -1.75
   ],
   "leftLittleDistal": [
    0,
    0,
-   -1.0
+   -1.2
   ],
   "leftIndexProximal": [
    0,
-   0.42,
+   0.34,
    0
   ],
   "leftMiddleProximal": [
    0,
-   -0.38,
+   -0.3,
    0
   ],
   "leftThumbMetacarpal": [
-   0,
    0.5,
-   0
+   0.6,
+   -0.4
   ],
   "leftThumbProximal": [
    0,
-   0.7,
-   0
+   0.6,
+   -0.5
   ],
   "leftThumbDistal": [
    0,
-   0.6,
-   0
+   0.3,
+   -0.6
   ],
   "head": [
    0.02,
