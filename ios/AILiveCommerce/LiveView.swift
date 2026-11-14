@@ -57,7 +57,7 @@ struct LiveView: View {
                 .frame(maxHeight: .infinity, alignment: .top)
             subtitle
         }
-        .frame(height: inputFocused ? 168 : 264)
+        .frame(height: inputFocused ? 156 : 264)
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture { inputFocused = false }       // ステージをタップするとキーボードを閉じる
@@ -118,13 +118,17 @@ struct LiveView: View {
     // MARK: コメント
     private var commentCard: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("コメント").font(.headline)
-                Spacer()
-                Text(state.connected ? "ライブ接続中" : "接続しています…").font(.caption).foregroundStyle(.secondary)
+            // 入力中は見出しを省いて、コメントの行数を確保する(実機+背の高いキーボードでは2行目が切れていた)
+            if !inputFocused {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("コメント").font(.headline)
+                    Spacer()
+                    Text(state.connected ? "ライブ接続中" : "接続しています…").font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
             }
-            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
             commentList
+                .padding(.top, inputFocused ? 8 : 0)
         }
         .card()
     }
