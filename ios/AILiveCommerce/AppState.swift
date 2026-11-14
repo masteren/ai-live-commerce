@@ -16,7 +16,11 @@ final class AppState: ObservableObject {
     @Published var hostText = "ご視聴ありがとうございます。ご質問はコメントでお気軽にどうぞ。"
     @Published var hostEmotion = "normal"
     @Published var featuredId: Int?
-    @Published var soundOn = false
+    /// 音声は最初からオン(Web 版はブラウザの自動再生制限のためクリックが必要だが、アプリにはその制限がない)。
+    /// 利用者が切り替えた設定は保存して、次回の起動でも引き継ぐ
+    @Published var soundOn = (UserDefaults.standard.object(forKey: "soundOn") as? Bool) ?? true {
+        didSet { UserDefaults.standard.set(soundOn, forKey: "soundOn"); if !soundOn { player?.pause() } }
+    }
     // EC
     @Published var products: [Product] = []
     @Published var cart: [CartItem] = []

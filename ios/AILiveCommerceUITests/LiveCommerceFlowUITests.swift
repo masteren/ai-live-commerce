@@ -69,7 +69,9 @@ final class LiveCommerceFlowUITests: XCTestCase {
         XCTAssertTrue(viewers.waitForExistence(timeout: 15))
         XCTAssertTrue(app.wait(for: viewers, labelContains: "1人", timeout: 10), "視聴者数: \(viewers.label)")
         snap("01_live")
-        app.buttons["soundButton"].tap()                 // 音声オン
+        let soundButton = app.buttons["soundButton"]       // 音声は既定でオン。オフになっていたらオンにする
+        if soundButton.label == "音声オフ" { soundButton.tap() }
+        XCTAssertEqual(soundButton.label, "音声オン")
 
         // 2. 未ログインでコメント → ログインシートが開く
         let field = app.textFields["commentField"]
