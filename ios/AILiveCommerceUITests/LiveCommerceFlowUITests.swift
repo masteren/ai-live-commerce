@@ -60,7 +60,8 @@ final class LiveCommerceFlowUITests: XCTestCase {
         let pred = NSPredicate(format: "label == %@ OR label BEGINSWITH %@", name, name + ",")
         let inTabBar = app.tabBars.buttons.matching(pred).firstMatch
         if inTabBar.waitForExistence(timeout: 3) {
-            // 画面の切り替えアニメーション中はタップが空振りすることがあるので、選択されるまで繰り返す
+            // ログイン直後は iOS の「パスワードを保存しますか?」の確認が画面を覆っていて、1回目のタップはそれを閉じるだけになる。
+            // (アプリの不具合ではなく OS の機能。調査して確認済み)選択されるまで繰り返す
             for attempt in 1...4 {
                 inTabBar.tap()
                 let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isSelected == true"), object: inTabBar)
