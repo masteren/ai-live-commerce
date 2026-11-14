@@ -103,7 +103,10 @@ struct CartView: View {
                     cartList
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.stage)
             .navigationTitle("カート")
+            .navigationBarTitleDisplayMode(.inline)
             .task { await state.refreshCart() }
             .alert("お知らせ", isPresented: Binding(get: { resultMessage != nil }, set: { if !$0 { resultMessage = nil } })) {
                 Button("OK") {}

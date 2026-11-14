@@ -97,3 +97,37 @@ async def test_cart_unique_migration_merges_existing_duplicates(tmp_path):
         rows = (await conn.execute(text("SELECT product_id, quantity FROM cart_items ORDER BY product_id"))).all()
     await eng.dispose()
     assert [tuple(r) for r in rows] == [(2, 6), (3, 1)]
+
+
+async def test_sample_products_migration_adds_to_existing_db_only(tmp_path):
+    """見本商品の追加:運用中の DB には不足分だけ追加し(同名があれば増やさない)、空の DB には何も入れない"""
+    from sqlalchemy import text
+    cfg = migrate._alembic_config()
+
+    # 1) 商品がすでにある DB(うち1点は、追加予定の商品と同じ名前)
+    url = f"sqlite+aiosqlite:///{tmp_path}/live.db"
+    cfg.set_main_option("sqlalchemy.url", url)
+    await asyncio.to_thread(command.upgrade, cfg, "c3a1f0d27b10")
+    eng = create_async_engine(url)
+    async with eng.begin() as conn:
+        for name in ("ワイヤレスイヤホン Pro", "アロマディフューザー"):
+            await conn.execute(text(
+                "INSERT INTO products (name, description, emoji, image_url, price, original_price, stock, tag, is_active, created_at)"
+                " VALUES (:n, '', '🛍️', '', 100, 0, 1, '', 1, CURRENT_TIMESTAMP)"), {"n": name})
+    await asyncio.to_thread(command.upgrade, cfg, "head")
+    async with eng.connect() as conn:
+        names = [r[0] for r in (await conn.execute(text("SELECT name FROM products ORDER BY id"))).all()]
+        price = (await conn.execute(text("SELECT price FROM products WHERE name = 'アロマディフューザー'"))).scalar_one()
+    await eng.dispose()
+    assert len(names) == 4 and names.count("アロマディフューザー") == 1 and "モバイルバッテリー 10000mAh" in names
+    assert price == 100                                  # すでにあった商品は書き換えない
+
+    # 2) 空の DB:何も入れない(初期データ投入が6点まとめて入れるため)
+    url = f"sqlite+aiosqlite:///{tmp_path}/empty.db"
+    cfg.set_main_option("sqlalchemy.url", url)
+    await asyncio.to_thread(command.upgrade, cfg, "head")
+    eng = create_async_engine(url)
+    async with eng.connect() as conn:
+        count = (await conn.execute(text("SELECT COUNT(*) FROM products"))).scalar_one()
+    await eng.dispose()
+    assert count == 0

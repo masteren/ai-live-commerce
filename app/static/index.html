@@ -615,7 +615,7 @@ function renderStrip(){
 function setFeaturedById(id){ const p = products.find(x=>x.id===id); if (p){ featured=p; renderFeatured(); renderStrip(); } }
 
 // 「本日の商品」の棚:大きな色つきカードを横に並べる
-const TINTS = ['#F8D2DF', '#C7DDF1', '#DAD1F1', '#FBE1CB', '#CFEADB'];
+const TINTS = ['#F8D2DF', '#C7DDF1', '#DAD1F1', '#FBE1CB', '#CFEADB', '#F3E9C6'];
 function askAbout(p){
   setFeaturedById(p.id);
   $('live').scrollIntoView();

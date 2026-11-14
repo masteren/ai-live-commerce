@@ -13,7 +13,7 @@
 | AI・语音 | LLM(OpenAI 或 Anthropic,可切换;没有 key 时用规则回答)、VOICEVOX |
 | 前端 | 原生 HTML/CSS/JS + three-vrm |
 | iOS | SwiftUI(同一套 API,Bearer 认证) |
-| 测试 | pytest 118 项、E2E 41 项、iOS UI 测试、GitHub Actions |
+| 测试 | pytest 119 项、E2E 41 项、iOS UI 测试、GitHub Actions |
 
 ## 启动
 ```bash

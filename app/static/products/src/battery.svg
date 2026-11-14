@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 30 340 340">
+  <!-- モバイルバッテリー 10000mAh:マットなチャコールの薄型ボディ + 残量ランプ + 短いケーブル -->
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A4D52"/><stop offset=".5" stop-color="#34373B"/><stop offset="1" stop-color="#26282B"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E2022"/><stop offset="1" stop-color="#101112"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="200" cy="332" rx="96" ry="11" fill="#1A1A1A" opacity=".12"/>
+  <g transform="rotate(-8 200 200)">
+    <rect x="124" y="82" width="152" height="244" rx="26" fill="url(#edge)"/>
+    <rect x="118" y="76" width="152" height="244" rx="26" fill="url(#b)"/>
+    <rect x="130" y="88" width="128" height="220" rx="18" fill="none" stroke="#FFFFFF" stroke-opacity=".06" stroke-width="2"/>
+    <!-- 残量ランプ -->
+    <circle cx="170" cy="112" r="4" fill="#8FE3A6"/><circle cx="186" cy="112" r="4" fill="#8FE3A6"/>
+    <circle cx="202" cy="112" r="4" fill="#8FE3A6"/><circle cx="218" cy="112" r="4" fill="#5A5E63"/>
+    <!-- 稲妻のマーク -->
+    <path d="M202 170 L176 214 H194 L186 250 L214 204 H196 Z" fill="#FFFFFF" opacity=".16"/>
+    <!-- 端子 -->
+    <rect x="176" y="312" width="36" height="8" rx="4" fill="#0C0D0E"/>
+  </g>
+  <!-- ケーブル -->
+  <path d="M232 318 C262 352 318 344 322 300 C325 270 300 262 296 240" fill="none" stroke="#E9E6E0" stroke-width="7" stroke-linecap="round"/>
+  <rect x="286" y="218" width="20" height="26" rx="5" fill="#D8D4CD"/>
+</svg>

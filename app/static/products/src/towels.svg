@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 30 340 340">
+  <!-- オーガニックコットン フェイスタオル 2枚セット:たたんだタオルを2枚重ね、リボンでまとめる -->
+  <defs>
+    <linearGradient id="t1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F1E8"/><stop offset="1" stop-color="#E3DCCF"/></linearGradient>
+    <linearGradient id="t2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9D6CC"/><stop offset="1" stop-color="#A9BBAE"/></linearGradient>
+  </defs>
+  <ellipse cx="200" cy="330" rx="112" ry="11" fill="#1A1A1A" opacity=".1"/>
+  <!-- 下のタオル(セージ) -->
+  <rect x="92" y="232" width="216" height="92" rx="22" fill="url(#t2)"/>
+  <path d="M92 268 H308" stroke="#8FA394" stroke-width="2" opacity=".6"/>
+  <path d="M286 232 Q308 232 308 254 V302 Q308 324 286 324" fill="none" stroke="#8FA394" stroke-width="3" opacity=".5"/>
+  <!-- 上のタオル(生成り) -->
+  <rect x="104" y="146" width="192" height="92" rx="22" fill="url(#t1)"/>
+  <path d="M104 182 H296" stroke="#CFC6B6" stroke-width="2" opacity=".7"/>
+  <path d="M276 146 Q296 146 296 168 V216 Q296 238 276 238" fill="none" stroke="#CFC6B6" stroke-width="3" opacity=".6"/>
+  <!-- 織りの線 -->
+  <path d="M122 162 H262 M122 172 H262 M122 208 H262 M122 218 H262" stroke="#D8D0C2" stroke-width="2" opacity=".55"/>
+  <!-- リボン -->
+  <rect x="188" y="140" width="24" height="190" rx="4" fill="#B78A6A"/>
+  <path d="M200 140 C176 108 150 116 160 138 C166 150 188 146 200 140 Z" fill="#C49A7A"/>
+  <path d="M200 140 C224 108 250 116 240 138 C234 150 212 146 200 140 Z" fill="#C49A7A"/>
+  <circle cx="200" cy="140" r="8" fill="#A87C5C"/>
+</svg>

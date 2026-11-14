@@ -45,6 +45,13 @@ SEED_PRODUCTS = [
          tag="人気No.1", description="12時間保温・保冷、ワンタッチ開閉、食洗機OK"),
     dict(name="ヒアルロン酸美容液 30ml", emoji="✨", image_url="/static/products/serum.png", price=2680, original_price=3980, stock=15,
          tag="残りわずか", description="高濃度ヒアルロン酸配合、無香料・無着色、敏感肌OK"),
+    # ↓ あとから追加した3点。運用中の DB にはマイグレーション d4e8a2b91c07 が同じ内容を追加する
+    dict(name="モバイルバッテリー 10000mAh", emoji="🔋", image_url="/static/products/battery.png", price=2980, original_price=3980, stock=40,
+         tag="新着", description="薄型・軽量180g、2台同時充電、残量ランプつき"),
+    dict(name="アロマディフューザー", emoji="💧", image_url="/static/products/diffuser.png", price=3480, original_price=4980, stock=25,
+         tag="ギフトに人気", description="超音波式で静か、やさしい灯りつき、最大8時間の連続運転"),
+    dict(name="コットンフェイスタオル 2枚組", emoji="🧺", image_url="/static/products/towels.png", price=1480, original_price=1980, stock=80,
+         tag="まとめ買い", description="オーガニックコットン100%、ふんわり厚手、生成りとセージの2色"),
 ]
 
 

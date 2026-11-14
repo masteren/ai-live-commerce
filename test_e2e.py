@@ -83,7 +83,7 @@ async def main():
 
         # ---- 商品 / 购物车(鉴权 + CSRF)----
         prods = (await c.get("/api/products")).json()
-        check("商品列表", len(prods) == 3, f"{len(prods)}件")
+        check("商品列表", len(prods) == 6, f"{len(prods)}件")
         p1 = prods[0]
         r = await c.post("/api/cart", json={"product_id": p1["id"], "quantity": 2})
         check("未登录购物车拒绝(401)", r.status_code == 401)

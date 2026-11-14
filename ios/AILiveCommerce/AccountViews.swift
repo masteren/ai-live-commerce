@@ -117,7 +117,10 @@ struct AccountView: View {
                     Text("シミュレータは 127.0.0.1、実機は Mac の LAN の IP アドレスを指定します。ログインは接続先ごとに保存されます。")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.stage)
             .navigationTitle("アカウント")
+            .navigationBarTitleDisplayMode(.inline)
             .task(id: state.username) { await state.loadOrders() }
             .refreshable { await state.loadOrders() }
         }
