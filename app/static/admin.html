@@ -13,7 +13,7 @@
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{ color:var(--ink); background:var(--bg); font-family:var(--sans); -webkit-font-smoothing:antialiased;
-        padding:48px 22px 80px; max-width:1080px; margin:0 auto; }
+        padding:48px 22px 80px; max-width:1240px; margin:0 auto; }
   h1{ font-size:40px; line-height:1.1; font-weight:600; letter-spacing:-.005em; color:var(--brand); }
   h1 span{ color:var(--sub); }
   .sub{ color:var(--sub); font-size:17px; margin:8px 0 32px; letter-spacing:-.022em; }
@@ -31,19 +31,21 @@
   button.ghost:hover{ background:var(--link); color:#fff; }
   button.small{ padding:6px 14px; font-size:13px; }
   button.on{ background:var(--ok); border-color:var(--ok); }
-  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; }
   .card{ background:var(--paper); border-radius:18px; padding:20px; }
   .card .v{ font-size:28px; font-weight:600; letter-spacing:-.01em; font-feature-settings:"tnum"; }
   .card .l{ font-size:13px; color:var(--sub); margin-top:2px; }
   .card .toprow{ display:flex; justify-content:space-between; gap:12px; font-size:15px; padding:6px 0; }
   .wrap{ overflow-x:auto; background:var(--paper); border-radius:18px; scrollbar-width:thin; }
   table{ width:100%; border-collapse:collapse; font-size:14px; }
-  th,td{ padding:12px 12px; text-align:left; border-bottom:1px solid var(--line); }
+  th,td{ padding:12px 8px; text-align:left; border-bottom:1px solid var(--line); }
   td:first-child, td:nth-last-child(2){ white-space:nowrap; }
   th{ font-size:12px; font-weight:400; color:var(--sub); white-space:nowrap; }
   tbody tr:last-child td{ border-bottom:none; }
   td input{ width:100%; min-width:70px; padding:7px 10px; font-size:14px; border-radius:9px; }
-  td input.num{ width:84px; }
+  td input.num{ width:78px; }
+  th:first-child, td:first-child{ padding-left:18px; } th:last-child, td:last-child{ padding-right:16px; }
+  td input.f-name{ min-width:180px; } td input.f-description{ min-width:150px; }   /* 名前と説明は途中で切れないように広く */
   .inactive{ opacity:.45; }
   .row-new{ background:#FAFAFC; }
   .empty{ color:var(--sub); }

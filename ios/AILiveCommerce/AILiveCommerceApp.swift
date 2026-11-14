@@ -46,7 +46,7 @@ struct ContentView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16).padding(.vertical, 10)
                     .background(.black.opacity(0.8), in: Capsule())
-                    .padding(.top, 8)
+                    .padding(.top, 54)                // ナビゲーションバー(LIVE・視聴者数・音声ボタン)に重ならない位置
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .allowsHitTesting(false)          // お知らせの表示中も、下にあるボタンを押せるようにする
             }
