@@ -94,6 +94,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
 
         // 4. ログイン後、保留していたコメントが送信され、AI ホストが回答する
         XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "ホストの回答がない")
+        snap("03a_typing")
         // キーボードを閉じてから自分のコメントを確認する(画面が小さい端末では、キーボード表示中は一覧の上の行が画面外になる)
         dismissKeyboard()
         if !text(containing: question).waitForExistence(timeout: 10) { snap("zz_comment_debug"); dumpTree("zz_comment_tree") }
@@ -130,6 +131,13 @@ final class LiveCommerceFlowUITests: XCTestCase {
         tab("ライブ")
         XCTAssertTrue(app.descendants(matching: .any)["systemComment"].firstMatch.waitForExistence(timeout: 10), "購入告知がない")
         snap("06_purchase_notice")
+
+        // 商品一覧(見た目の確認用にスクリーンショットを残す)
+        tab("商品")
+        XCTAssertTrue(text(containing: "本日の商品").waitForExistence(timeout: 5))
+        snap("06b_products")
+        app.swipeUp(); app.swipeUp()
+        snap("06c_guide")
 
         // 8. アカウント:注文履歴 → ログアウト
         tab("アカウント")

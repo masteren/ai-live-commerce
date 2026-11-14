@@ -33,6 +33,7 @@ struct LoginView: View {
                 if let error {
                     Text(error).foregroundStyle(.red).font(.footnote)
                 }
+                Section {
                 Button {
                     Task {
                         busy = true
@@ -43,9 +44,18 @@ struct LoginView: View {
                     if busy { ProgressView().frame(maxWidth: .infinity) }
                     else { Text(isRegister ? "登録して利用を開始" : "ログイン").bold().frame(maxWidth: .infinity) }
                 }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
                 .disabled(busy || username.isEmpty || password.isEmpty)
                 .accessibilityIdentifier("authSubmit")
+                } footer: {
+                    Text("コメントの投稿とお買い物にはログインが必要です。")
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
+            .tint(Theme.blue)
             .navigationTitle(isRegister ? "新規登録" : "ログイン")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

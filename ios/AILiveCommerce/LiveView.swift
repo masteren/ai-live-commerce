@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// ライブ画面:ホスト(表情+字幕)・紹介中の商品・コメント欄・入力欄
+/// ライブ画面:ステージ(ホスト+字幕)・紹介中の商品・コメント・入力欄
+/// Web 版(app/static/index.html)と同じ構成:明るいグレーの地に、角の丸い白いカードを重ねる
 struct LiveView: View {
     @EnvironmentObject var state: AppState
     @State private var input = ""
@@ -8,13 +9,18 @@ struct LiveView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                hostArea
+            VStack(spacing: 12) {
+                stage
                 // 入力中は商品カードを隠す。小さい画面+背の高いキーボードだと、コメントが1行しか見えなくなるため(実機で確認)
                 if let p = state.featured, !inputFocused { featuredCard(p) }
-                commentList
+                commentCard
                 inputBar
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .background(Theme.stage)
+            .animation(.easeInOut(duration: 0.2), value: inputFocused)
             .navigationTitle("HANA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -40,66 +46,104 @@ struct LiveView: View {
         }
     }
 
-    private var hostArea: some View {
-        VStack(spacing: 0) {
+    // MARK: ステージ(ホストの立ち絵に、字幕を下から重ねる。Web 版の lower-third と同じ)
+    private var stage: some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(colors: [.white, Theme.stageDeep], startPoint: .top, endPoint: .bottom)
             // Web 版の 3D アバターを表情ごとに書き出した立ち絵(Resources/hana_*.png)
-            // キーボード表示中は立ち絵を小さくして、コメント欄の高さを確保する
+            // キーボード表示中は全身を縮めず、顔のあたりを切り出して見せる
             HostPortrait(emotion: state.hostEmotion, compact: inputFocused)
-                .frame(height: inputFocused ? 104 : 190)
-                .clipped()
-                .animation(.easeInOut(duration: 0.2), value: inputFocused)
-            HStack(alignment: .top, spacing: 0) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(Theme.hostDisplayName).font(.subheadline.weight(.semibold))
-                    Text("AIアシスタント").font(.system(size: 9)).foregroundStyle(.secondary)
-                }
-                .padding(.trailing, 12)
-                Divider()
-                Text(state.hostText).font(.subheadline).padding(.leading, 12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(12)
-            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 14))
-            .shadow(color: .black.opacity(0.06), radius: 10, y: 3)
-            .padding(.horizontal).padding(.bottom, 12)
+                .padding(.top, inputFocused ? 8 : 14)
+                .frame(maxHeight: .infinity, alignment: .top)
+            subtitle
         }
-        .background(Theme.stage)
+        .frame(height: inputFocused ? 168 : 264)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous))
         .contentShape(Rectangle())
-        .onTapGesture { inputFocused = false }       // ホストの部分をタップするとキーボードを閉じる
+        .onTapGesture { inputFocused = false }       // ステージをタップするとキーボードを閉じる
     }
 
-    private func featuredCard(_ p: Product) -> some View {
-        HStack {
-            ProductThumb(product: p, size: 56)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(1)
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(yen(p.price)).font(.headline)
-                    if let off = offText(p) { Text(off).font(.caption.weight(.semibold)).foregroundStyle(Theme.accent) }
-                    Text(p.stock > 0 ? "残り\(p.stock)点" : "在庫切れ").font(.caption).foregroundStyle(.secondary)
-                }
+    private var subtitle: some View {
+        HStack(alignment: .center, spacing: 0) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(Theme.hostDisplayName).font(.subheadline.weight(.semibold))
+                Text("AIアシスタント").font(.system(size: 9)).foregroundStyle(.secondary)
             }
-            Spacer()
+            .padding(.trailing, 12)
+            Divider()
+            Text(state.hostText)
+                .font(.subheadline)
+                .lineLimit(inputFocused ? 2 : 4)
+                .minimumScaleFactor(0.85)
+                .padding(.leading, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 14).padding(.vertical, 11)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(10)
+    }
+
+    // MARK: 紹介中の商品
+    private func featuredCard(_ p: Product) -> some View {
+        HStack(spacing: 12) {
+            ProductThumb(product: p, size: 60)
+            VStack(alignment: .leading, spacing: 2) {
+                // 1行目:タグと在庫。価格の行に在庫まで入れると、幅が足りず数字が折り返す
+                HStack(spacing: 6) {
+                    if !p.tag.isEmpty {
+                        Text(p.tag).font(.caption2.weight(.semibold)).foregroundStyle(Theme.accent)
+                    }
+                    Text(p.stock > 0 ? "残り\(p.stock)点" : "在庫切れ").font(.caption2).foregroundStyle(.secondary)
+                }
+                .lineLimit(1)
+                Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.85)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(yen(p.price)).font(.subheadline)
+                    if let off = offText(p) { Text(off).font(.caption.weight(.semibold)).foregroundStyle(Theme.accent) }
+                }
+                .lineLimit(1)
+                .fixedSize()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)   // 余った幅は商品名に使う(Spacer に取られると名前が省略される)
             Button("カートへ") { Task { await state.addToCart(p) } }
                 .buttonStyle(.borderedProminent)
                 .disabled(p.stock <= 0)
                 .accessibilityIdentifier("featuredAddToCart")
         }
-        .padding(.horizontal).padding(.vertical, 8)
-        .background(Color(.systemBackground))
+        .padding(12)
+        .card()
+    }
+
+    // MARK: コメント
+    private var commentCard: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("コメント").font(.headline)
+                Spacer()
+                Text(state.connected ? "ライブ接続中" : "接続しています…").font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
+            commentList
+        }
+        .card()
     }
 
     private var commentList: some View {
         ScrollViewReader { proxy in
             List(state.comments) { line in
-                commentRow(line).id(line.id).listRowSeparator(.hidden)
+                commentRow(line).id(line.id)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .overlay {
                 if state.comments.isEmpty {
                     Text("コメントはまだありません。\n気になることを花奈に質問してみましょう。")
                         .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
                         .accessibilityIdentifier("emptyComments")
                 }
             }
@@ -128,21 +172,29 @@ struct LiveView: View {
         }
     }
 
+    // MARK: 入力欄(丸い入力欄+丸い送信ボタン)
     private var inputBar: some View {
-        HStack {
+        let empty = input.trimmingCharacters(in: .whitespaces).isEmpty
+        return HStack(spacing: 8) {
             TextField("質問・コメントを入力", text: $input)
-                .textFieldStyle(.roundedBorder)
                 .submitLabel(.send)
                 .onSubmit(send)
                 .focused($inputFocused)
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .background(Color(.systemBackground), in: Capsule())
+                .overlay(Capsule().stroke(Theme.line))
                 .accessibilityIdentifier("commentField")
-            Button("送信", action: send)
-                .buttonStyle(.borderedProminent)
-                .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty)
-                .accessibilityIdentifier("sendButton")
+            Button(action: send) {
+                Image(systemName: "arrow.up")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(empty ? Color(.systemGray3) : Theme.blue, in: Circle())
+            }
+            .disabled(empty)
+            .accessibilityLabel("送信")
+            .accessibilityIdentifier("sendButton")
         }
-        .padding()
-        .background(.bar)
     }
 
     private func send() {
