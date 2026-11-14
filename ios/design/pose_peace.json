@@ -34,19 +34,19 @@
    2.62
   ],
   "leftHand": [
-   -1.9,
+   -2.1,
    0,
-   -0.05
+   0.2
   ],
   "leftRingProximal": [
    0,
-   0,
-   -1.55
+   -0.05,
+   -1.6
   ],
   "leftRingIntermediate": [
    0,
    0,
-   -1.75
+   -1.8
   ],
   "leftRingDistal": [
    0,
@@ -55,13 +55,13 @@
   ],
   "leftLittleProximal": [
    0,
-   0,
-   -1.55
+   -0.12,
+   -1.65
   ],
   "leftLittleIntermediate": [
    0,
    0,
-   -1.75
+   -1.8
   ],
   "leftLittleDistal": [
    0,
@@ -70,13 +70,13 @@
   ],
   "leftIndexProximal": [
    0,
-   0.34,
-   0
+   0.46,
+   -0.04
   ],
   "leftMiddleProximal": [
    0,
-   -0.3,
-   0
+   -0.42,
+   -0.04
   ],
   "leftThumbMetacarpal": [
    0.5,
@@ -102,6 +102,26 @@
    0,
    0,
    -0.04
+  ],
+  "leftIndexIntermediate": [
+   0,
+   0,
+   -0.08
+  ],
+  "leftIndexDistal": [
+   0,
+   0,
+   -0.06
+  ],
+  "leftMiddleIntermediate": [
+   0,
+   0,
+   -0.08
+  ],
+  "leftMiddleDistal": [
+   0,
+   0,
+   -0.06
   ]
  }
 }
