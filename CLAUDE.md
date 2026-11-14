@@ -34,6 +34,7 @@ TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test -project ios/AILiveCo
 ```
 
 ## 未着手・保留
+- (済)iOS 実機(iPhone 15)で確認:主要フロー・バックグラウンド復帰・音声(消音スイッチがオンでも再生)。実機での UI テストは `-destination 'id=<端末ID>'`、サーバは `--host 0.0.0.0`、接続先は Mac の LAN の IP。無料アカウントの署名は 7 日で切れる(Xcode から再インストール)
 - (済)OpenAI の実キー(gpt-4o-mini)でホストの応答を確認。作り話・数字の誤り・感情の偏りを、プロンプト修正とコード側の検証(`facts_are_consistent` など)で対処。Anthropic 側は実キー未確認
 - LLM を実際に呼ぶ確認は作者の了承を得てから(費用が発生する)
 - VOICEVOX を起動しての音声・口パクの確認
