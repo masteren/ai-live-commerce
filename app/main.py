@@ -6,9 +6,12 @@
 API ドキュメント: http://127.0.0.1:8000/docs
 """
 import asyncio
+import base64
+import hashlib
 import json
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -105,10 +108,47 @@ async def validation_error(request: Request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"detail": message})
 
 
+def _content_security_policy(html_file: str) -> str:
+    """画面(HTML)に付ける Content-Security-Policy を作る
+
+    スクリプトは自分のサーバのファイル(/static/js/...)だけを実行させ、ページに埋め込まれたスクリプトは実行させない。
+    → 万一 XSS でスクリプトが差し込まれても、ブラウザが実行を拒否する(エスケープに加えた二重の守り)。
+    例外は importmap(3D アバターのモジュールの読み込み先)。仕様上ページに埋め込むしかないので、
+    中身の SHA-256 を許可リストに入れる。中身が変われば起動時に計算し直すので、手で更新する必要はない。
+    """
+    html = open(os.path.join(os.path.dirname(__file__), "static", html_file), encoding="utf-8").read()
+    hashes = [
+        "'sha256-" + base64.b64encode(hashlib.sha256(m.encode("utf-8")).digest()).decode() + "'"
+        for m in re.findall(r'<script type="importmap">(.*?)</script>', html, re.S)
+    ]
+    return "; ".join([
+        "default-src 'self'",
+        "script-src 'self' " + " ".join(hashes) if hashes else "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",          # style 属性は画面のあちこちで使っているので許可(スクリプトほど危険ではない)
+        "img-src 'self' data: blob:",                # data: はファビコン、blob: は 3D モデルのテクスチャ
+        "media-src 'self' blob:",
+        "connect-src 'self' blob:",                  # 'self' には同じホストの WebSocket(ws/wss)も含まれる
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    ])
+
+
+# 画面の URL → その画面に付ける CSP(起動時に一度だけ作る)
+_PAGE_CSP = {}
+for _path, _file in (("/", "index.html"), ("/static/index.html", "index.html"),
+                     ("/admin", "admin.html"), ("/static/admin.html", "admin.html")):
+    _PAGE_CSP[_path] = _content_security_policy(_file)
+
+
 @app.middleware("http")
 async def security_headers(request, call_next):
-    """全レスポンスに基本的なセキュリティヘッダを付ける"""
+    """全レスポンスに基本的なセキュリティヘッダを付ける。画面(HTML)には CSP も付ける"""
     response = await call_next(request)
+    csp = _PAGE_CSP.get(request.url.path)
+    if csp:
+        response.headers.setdefault("Content-Security-Policy", csp)
     response.headers.setdefault("X-Frame-Options", "DENY")               # 他サイトの iframe に埋め込ませない(クリックジャッキング対策)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")     # Content-Type を無視した解釈をさせない
     response.headers.setdefault("Referrer-Policy", "same-origin")

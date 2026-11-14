@@ -31,12 +31,12 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | AI・音声 | LLM は Provider 構造で切替(Anthropic Claude API / OpenAI 互換 API)、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
 | iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
-| テスト・CI | pytest(124件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
+| テスト・CI | pytest(125件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
 ```mermaid
 flowchart LR
-  V["視聴者ブラウザ<br/>index.html + three-vrm"] -- "WebSocket(コメント・配信)" --> API
+  V["視聴者ブラウザ<br/>index.html + js/live.js + three-vrm"] -- "WebSocket(コメント・配信)" --> API
   V -- "REST + Cookie" --> API
   I["iOS アプリ(SwiftUI)"] -- "REST / WebSocket + Bearer" --> API
   A["管理画面 admin.html"] -- "REST + X-Admin-Token" --> API
@@ -124,7 +124,11 @@ app/
 ├── bot.py          # 盛り上げ用コメント BOT
 ├── ratelimit.py    # スライディングウィンドウ方式のレート制限
 ├── routers/        # auth / products / cart / orders / admin
-└── static/         # 視聴者ページ・管理画面・VRM モデル・vendor(three.js 等)
+└── static/         # 画面
+    ├── index.html / admin.html   # 視聴者ページ・管理画面(HTML は構造だけ)
+    ├── css/                      # 見た目(live.css / admin.css)
+    ├── js/                       # 動き(live.js / admin.js / vrm.js = 3D アバター)
+    └── models/ products/ vendor/ # VRM モデル・商品画像・three.js など
 migrations/         # Alembic マイグレーション
 tests/              # pytest
 docs/design/        # 要件定義・ER 図・シーケンス図・画面遷移図

@@ -165,6 +165,12 @@ final class LiveCommerceFlowUITests: XCTestCase {
         tab("アカウント")
         XCTAssertTrue(app.staticTexts["#1"].waitForExistence(timeout: 10) || text(containing: "#").exists, "注文履歴がない")
         snap("07_account")
+        // 接続先の設定は「開発者向け設定」の中にあり、アカウント画面には直接出ていない
+        XCTAssertFalse(app.buttons["再接続"].exists, "開発者向けの設定がアカウント画面に出ている")
+        app.buttons["developerSettings"].tap()
+        XCTAssertTrue(app.buttons["再接続"].waitForExistence(timeout: 5), "開発者向け設定が開けない")
+        snap("07b_developer")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         app.buttons["logoutButton"].tap()
         XCTAssertTrue(app.buttons["openLogin"].waitForExistence(timeout: 10), "ログアウトできない")
     }

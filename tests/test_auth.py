@@ -220,3 +220,25 @@ async def test_bearer_session_is_extended_too(client, make_client):
     from datetime import timezone
     extended = [(r.expires_at.replace(tzinfo=timezone.utc) if r.expires_at.tzinfo is None else r.expires_at) > now_utc() + timedelta(days=1) for r in rows]
     assert sorted(extended) == [False, True]      # 延長されるのは今回使ったセッション(アプリ)だけ。ブラウザ側はそのまま
+
+
+async def test_pages_have_content_security_policy(client):
+    """画面には CSP が付き、外部のスクリプト・埋め込みスクリプトを実行させない。API には付けない"""
+    import base64
+    import hashlib
+    import re
+    for path in ("/", "/admin"):
+        csp = (await client.get(path)).headers["content-security-policy"]
+        assert "script-src 'self'" in csp and "unsafe-inline" not in csp.split("script-src")[1].split(";")[0]
+        assert "frame-ancestors 'none'" in csp and "object-src 'none'" in csp
+    # 視聴者ページの importmap だけは、中身のハッシュで許可されている
+    html = (await client.get("/")).text
+    importmap = re.search(r'<script type="importmap">(.*?)</script>', html, re.S).group(1)
+    digest = base64.b64encode(hashlib.sha256(importmap.encode()).digest()).decode()
+    assert f"'sha256-{digest}'" in (await client.get("/")).headers["content-security-policy"]
+    # ページに埋め込まれたスクリプトは importmap 以外にない(onclick なども含めて)
+    for path in ("/", "/admin"):
+        page = (await client.get(path)).text
+        assert not re.search(r'<script(?![^>]*(\bsrc=|type="importmap"))[^>]*>', page)
+        assert not re.search(r"\son[a-z]+=", page)
+    assert "content-security-policy" not in (await client.get("/api/products")).headers

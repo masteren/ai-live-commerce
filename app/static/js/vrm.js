@@ -1,13 +1,13 @@
-// ================= AI主播 VRM 渲染 =================
-// 由后端 emotion(normal/happy/excited/troubled/shy) + VOICEVOX 音频驱动。
-// 加载失败会静默保留原 SVG(见 index.html 的 #avatarBox 兜底)。
+// ================= AI ホストの 3D アバター(VRM)の描画 =================
+// サーバから届く感情(normal/happy/excited/troubled/shy)と VOICEVOX の音声で動かす。
+// 読み込みに失敗したら、何もせず元の SVG のイラストを残す(index.html の #avatarBox)。
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils, VRMExpressionPresetName } from '@pixiv/three-vrm';
 
 const MODEL_URL = '/static/models/hana.vrm';
 
-// 情绪 → VRM 标准表情权重(缺失的表情会自动跳过)
+// 感情 → VRM の標準表情の強さ(モデルにない表情は自動で飛ばす)
 const EMOTION_EXPR = {
   normal:   {},
   happy:    { happy: 0.9 },
@@ -27,7 +27,7 @@ function boot() {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   } catch (e) {
-    console.warn('[vrm] WebGL 不可用,保留 SVG 兜底:', e);
+    console.warn('[vrm] WebGL が使えないため、イラストのまま表示します:', e);
     return;
   }
 
@@ -54,16 +54,16 @@ function boot() {
   new ResizeObserver(resize).observe(stage);
   resize();
 
-  // ---- 表情 / 口型 状态 ----
-  const cur = {}, tgt = {};           // 情绪表情当前值 / 目标值
+  // ---- 表情・口の状態 ----
+  const cur = {}, tgt = {};           // 表情の今の値 / 目標の値
   EXPR_KEYS.forEach(k => { cur[k] = 0; tgt[k] = 0; });
-  let mouth = 0;                       // 当前口型开合 0..1
-  let lipActive = false;              // 真·音频口型
-  let fakeTalkUntil = 0;             // 无音频时的假口型截止时间
+  let mouth = 0;                       // 口の開き 0..1
+  let lipActive = false;              // 実際の音声に合わせて口を動かしている
+  let fakeTalkUntil = 0;             // 音声がないとき、口を動かし続ける終了時刻
   let blinkT = 1 + Math.random() * 3, blinking = 0;
-  let armL = null, armR = null, foreL = null, foreR = null;  // 手臂骨骼(放下 T-pose 用)
+  let armL = null, armR = null, foreL = null, foreR = null;  // 腕の骨(T ポーズから腕を下ろすため)
 
-  // ---- 音频口型分析 ----
+  // ---- 音声から口の動きを解析 ----
   let actx = null, analyser = null, buf = null;
   const connected = new WeakSet();
   function ensureCtx() {
@@ -73,7 +73,7 @@ function boot() {
       analyser = actx.createAnalyser();
       analyser.fftSize = 512;
       buf = new Uint8Array(analyser.fftSize);
-    } catch (e) { console.warn('[vrm] AudioContext 失败:', e); }
+    } catch (e) { console.warn('[vrm] AudioContext を作れませんでした:', e); }
   }
   function readMouth() {
     if (!analyser) return 0;
@@ -83,7 +83,7 @@ function boot() {
     return Math.min(1, Math.sqrt(s / buf.length) * 11);
   }
 
-  // ---- 对外 API ----
+  // ---- 外から使う API(window.HANA) ----
   const setExpr = (name, w) => {
     if (vrm && vrm.expressionManager && vrm.expressionManager.getExpression(name)) {
       vrm.expressionManager.setValue(name, w);
@@ -111,17 +111,17 @@ function boot() {
         lipActive = true;
         el.addEventListener('ended', () => { lipActive = false; }, { once: true });
         el.addEventListener('pause', () => { lipActive = false; }, { once: true });
-      } catch (e) { console.warn('[vrm] lipsync 失败,退回时长口型:', e); }
+      } catch (e) { console.warn('[vrm] 音声に合わせた口の動きに失敗したため、時間で動かします:', e); }
     },
   };
 
-  // ---- 加载模型 ----
+  // ---- モデルの読み込み ----
   const loader = new GLTFLoader();
   loader.register(p => new VRMLoaderPlugin(p));
   loader.load(MODEL_URL, (gltf) => {
     try {
       vrm = gltf.userData.vrm;
-      // 版本间可选优化,存在才调用
+      // バージョンによってある最適化。あるときだけ呼ぶ
       if (typeof VRMUtils.removeUnnecessaryVertices === 'function') VRMUtils.removeUnnecessaryVertices(gltf.scene);
       if (typeof VRMUtils.removeUnnecessaryJoints === 'function') VRMUtils.removeUnnecessaryJoints(gltf.scene);
       if (typeof VRMUtils.combineSkeletons === 'function') VRMUtils.combineSkeletons(gltf.scene);
@@ -131,7 +131,7 @@ function boot() {
       vrm.scene.traverse(o => { o.frustumCulled = false; });
       scene.add(vrm.scene);
 
-      // 放下双臂:默认是 T-pose,取自然垂放姿势的骨骼
+      // 腕を下ろす:初期状態は T ポーズなので、自然に下ろした姿勢の骨を取っておく
       const H = vrm.humanoid;
       armL = H.getNormalizedBoneNode('leftUpperArm');
       armR = H.getNormalizedBoneNode('rightUpperArm');
@@ -148,16 +148,16 @@ function boot() {
 
       window.HANA.ready = true;
       stage.classList.add('vrm-on');
-      console.log('[vrm] 花奈 已就绪');
+      console.log('[vrm] 花奈の準備ができました');
     } catch (e) {
       vrm = null;
-      console.warn('[vrm] 初始化失败,保留 SVG 兜底:', e);
+      console.warn('[vrm] 初期化に失敗したため、イラストのまま表示します:', e);
     }
   }, undefined, (err) => {
-    console.warn('[vrm] 模型加载失败,保留 SVG 兜底:', err);
+    console.warn('[vrm] モデルを読み込めなかったため、イラストのまま表示します:', err);
   });
 
-  // ---- 渲染循环 ----
+  // ---- 描画のループ ----
   const clock = new THREE.Clock();
   function tick() {
     requestAnimationFrame(tick);
@@ -165,20 +165,20 @@ function boot() {
     const t = clock.elapsedTime;
 
     if (vrm) {
-      // 情绪表情平滑过渡
+      // 表情をなめらかに切り替える
       EXPR_KEYS.forEach(k => {
         cur[k] += (tgt[k] - cur[k]) * Math.min(1, dt * 8);
         setExpr(k, cur[k]);
       });
 
-      // 口型:真音频优先,否则时长假口型,否则闭合
+      // 口:実際の音声 → なければ時間で動かす → どちらもなければ閉じる
       let m = 0;
       if (lipActive) m = readMouth();
       else if (performance.now() < fakeTalkUntil) m = (0.55 + 0.45 * Math.sin(t * 17)) * 0.7;
       mouth += (m - mouth) * Math.min(1, dt * 20);
       setExpr(VRMExpressionPresetName.Aa, mouth);
 
-      // 眨眼(happy/excited 时眼睛已眯,跳过以免打架)
+      // まばたき(happy/excited のときは目を細めているので、ぶつからないよう飛ばす)
       blinkT -= dt;
       if (blinkT <= 0 && cur.happy < 0.4) { blinking = 0.001; blinkT = 2.5 + Math.random() * 3.5; }
       if (blinking > 0) {
@@ -188,14 +188,14 @@ function boot() {
         if (blinking > 0.17) { blinking = 0; setExpr(VRMExpressionPresetName.Blink, 0); }
       }
 
-      // 放下手臂(每帧重设,防止 update 覆盖) + 轻微呼吸摆动
+      // 腕を下ろす(毎フレーム設定し直す。update に上書きされないように)+ 呼吸に合わせたわずかな動き
       const breathe = Math.sin(t * 1.4) * 0.02;
       if (armL) armL.rotation.z = -1.22 + breathe;
       if (armR) armR.rotation.z = 1.22 - breathe;
       if (foreL) foreL.rotation.z = -0.14;
       if (foreR) foreR.rotation.z = 0.14;
 
-      // 待机:轻微摇摆 + 呼吸
+      // 待機中:わずかな揺れと呼吸
       vrm.scene.rotation.y = Math.sin(t * 0.7) * 0.03;
       vrm.scene.position.y = Math.sin(t * 1.6) * 0.004;
 

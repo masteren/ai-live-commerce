@@ -66,10 +66,16 @@ struct LoginView: View {
     }
 }
 
-/// アカウント:注文履歴・ログアウト・接続先サーバの設定
+/// アカウント:注文履歴・ログアウト・アプリの情報
 struct AccountView: View {
     @EnvironmentObject var state: AppState
-    @AppStorage(AppConfig.baseURLKey) private var baseURL = AppConfig.defaultBaseURL
+
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let v = info?["CFBundleShortVersionString"] as? String ?? "-"
+        let b = info?["CFBundleVersion"] as? String ?? "-"
+        return "\(v)(\(b))"
+    }
 
     var body: some View {
         NavigationStack {
@@ -103,18 +109,11 @@ struct AccountView: View {
                         }
                     }
                 }
-                Section {
-                    TextField("http://127.0.0.1:8000", text: $baseURL)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Button("再接続") {
-                        Task { await state.switchServer() }
-                    }
-                } header: {
-                    Text("接続先サーバ")
-                } footer: {
-                    Text("シミュレータは 127.0.0.1、実機は Mac の LAN の IP アドレスを指定します。ログインは接続先ごとに保存されます。")
+                Section("このアプリについて") {
+                    LabeledContent("バージョン", value: appVersion)
+                    // 接続先サーバの設定は開発・デモの準備用。ふだんの画面に出さず、1段下の画面に置く
+                    NavigationLink("開発者向け設定") { DeveloperSettingsView() }
+                        .accessibilityIdentifier("developerSettings")
                 }
             }
             .scrollContentBackground(.hidden)
@@ -124,5 +123,34 @@ struct AccountView: View {
             .task(id: state.username) { await state.loadOrders() }
             .refreshable { await state.loadOrders() }
         }
+    }
+}
+
+
+/// 開発者向け設定:接続先サーバ(開発用の Mac、テスト用サーバなど)を切り替える
+struct DeveloperSettingsView: View {
+    @EnvironmentObject var state: AppState
+    @AppStorage(AppConfig.baseURLKey) private var baseURL = AppConfig.defaultBaseURL
+
+    var body: some View {
+        List {
+            Section {
+                TextField("http://127.0.0.1:8000", text: $baseURL)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button("再接続") {
+                    Task { await state.switchServer() }
+                }
+            } header: {
+                Text("接続先サーバ")
+            } footer: {
+                Text("シミュレータは 127.0.0.1、実機は Mac の LAN の IP アドレスを指定します。ログインは接続先ごとに保存されます。")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Theme.stage)
+        .navigationTitle("開発者向け設定")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

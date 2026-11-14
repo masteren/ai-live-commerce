@@ -4,55 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>管理コンソール | AI Live Commerce</title>
-<style>
-  /* 配信ページ(index.html)と同じ色・書体 */
-  :root{
-    --bg:#F5F5F7; --paper:#FFFFFF; --ink:#1D1D1F; --sub:#6E6E73; --line:#E8E8ED; --line-2:#D2D2D7;
-    --brand:#84133F; --blue:#0071E3; --blue-d:#0077ED; --link:#0066CC; --ok:#03A10E;
-    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",sans-serif;
-  }
-  *{ box-sizing:border-box; margin:0; padding:0; }
-  body{ color:var(--ink); background:var(--bg); font-family:var(--sans); -webkit-font-smoothing:antialiased;
-        padding:48px 22px 80px; max-width:1240px; margin:0 auto; }
-  h1{ font-size:40px; line-height:1.1; font-weight:600; letter-spacing:-.005em; color:var(--brand); }
-  h1 span{ color:var(--sub); }
-  .sub{ color:var(--sub); font-size:17px; margin:8px 0 32px; letter-spacing:-.022em; }
-  .sub a{ color:var(--link); text-decoration:none; } .sub a:hover{ text-decoration:underline; }
-  h2{ font-size:24px; font-weight:600; letter-spacing:.009em; margin:48px 0 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .login{ display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
-  input,select{ font-family:inherit; border:1px solid var(--line-2); border-radius:12px; padding:11px 14px; font-size:15px;
-                background:var(--paper); color:var(--ink); outline:none; transition:border-color .15s, box-shadow .15s; }
-  input:focus{ border-color:var(--blue); box-shadow:0 0 0 4px rgba(0,113,227,.16); }
-  button{ font-family:inherit; border:1px solid var(--blue); border-radius:980px; padding:10px 20px; font-size:15px; cursor:pointer;
-          background:var(--blue); color:#fff; white-space:nowrap; transition:background .15s; }
-  button:hover{ background:var(--blue-d); }
-  button:focus-visible, input:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
-  button.ghost{ background:transparent; color:var(--link); border-color:var(--link); }
-  button.ghost:hover{ background:var(--link); color:#fff; }
-  button.small{ padding:6px 14px; font-size:13px; }
-  button.on{ background:var(--ok); border-color:var(--ok); }
-  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; }
-  .card{ background:var(--paper); border-radius:18px; padding:20px; }
-  .card .v{ font-size:28px; font-weight:600; letter-spacing:-.01em; font-feature-settings:"tnum"; }
-  .card .l{ font-size:13px; color:var(--sub); margin-top:2px; }
-  .card .toprow{ display:flex; justify-content:space-between; gap:12px; font-size:15px; padding:6px 0; }
-  .wrap{ overflow-x:auto; background:var(--paper); border-radius:18px; scrollbar-width:thin; }
-  table{ width:100%; border-collapse:collapse; font-size:14px; }
-  th,td{ padding:12px 8px; text-align:left; border-bottom:1px solid var(--line); }
-  td:first-child, td:nth-last-child(2){ white-space:nowrap; }
-  th{ font-size:12px; font-weight:400; color:var(--sub); white-space:nowrap; }
-  tbody tr:last-child td{ border-bottom:none; }
-  td input{ width:100%; min-width:70px; padding:7px 10px; font-size:14px; border-radius:9px; }
-  td input.num{ width:78px; }
-  th:first-child, td:first-child{ padding-left:18px; } th:last-child, td:last-child{ padding-right:16px; }
-  td input.f-name{ min-width:180px; } td input.f-description{ min-width:150px; }   /* 名前と説明は途中で切れないように広く */
-  .inactive{ opacity:.45; }
-  .row-new{ background:#FAFAFC; }
-  .empty{ color:var(--sub); }
-  #msg{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:9; background:rgba(29,29,31,.92); color:#fff;
-        border-radius:980px; padding:12px 22px; font-size:14px; display:none; }
-  @media (max-width:600px){ body{ padding:28px 16px 60px; } h1{ font-size:30px; } h2{ font-size:21px; margin-top:36px; } }
-</style>
+<link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
 <h1>管理コンソール。<span>商品と配信の状況。</span></h1>
@@ -60,13 +12,13 @@
 
 <div class="login">
   <input id="token" type="password" aria-label="管理者トークン" placeholder="管理者トークン(ADMIN_TOKEN)" style="flex:1;max-width:340px">
-  <button onclick="login()">ログイン</button>
+  <button id="loginBtn">ログイン</button>
 </div>
 
 <div id="panel" style="display:none">
   <h2>配信の状況
-    <button class="small ghost" onclick="loadAll()">更新</button>
-    <button class="small ghost" id="botBtn" onclick="toggleBot()">…</button>
+    <button class="small ghost" id="reloadBtn">更新</button>
+    <button class="small ghost" id="botBtn">…</button>
   </h2>
   <div class="cards" id="stats"></div>
 
@@ -85,118 +37,6 @@
 
 <div id="msg"></div>
 
-<script>
-const $ = (id) => document.getElementById(id);
-let TOKEN = sessionStorage.getItem('admin_token') || '';
-const yen = (n) => '¥' + Number(n).toLocaleString('ja-JP');
-const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function msg(t){ const m=$('msg'); m.textContent=t; m.style.display='block'; clearTimeout(m._h); m._h=setTimeout(()=>m.style.display='none',2600); }
-
-async function api(path, opts={}){
-  const res = await fetch(path, { ...opts, headers:{ 'Content-Type':'application/json', 'X-Admin-Token': TOKEN, ...(opts.headers||{}) } });
-  if (res.status === 401){ msg('トークンが正しくありません'); throw new Error('401'); }
-  if (res.status === 429){ msg('試行回数が多すぎます。しばらく待ってからお試しください'); throw new Error('429'); }
-  if (!res.ok){ const e = await res.json().catch(()=>({})); msg(e.detail||('エラー: '+res.status)); throw new Error(res.status); }
-  return res.json();
-}
-
-async function login(){
-  TOKEN = $('token').value.trim();
-  try{
-    await api('/api/admin/stats');
-    sessionStorage.setItem('admin_token', TOKEN);
-    $('panel').style.display = 'block';
-    loadAll();
-  }catch(e){}
-}
-
-let botEnabled = false;
-function renderBot(){
-  $('botBtn').textContent = botEnabled ? '賑やかしBOT:動作中' : '賑やかしBOT:停止中';
-  $('botBtn').classList.toggle('on', botEnabled); $('botBtn').classList.toggle('ghost', !botEnabled);
-}
-async function toggleBot(){
-  const r = await api('/api/admin/bot', { method:'POST', body: JSON.stringify({ enabled: !botEnabled }) });
-  botEnabled = r.enabled; renderBot();
-  msg(botEnabled ? '賑やかしBOTを開始しました(配信画面に自動コメントが流れます)' : '賑やかしBOTを停止しました');
-}
-
-async function loadAll(){
-  const [stats, prods, orders] = await Promise.all([
-    api('/api/admin/stats'), api('/api/admin/products'), api('/api/admin/orders'),
-  ]);
-  $('stats').innerHTML = [
-    ['売上合計', yen(stats.total_revenue)], ['注文数', stats.total_orders],
-    ['コメント数', stats.total_comments], ['登録ユーザー', stats.total_users],
-    ['現在の視聴者', stats.current_viewers], ['最大同時視聴', stats.peak_viewers],
-    ['販売中商品', stats.active_products],
-  ].map(([l,v])=>`<div class="card"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
-  botEnabled = stats.bot_enabled; renderBot();
-  $('stats').innerHTML = $('stats').innerHTML
-  + (stats.top_products.length
-      ? `<div class="card" style="grid-column:1/-1"><div class="l" style="margin-bottom:6px">よく売れている商品</div>${
-          stats.top_products.map(t=>`<div class="toprow"><span>${esc(t.name)}</span><span>${t.sold}点 / ${yen(t.revenue)}</span></div>`).join('')}</div>`
-      : '');
-
-  $('pbody').innerHTML = prods.map(p=>rowHtml(p)).join('') + rowHtml(null);
-  bindRows();
-
-  $('obody').innerHTML = orders.map(o=>`
-    <tr><td>#${o.id}</td><td>${esc(o.nickname)}</td>
-    <td>${o.items.map(i=>`${esc(i.product_name)}×${i.quantity}`).join('、')}</td>
-    <td>${yen(o.total)}</td><td>${new Date(o.created_at).toLocaleString('ja-JP')}</td></tr>`).join('')
-    || '<tr><td colspan="5" class="empty">注文はまだありません</td></tr>';
-}
-
-function rowHtml(p){
-  const n = p === null;
-  const v = (k,d='') => n ? d : esc(p[k]);
-  return `<tr class="${n?'row-new':(p.is_active?'':'inactive')}" data-id="${n?'':p.id}">
-    <td>${n?'新規':p.id}</td>
-    <td><input class="f-emoji" value="${v('emoji','🛍️')}" style="width:52px"></td>
-    <td><input class="f-name" value="${v('name')}" placeholder="商品名"></td>
-    <td><input class="f-description" value="${v('description')}"></td>
-    <td><input class="f-price num" type="number" value="${n?0:p.price}"></td>
-    <td><input class="f-original_price num" type="number" value="${n?0:p.original_price}"></td>
-    <td><input class="f-stock num" type="number" value="${n?0:p.stock}"></td>
-    <td><input class="f-tag" value="${v('tag')}" style="width:100px"></td>
-    <td>${n?'—':(p.is_active?'販売中':'停止')}</td>
-    <td style="white-space:nowrap">
-      ${n ? '<button class="small" data-act="create">登録</button>'
-          : `<button class="small" data-act="save">保存</button>
-             <button class="small ghost" data-act="toggle">${p.is_active?'停止':'再開'}</button>`}
-    </td></tr>`;
-}
-
-function collect(tr){
-  const g = (c) => tr.querySelector('.f-'+c).value;
-  return { emoji:g('emoji'), name:g('name'), description:g('description'),
-    price:+g('price')||0, original_price:+g('original_price')||0, stock:+g('stock')||0, tag:g('tag') };
-}
-
-function bindRows(){
-  document.querySelectorAll('#pbody [data-act]').forEach(btn=>{
-    btn.onclick = async ()=>{
-      const tr = btn.closest('tr'), id = tr.dataset.id, act = btn.dataset.act;
-      if (act === 'create'){
-        const body = collect(tr);
-        if (!body.name){ msg('商品名を入力してください'); return; }
-        await api('/api/admin/products', { method:'POST', body: JSON.stringify(body) });
-        msg('商品を登録しました');
-      } else if (act === 'save'){
-        await api(`/api/admin/products/${id}`, { method:'PATCH', body: JSON.stringify(collect(tr)) });
-        msg('保存しました');
-      } else if (act === 'toggle'){
-        const active = !tr.classList.contains('inactive');
-        await api(`/api/admin/products/${id}`, { method:'PATCH', body: JSON.stringify({ is_active: !active }) });
-        msg(active ? '販売を停止しました' : '販売を再開しました');
-      }
-      loadAll();
-    };
-  });
-}
-
-if (TOKEN){ $('token').value = TOKEN; login(); }
-</script>
+<script src="/static/js/admin.js"></script>
 </body>
 </html>

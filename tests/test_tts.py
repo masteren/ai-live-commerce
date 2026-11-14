@@ -60,7 +60,7 @@ def test_vendor_files_exist_for_offline_demo():
     """importmap が参照するローカルファイルが揃っている(CDN なしで 3D アバターが動く)"""
     import os
     import re
-    html = open("app/static/index.html", encoding="utf-8").read()
+    html = open("app/static/index.html", encoding="utf-8").read() + open("app/static/js/vrm.js", encoding="utf-8").read()
     paths = re.findall(r'"(/static/vendor/[^"]+)"', html)
     assert paths and not re.search(r"cdn\.jsdelivr|unpkg", html)
     for p in paths:
