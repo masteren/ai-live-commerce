@@ -32,6 +32,8 @@ struct LiveView: View {
                         Image(systemName: state.soundOn ? "speaker.wave.2.fill" : "speaker.slash")
                     }
                     .accessibilityLabel(state.soundOn ? "音声オン" : "音声オフ")
+                    .accessibilityValue("再生済み \(state.audioPlayedCount)")
+                    .accessibilityIdentifier("soundButton")
                 }
             }
         }

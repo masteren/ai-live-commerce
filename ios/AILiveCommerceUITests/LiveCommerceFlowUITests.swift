@@ -54,6 +54,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
         XCTAssertTrue(viewers.waitForExistence(timeout: 15))
         XCTAssertTrue(app.wait(for: viewers, labelContains: "1人", timeout: 10), "視聴者数: \(viewers.label)")
         snap("01_live")
+        app.buttons["soundButton"].tap()                 // 音声オン
 
         // 2. 未ログインでコメント → ログインシートが開く
         let field = app.textFields["commentField"]
@@ -78,6 +79,13 @@ final class LiveCommerceFlowUITests: XCTestCase {
         if !text(containing: question).waitForExistence(timeout: 10) { snap("zz_comment_debug"); dumpTree("zz_comment_tree") }
         XCTAssertTrue(text(containing: question).exists, "自分のコメントが表示されない")
         XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "ホストの回答がない")
+        // 音声(VOICEVOX)が最後まで再生される。サーバ側で VOICEVOX が動いていない場合はこの確認を飛ばす
+        if ProcessInfo.processInfo.environment["EXPECT_AUDIO"] == "1" {
+            let sound = app.buttons["soundButton"]
+            let played = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "value != %@", "再生済み 0"), object: sound)
+            XCTAssertEqual(XCTWaiter().wait(for: [played], timeout: 30), .completed, "音声が再生されない: \(sound.value ?? "")")
+        }
         snap("03_comment_reply")
 
         // 5. 紹介中の商品をカートへ

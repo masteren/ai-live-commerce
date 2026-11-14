@@ -28,6 +28,9 @@ final class AppState: ObservableObject {
     private let api = APIClient.shared
     private let socket = LiveSocket()
     private var player: AVPlayer?
+    private var playObserver: NSObjectProtocol?
+    /// 最後まで再生できた音声の数(動作確認・UI テスト用。音声ボタンの accessibilityValue に出す)
+    @Published var audioPlayedCount = 0
     private var pendingComment: String?
 
     var isLoggedIn: Bool { username != nil }
@@ -119,8 +122,7 @@ final class AppState: ObservableObject {
             hostEmotion = r.emotion
             if let pid = r.productId { featuredId = pid }
             if soundOn, let path = r.audioUrl, let url = AppConfig.absolute(path) {
-                player = AVPlayer(url: url)
-                player?.play()
+                play(url)
             }
         case .purchase(let nick, let items, let stocks):
             let desc = items.map { "\($0.name)×\($0.quantity)" }.joined(separator: "、")
@@ -134,6 +136,19 @@ final class AppState: ObservableObject {
             showToast(msg)
             if !isLoggedIn { showLogin = true }
         }
+    }
+
+    /// ホストの音声を再生する(前の音声が再生中なら止めて、新しい方を再生)
+    private func play(_ url: URL) {
+        if let o = playObserver { NotificationCenter.default.removeObserver(o) }
+        let item = AVPlayerItem(url: url)
+        playObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.audioPlayedCount += 1 }
+        }
+        player = AVPlayer(playerItem: item)
+        player?.play()
     }
 
     private func append(_ line: ChatLine) {

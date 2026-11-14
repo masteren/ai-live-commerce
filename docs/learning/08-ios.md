@@ -41,3 +41,8 @@
 2. `Codable` 和 `convertFromSnakeCase` 分别做什么?
 3. Web 版和 iOS 版的令牌各存在哪里?为什么不同?
 4. 服务器怎么区分请求来自浏览器(Cookie)还是 App(Bearer)?
+
+## 6. 追加验证(2026-11-14):语音播放
+- 以前 iOS 的语音播放代码一次都没实际运行过。VOICEVOX 装好后,在模拟器上确认了:服务器收到 App 对 wav 的请求(206 Partial Content = 流式分段读取),并且**播放到了结尾**。
+- 怎么让测试知道「声音播完了」:App 监听 `AVPlayerItemDidPlayToEndTime` 通知,把播完的次数放进喇叭按钮的 `accessibilityValue`,UI 测试等它从 0 变成 1。
+- 思路:**看不见、听不到的行为(声音、后台处理),要给它一个可以观察的出口,才测得了。**

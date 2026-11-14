@@ -28,6 +28,8 @@ xcodebuild test -project ios/AILiveCommerce.xcodeproj -scheme AILiveCommerce \
 ```
 未ログインでコメント → ログインシート → 新規登録 → コメントが送信され AI ホストが回答 → カート追加 → 注文 → ライブで購入告知 → 注文履歴 → ログアウト、を実際にタップ・入力して確認します。起動引数 `--reset-session` で毎回未ログインから開始します。
 
+サーバ側で VOICEVOX が動いているときは、`TEST_RUNNER_EXPECT_AUDIO=1` を付けると「ホストの音声が最後まで再生されたか」も確認します(音声ボタンの accessibilityValue に再生完了数を出している)。
+
 ### 実機で動かす場合
 - サーバを `uvicorn app.main:app --host 0.0.0.0` で起動し、アプリの「アカウント → 接続先サーバ」に Mac の LAN の IP(例 `http://192.168.0.10:8000`)を入力
 - Xcode の Signing & Capabilities で自分の Apple ID(Team)を選択
