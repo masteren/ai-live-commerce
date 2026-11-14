@@ -12,6 +12,9 @@ struct APIError: LocalizedError {
 final class APIClient {
     static let shared = APIClient()
 
+    /// トークン付きのリクエストが 401 で拒否されたとき(期限切れ・他でログアウト)に呼ばれる
+    var onUnauthorized: (@MainActor () -> Void)?
+
     private let session = URLSession(configuration: .ephemeral)
     private let decoder: JSONDecoder = {
         let d = JSONDecoder()
@@ -74,11 +77,14 @@ final class APIClient {
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
+        var sentToken = false
         if auth, let token = Keychain.load() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            sentToken = true
         }
         let (data, res) = try await session.data(for: req)
         let status = (res as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 401, sentToken, let handler = onUnauthorized { await handler() }
         guard (200..<300).contains(status) else {
             throw APIError(status: status, message: Self.errorMessage(from: data, status: status))
         }

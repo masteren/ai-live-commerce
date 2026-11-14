@@ -20,7 +20,7 @@ struct LiveView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     // ツールバーの中では幅が詰められるため fixedSize で潰れないようにする
                     HStack(spacing: 6) {
-                        Circle().fill(state.connected ? Theme.accent : Color.gray).frame(width: 7, height: 7)
+                        Circle().fill(state.connected ? Theme.live : Color.gray).frame(width: 7, height: 7)
                         Text("LIVE").font(.caption.weight(.semibold)).kerning(1.5)
                         Text("視聴者 \(state.viewers)人").font(.caption).monospacedDigit()
                             .accessibilityIdentifier("viewers")
@@ -43,12 +43,13 @@ struct LiveView: View {
         VStack(spacing: 0) {
             // Web 版の 3D アバターを表情ごとに書き出した立ち絵(Resources/hana_*.png)
             // キーボード表示中は立ち絵を小さくして、コメント欄の高さを確保する
-            HostPortrait(emotion: state.hostEmotion)
-                .frame(height: inputFocused ? 84 : 190)
+            HostPortrait(emotion: state.hostEmotion, compact: inputFocused)
+                .frame(height: inputFocused ? 104 : 190)
+                .clipped()
                 .animation(.easeInOut(duration: 0.2), value: inputFocused)
             HStack(alignment: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("花奈").font(.system(.subheadline, design: .serif).weight(.semibold))
+                    Text(Theme.hostDisplayName).font(.subheadline.weight(.semibold))
                     Text("AIアシスタント").font(.system(size: 9)).foregroundStyle(.secondary)
                 }
                 .padding(.trailing, 12)
@@ -58,8 +59,8 @@ struct LiveView: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             .padding(12)
-            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 4))
-            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.line))
+            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.06), radius: 10, y: 3)
             .padding(.horizontal).padding(.bottom, 12)
         }
         .background(Theme.stage)
@@ -94,6 +95,13 @@ struct LiveView: View {
                 commentRow(line).id(line.id).listRowSeparator(.hidden)
             }
             .listStyle(.plain)
+            .overlay {
+                if state.comments.isEmpty {
+                    Text("コメントはまだありません。\n気になることを花奈に質問してみましょう。")
+                        .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        .accessibilityIdentifier("emptyComments")
+                }
+            }
             .scrollDismissesKeyboard(.interactively)      // コメント欄をスクロールするとキーボードが閉じる
             .onChange(of: state.comments.count) {
                 if let last = state.comments.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
@@ -105,16 +113,16 @@ struct LiveView: View {
     private func commentRow(_ line: ChatLine) -> some View {
         switch line.kind {
         case .host:
-            (Text(line.nickname + " ").font(.system(.subheadline, design: .serif).weight(.semibold)) + Text(line.text))
+            (Text(line.nickname + " ").fontWeight(.semibold).foregroundColor(Theme.brand) + Text(line.text))
                 .font(.subheadline)
                 .padding(.leading, 10)
-                .overlay(alignment: .leading) { Rectangle().fill(Theme.ink).frame(width: 2) }
+                .overlay(alignment: .leading) { Capsule().fill(Theme.brand).frame(width: 2) }
                 .accessibilityIdentifier("hostComment")
         case .system:
             Text(line.text).font(.caption).foregroundStyle(.secondary)
                 .accessibilityIdentifier("systemComment")
         case .mine, .user:
-            (Text(line.nickname + " ").bold().foregroundColor(line.kind == .mine ? .green : .secondary) + Text(line.text))
+            (Text(line.nickname + " ").bold().foregroundColor(line.kind == .mine ? Theme.blue : .secondary) + Text(line.text))
                 .font(.subheadline)
         }
     }
@@ -139,6 +147,9 @@ struct LiveView: View {
     private func send() {
         let text = input
         input = ""
-        Task { await state.sendComment(text) }
+        Task {
+            // 送れなかったとき(切断中)は入力内容を戻す。その間に別の文字を打っていたら上書きしない
+            if await !state.sendComment(text), input.isEmpty { input = text }
+        }
     }
 }

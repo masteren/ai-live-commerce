@@ -33,8 +33,10 @@ final class LiveSocket {
     }
 
     func sendComment(_ text: String) async throws {
+        // 接続が無いときは、黙って捨てずにエラーにする(呼び出し側が入力内容を戻して知らせる)
+        guard let task else { throw URLError(.notConnectedToInternet) }
         let payload = try JSONSerialization.data(withJSONObject: ["type": "comment", "text": text])
-        try await task?.send(.string(String(decoding: payload, as: UTF8.self)))
+        try await task.send(.string(String(decoding: payload, as: UTF8.self)))
     }
 
     private func receive(on t: URLSessionWebSocketTask) {

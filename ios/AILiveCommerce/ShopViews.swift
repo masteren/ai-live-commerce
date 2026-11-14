@@ -21,7 +21,7 @@ struct ProductsView: View {
                                 Text(yen(p.originalPrice)).font(.caption).strikethrough().foregroundStyle(.secondary)
                             }
                             if let off = offText(p) { Text(off).font(.caption.weight(.semibold)).foregroundStyle(Theme.accent) }
-                            Text("残り\(p.stock)点").font(.caption).foregroundStyle(.secondary)
+                            Text(p.stock > 0 ? "残り\(p.stock)点" : "在庫切れ").font(.caption).foregroundStyle(.secondary)
                         }
                         HStack {
                             Button("質問する") { Task { await state.ask(about: p) } }

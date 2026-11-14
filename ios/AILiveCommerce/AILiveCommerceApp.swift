@@ -14,6 +14,7 @@ struct AILiveCommerceApp: App {
 
 struct ContentView: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $state.tab) {
@@ -31,7 +32,8 @@ struct ContentView: View {
                 .tabItem { Label("アカウント", systemImage: "person.crop.circle") }
                 .tag(AppState.Tab.account)
         }
-        .tint(Theme.ink)
+        .tint(Theme.blue)
+        .buttonBorderShape(.capsule)
         .sheet(isPresented: $state.showLogin) { LoginView() }
         .overlay(alignment: .top) {
             if let t = state.toast {
@@ -46,5 +48,9 @@ struct ContentView: View {
         }
         .animation(.easeInOut, value: state.toast)
         .task { await state.bootstrap() }
+        .onChange(of: scenePhase) { old, new in
+            // バックグラウンドから戻ったら接続と表示を回復する(初回起動は bootstrap が担当)
+            if new == .active, old == .background { Task { await state.becameActive() } }
+        }
     }
 }

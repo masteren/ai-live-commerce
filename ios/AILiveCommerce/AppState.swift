@@ -32,6 +32,7 @@ final class AppState: ObservableObject {
     /// 最後まで再生できた音声の数(動作確認・UI テスト用。音声ボタンの accessibilityValue に出す)
     @Published var audioPlayedCount = 0
     private var pendingComment: String?
+    private var lastSentComment: String?      // セッション切れで拒否されたとき、再ログイン後に送り直すため
 
     var isLoggedIn: Bool { username != nil }
     var cartCount: Int { cart.reduce(0) { $0 + $1.quantity } }
@@ -41,6 +42,7 @@ final class AppState: ObservableObject {
     init() {
         socket.onEvent = { [weak self] in self?.handle($0) }
         socket.onStatus = { [weak self] in self?.connected = $0 }
+        api.onUnauthorized = { [weak self] in self?.sessionExpired() }
     }
 
     // MARK: 起動
@@ -49,7 +51,8 @@ final class AppState: ObservableObject {
         if ProcessInfo.processInfo.arguments.contains("--reset-session") { Keychain.delete() }
         if Keychain.load() != nil {
             // 保存済みトークンが有効か確認(期限切れなら破棄)
-            if let me = try? await api.me() { username = me.username } else { Keychain.delete() }
+            // 401 のときは onUnauthorized がトークンを消す。通信エラーのときは消さない(サーバが落ちているだけかもしれない)
+            if let me = try? await api.me() { username = me.username }
         }
         await loadProducts()
         await refreshCart()
@@ -88,6 +91,28 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// セッションが切れていた(期限切れなど)。ログイン状態を取り消して、ログイン画面を出す
+    private func sessionExpired() {
+        guard Keychain.load() != nil || username != nil else { return }
+        let wasLoggedIn = username != nil
+        Keychain.delete()
+        username = nil
+        cart = []
+        orders = []
+        socket.connect()
+        if wasLoggedIn {
+            showToast("ログインの有効期限が切れました。もう一度ログインしてください")
+            showLogin = true
+        }
+    }
+
+    /// アプリが前面に戻ったとき:接続が切れていれば張り直し、表示を最新にする
+    func becameActive() async {
+        if !connected { socket.connect() }
+        await loadProducts()
+        await refreshCart()
+    }
+
     func logout() async {
         await api.logout()
         username = nil
@@ -97,11 +122,20 @@ final class AppState: ObservableObject {
     }
 
     // MARK: ライブ
-    func sendComment(_ raw: String) async {
+    /// 送信できたら true。false のとき、画面は入力内容を消さずに残す
+    @discardableResult
+    func sendComment(_ raw: String) async -> Bool {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        guard isLoggedIn else { pendingComment = text; showLogin = true; return }
-        do { try await socket.sendComment(text) } catch { showToast("送信できませんでした") }
+        guard !text.isEmpty else { return true }
+        guard isLoggedIn else { pendingComment = text; showLogin = true; return true }
+        do {
+            try await socket.sendComment(text)
+            lastSentComment = text
+            return true
+        } catch {
+            showToast("接続が切れています。つながってからもう一度送信してください")
+            return false
+        }
     }
 
     func ask(about product: Product) async {
@@ -117,7 +151,8 @@ final class AppState: ObservableObject {
         case .comment(let nick, let text):
             append(ChatLine(nickname: nick, text: text, kind: nick == username ? .mine : .user))
         case .hostReply(let r):
-            append(ChatLine(nickname: r.nickname, text: r.text, kind: .host))
+            // 表示名は画面で統一(サーバの HOST_NAME「ハナ」は読み上げ用のカタカナ表記)
+            append(ChatLine(nickname: Theme.hostDisplayName, text: r.text, kind: .host))
             hostText = r.text
             hostEmotion = r.emotion
             if let pid = r.productId { featuredId = pid }
@@ -134,13 +169,23 @@ final class AppState: ObservableObject {
             Task { await loadProducts() }
         case .error(let msg):
             showToast(msg)
-            if !isLoggedIn { showLogin = true }
+            if !isLoggedIn {
+                showLogin = true
+            } else if msg.contains("ログイン") {
+                // ログイン済みのはずなのに拒否された = セッション切れの可能性。/me で確かめる
+                // (401 なら onUnauthorized → sessionExpired。直前のコメントは再ログイン後に送り直す)
+                pendingComment = lastSentComment
+                Task { if (try? await api.me()) != nil { pendingComment = nil } }
+            }
         }
     }
 
     /// ホストの音声を再生する(前の音声が再生中なら止めて、新しい方を再生)
     private func play(_ url: URL) {
         if let o = playObserver { NotificationCenter.default.removeObserver(o) }
+        // 既定のままだと、本体の消音スイッチがオンのとき音が出ない。画面の音声ボタンで明示的にオンにした音なので再生する
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+        try? AVAudioSession.sharedInstance().setActive(true)
         let item = AVPlayerItem(url: url)
         playObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main

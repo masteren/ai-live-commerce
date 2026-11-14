@@ -31,5 +31,5 @@ pytest                            # 单元测试,用临时 SQLite,不碰开发�
 E2E 的跑法见日文 README 的「テスト」。**不要对开发数据库跑测试。**
 
 ## 想理解代码时
-按顺序读 [docs/learning/](learning/) 的学习笔记(01〜14),每篇末尾有自测问题。
+按顺序读 [docs/learning/](learning/) 的学习笔记(01〜15),每篇末尾有自测问题。
 设计资料在 [docs/design/](design/)(需求、ER 图、时序图、画面迁移图)。

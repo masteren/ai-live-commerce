@@ -128,6 +128,40 @@ final class LiveCommerceFlowUITests: XCTestCase {
         app.buttons["logoutButton"].tap()
         XCTAssertTrue(app.buttons["openLogin"].waitForExistence(timeout: 10), "ログアウトできない")
     }
+
+    /// 利用中にセッションが切れた場合:ログイン画面が出て、ログインし直すと直前のコメントが送り直される
+    /// サーバ側でセッションを失効させる操作が必要なので、普段は実行しない。手順:
+    ///   1. テスト用サーバを SQLite で起動  2. TEST_RUNNER_EXPIRE_SESSION_TEST=1 を付けて実行
+    ///   3. 画面に「1つ目」が出たあとの 12 秒の間に、DB で UPDATE auth_sessions SET expires_at='2000-01-01 00:00:00'
+    func testExpiredSessionAsksToLoginAgain() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["EXPIRE_SESSION_TEST"] == "1", "セッション失効の操作が必要なため通常は実行しない")
+        let user = "exp_\(Int(Date().timeIntervalSince1970) % 1_000_000)"
+        let field = app.textFields["commentField"]
+        field.tap()
+        field.typeText("1つ目の質問です")
+        app.buttons["sendButton"].tap()
+        let username = app.textFields["usernameField"]
+        XCTAssertTrue(username.waitForExistence(timeout: 5))
+        app.buttons["新規登録"].firstMatch.tap()
+        username.tap(); username.typeText(user)
+        let password = app.secureTextFields["passwordField"]
+        password.tap(); password.typeText("pass1234")
+        app.buttons["authSubmit"].tap()
+        XCTAssertTrue(text(containing: "1つ目の質問です").waitForExistence(timeout: 15), "登録後のコメントが出ない")
+
+        sleep(12)                                          // この間にサーバ側でセッションを失効させる
+
+        field.tap()
+        field.typeText("2つ目は届きますか?")
+        app.buttons["sendButton"].tap()
+        XCTAssertTrue(username.waitForExistence(timeout: 15), "セッション切れなのにログイン画面が出ない")
+        snap("08_session_expired")
+        username.tap(); username.typeText(user)
+        password.tap(); password.typeText("pass1234")
+        app.buttons["authSubmit"].tap()
+        XCTAssertTrue(text(containing: "2つ目は届きますか?").waitForExistence(timeout: 15), "再ログイン後にコメントが送り直されない")
+        snap("09_resent_after_login")
+    }
 }
 
 private extension XCUIApplication {

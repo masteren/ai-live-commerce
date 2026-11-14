@@ -758,7 +758,7 @@ function connect(){
       case 'viewers': $('viewers').textContent = m.count; break;
       case 'comment': addComment(m.nickname, m.text, m.nickname===username?'me':''); break;
       case 'host_reply':
-        addComment(m.nickname, m.text, 'host');
+        addComment('花奈', m.text, 'host');   // 表示名は字幕と揃える(m.nickname は読み上げ用のカタカナ表記)
         if (m.product_id) setFeaturedById(m.product_id);
         hostSpeak(m.text, m.audio_url, m.emotion);
         break;
