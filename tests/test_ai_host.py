@@ -75,3 +75,19 @@ def test_idle_talk_only_when_someone_is_watching(monkeypatch):
     assert host._should_idle_talk() is True
     host.last_activity_at = time.time()
     assert host._should_idle_talk() is False
+
+
+async def test_idle_talk_skips_sold_out_products():
+    """在庫切れの商品は自動トークで紹介しない。全部が在庫切れなら店舗情報だけを話す"""
+    from sqlalchemy import update
+    from app.database import SessionLocal
+    from app.models import Product
+    async with SessionLocal() as db:
+        await db.execute(update(Product).where(Product.id == 1).values(stock=0))
+        await db.commit()
+    picked = {(await host._idle_line(i))[1] for i in range(1, 12, 2)}
+    assert 1 not in picked and picked - {None}
+    async with SessionLocal() as db:
+        await db.execute(update(Product).values(stock=0))
+        await db.commit()
+    assert {(await host._idle_line(i))[1] for i in range(1, 12, 2)} == {None}

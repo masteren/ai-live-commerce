@@ -11,9 +11,10 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, func
 
@@ -74,6 +75,22 @@ app = FastAPI(title="AI Live Commerce", version="1.0.0", lifespan=lifespan)
 _cors = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 if _cors:   # 既定は空 = CORS ヘッダを出さない(同一オリジンのみ)
     app.add_middleware(CORSMiddleware, allow_origins=_cors, allow_methods=["*"], allow_headers=["*"])
+
+
+# 入力チェック(Pydantic)のエラーは、既定では英語の文と内部の項目名が配列で返る。
+# 画面にそのまま出てしまうので、利用者向けの日本語1文にして返す(Web・iOS 共通)
+_FIELD_MESSAGES = {
+    "username": "ユーザー名は2〜20文字で入力してください(英数字・ひらがな・カタカナ・漢字・_・- が使えます)",
+    "password": "パスワードは6〜64文字で入力してください",
+    "quantity": "数量は1〜99で指定してください",
+}
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    fields = [str(e["loc"][-1]) for e in exc.errors() if e.get("loc")]
+    message = next((_FIELD_MESSAGES[f] for f in fields if f in _FIELD_MESSAGES), "入力内容を確認してください")
+    return JSONResponse(status_code=422, content={"detail": message})
 
 
 @app.middleware("http")

@@ -103,7 +103,7 @@ struct LiveView: View {
                     if let off = offText(p) { Text(off).font(.caption.weight(.semibold)).foregroundStyle(Theme.accent) }
                 }
                 .lineLimit(1)
-                .fixedSize()
+                .minimumScaleFactor(0.75)                       // 文字を大きくしている端末でも折り返さない
             }
             .frame(maxWidth: .infinity, alignment: .leading)   // 余った幅は商品名に使う(Spacer に取られると名前が省略される)
             Button("カートへ") { Task { await state.addToCart(p) } }
@@ -204,6 +204,9 @@ struct LiveView: View {
     private func send() {
         let text = input
         input = ""
+        // キーボードの送信キーで送ると、既定では入力欄からフォーカスが外れてキーボードが閉じる。
+        // 続けてコメントを書けるよう、キーボードが出ていたときは開いたままにする
+        if inputFocused { DispatchQueue.main.async { inputFocused = true } }
         Task {
             // 送れなかったとき(切断中)は入力内容を戻す。その間に別の文字を打っていたら上書きしない
             if await !state.sendComment(text), input.isEmpty { input = text }

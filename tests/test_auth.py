@@ -156,3 +156,19 @@ async def test_security_headers_and_no_cors_by_default(client):
     assert r.headers["x-frame-options"] == "DENY" and r.headers["x-content-type-options"] == "nosniff"
     assert "access-control-allow-origin" not in r.headers      # 既定では他オリジンに許可を出さない
     assert (await client.get("/")).headers["x-frame-options"] == "DENY"
+
+
+# ---------- 入力チェックのエラー文 ----------
+async def test_validation_errors_are_one_japanese_sentence(client):
+    """入力チェックのエラーは、英語の配列ではなく利用者向けの日本語1文で返る(Web・iOS がそのまま表示する)"""
+    r = await client.post("/api/auth/register", json={"username": "taro", "password": "123"})
+    assert r.status_code == 422 and isinstance(r.json()["detail"], str) and "パスワードは6" in r.json()["detail"]
+    r = await client.post("/api/auth/register", json={"username": "a", "password": PW})
+    assert r.status_code == 422 and "ユーザー名は2" in r.json()["detail"]
+    r = await client.post("/api/auth/register", json={"username": "bad name!", "password": PW})
+    assert r.status_code == 422 and "ユーザー名" in r.json()["detail"]
+    csrf = await register(client)
+    r = await client.post("/api/cart", json={"product_id": 1, "quantity": 0}, headers=csrf)
+    assert r.status_code == 422 and "数量は1〜99" in r.json()["detail"]
+    r = await client.post("/api/cart", json={"product_id": "x"}, headers=csrf)
+    assert r.status_code == 422 and r.json()["detail"] == "入力内容を確認してください"

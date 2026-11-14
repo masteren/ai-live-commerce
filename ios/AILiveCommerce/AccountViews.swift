@@ -32,6 +32,7 @@ struct LoginView: View {
                 }
                 if let error {
                     Text(error).foregroundStyle(.red).font(.footnote)
+                        .accessibilityIdentifier("authError")
                 }
                 Section {
                 Button {

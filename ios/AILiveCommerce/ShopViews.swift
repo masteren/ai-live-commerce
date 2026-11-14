@@ -45,6 +45,8 @@ struct ProductsView: View {
                 Spacer()
                 Text(p.stock > 0 ? "残り\(p.stock)点" : "在庫切れ").font(.caption).foregroundStyle(.secondary)
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)                            // 文字を大きくしている端末でも金額を折り返さない
             HStack(spacing: 18) {
                 Button(p.stock > 0 ? "カートに入れる" : "在庫切れ") { Task { await state.addToCart(p) } }
                     .buttonStyle(.borderedProminent)

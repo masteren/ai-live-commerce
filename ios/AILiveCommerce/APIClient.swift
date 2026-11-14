@@ -95,7 +95,7 @@ final class APIClient {
     private static func errorMessage(from data: Data, status: Int) -> String {
         if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             if let s = obj["detail"] as? String { return s }
-            if let arr = obj["detail"] as? [[String: Any]], let msg = arr.first?["msg"] as? String { return msg }
+            if obj["detail"] is [Any] { return "入力内容を確認してください" }   // 古いサーバ(英語の配列を返す)向け
         }
         return "通信エラー(\(status))"
     }

@@ -6,7 +6,7 @@ import XCTest
 ///   未ログインでコメント → ログインシート → 新規登録 → コメント送信・AI 回答
 ///   → カート追加 → 注文 → 購入告知 → 注文履歴 → ログアウト
 final class LiveCommerceFlowUITests: XCTestCase {
-    private var app: XCUIApplication!
+    var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -21,7 +21,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
     }
 
     /// スクリーンショットを結果に添付(環境変数 SHOTS_DIR があれば PNG も保存)
-    private func snap(_ name: String) {
+    func snap(_ name: String) {
         let shot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: shot)
         attachment.name = name
@@ -33,7 +33,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
     }
 
     /// キーボードが出ていれば、ホスト部分をタップして閉じる(キーボードはタブバーや一覧の一部を隠す)
-    private func dismissKeyboard() {
+    func dismissKeyboard() {
         // 他社製のキーボードはアプリの外にあり app.keyboards では見えないので、出ているかどうかに関わらずタップする
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "キーボードが閉じない")
@@ -42,7 +42,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
     }
 
     /// 入力欄をタップして文字を打つ。実機ではタップしてもすぐにはフォーカスが移らないことがあるので、移るまで待ち、だめならもう一度タップする
-    private func type(_ string: String, into element: XCUIElement) {
+    func type(_ string: String, into element: XCUIElement) {
         for _ in 0..<3 {
             element.tap()
             let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: element)
@@ -51,20 +51,32 @@ final class LiveCommerceFlowUITests: XCTestCase {
         element.typeText(string)
     }
 
-    private func text(containing s: String) -> XCUIElement {
+    func text(containing s: String) -> XCUIElement {
         app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", s)).firstMatch
     }
 
     /// タブを切り替える(バッジが付くとラベルが「カート, 1件」のように変わることがあるので前方一致で探す)
-    private func tab(_ name: String) {
+    func tab(_ name: String) {
         let pred = NSPredicate(format: "label == %@ OR label BEGINSWITH %@", name, name + ",")
         let inTabBar = app.tabBars.buttons.matching(pred).firstMatch
-        if inTabBar.waitForExistence(timeout: 3) { inTabBar.tap(); return }
+        if inTabBar.waitForExistence(timeout: 3) {
+            // 画面の切り替えアニメーション中はタップが空振りすることがあるので、選択されるまで繰り返す
+            for attempt in 1...4 {
+                inTabBar.tap()
+                let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isSelected == true"), object: inTabBar)
+                if XCTWaiter().wait(for: [selected], timeout: 2) == .completed {
+                    if attempt > 1 { print("EDGE tab-retry: \(name) は \(attempt) 回目で切り替わった") }
+                    return
+                }
+            }
+            XCTFail("タブ「\(name)」に切り替わらない")
+            return
+        }
         app.buttons.matching(pred).firstMatch.tap()
     }
 
     /// 失敗調査用:画面の要素ツリーを SHOTS_DIR に保存
-    private func dumpTree(_ name: String) {
+    func dumpTree(_ name: String) {
         if let dir = ProcessInfo.processInfo.environment["SHOTS_DIR"] {
             try? app.debugDescription.write(toFile: dir + "/\(name).txt", atomically: true, encoding: .utf8)
         }
@@ -215,7 +227,7 @@ final class LiveCommerceFlowUITests: XCTestCase {
     }
 }
 
-private extension XCUIApplication {
+extension XCUIApplication {
     /// 要素のラベルが指定の文字列を含むまで待つ
     func wait(for element: XCUIElement, labelContains s: String, timeout: TimeInterval) -> Bool {
         let exp = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", s), object: element)

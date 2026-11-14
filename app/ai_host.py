@@ -227,7 +227,8 @@ class AIHost:
 
     async def _idle_line(self, i: int) -> "tuple[str, Optional[int], str]":
         """無人時のトーク:店舗情報と商品紹介を交互に(商品紹介のときは商品カードも切り替わる)"""
-        products = await self._load_products()
+        # 在庫切れの商品は紹介しない(買えない商品を「本日は○%オフ」と勧めてしまうため)
+        products = [p for p in await self._load_products() if p.stock > 0]
         if i % 2 == 1 and products:
             p = products[(i // 2) % len(products)]
             return host_rules.spotlight(p), p.id, "happy"

@@ -34,6 +34,10 @@ struct ContentView: View {
         }
         .tint(Theme.blue)
         .buttonBorderShape(.capsule)
+        // 配色は Web 版と同じ明るい画面だけを用意しているので、端末がダークモードでも明るい表示に固定する
+        .preferredColorScheme(.light)
+        // 文字サイズは「特大」まで追従する。それ以上(アクセシビリティ用の大きさ)は横にはみ出して操作できなくなるため上限を設ける
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .sheet(isPresented: $state.showLogin) { LoginView() }
         .overlay(alignment: .top) {
             if let t = state.toast {
@@ -44,6 +48,7 @@ struct ContentView: View {
                     .background(.black.opacity(0.8), in: Capsule())
                     .padding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
+                    .allowsHitTesting(false)          // お知らせの表示中も、下にあるボタンを押せるようにする
             }
         }
         .animation(.easeInOut, value: state.toast)

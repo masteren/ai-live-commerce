@@ -250,11 +250,15 @@ final class AppState: ObservableObject {
     }
 
     // MARK: UI
+    private var toastSerial = 0
     func showToast(_ msg: String) {
         toast = msg
+        toastSerial += 1
+        let mine = toastSerial
         Task {
             try? await Task.sleep(nanoseconds: 2_500_000_000)
-            if toast == msg { toast = nil }
+            // 同じ文言が続けて出たとき、前の分のタイマーが新しい表示を早く消してしまわないよう、最後に出した分だけが消す
+            if toastSerial == mine { toast = nil }
         }
     }
 }
