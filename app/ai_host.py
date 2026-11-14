@@ -22,6 +22,7 @@ import json
 import logging
 import random
 import re
+import secrets
 import time
 from typing import Optional
 
@@ -236,21 +237,33 @@ class AIHost:
         return text.format(host=settings.host_name), None, emotion
 
     async def _speak(self, text: str, product_id: Optional[int], emotion: str, save: bool = True) -> None:
-        """主播发言统一出口:TTS → 落库 → 广播"""
+        """ホストの発言の出口:保存 → 文字を配信 → 音声を合成 → 音声を配信
+
+        文字と音声を分けて送る。以前は「音声の合成が終わってから文字と一緒に配信」していたため、
+        合成にかかる時間(実測 1〜2.5 秒)だけ、視聴者が返答を読めるのが遅れていた。
+        音声は host_audio として後から届き、同じ id の host_reply に対応する。"""
         emotion = emotion if emotion in EMOTIONS else "normal"
-        audio_url = await tts.synthesize(text, emotion)
+        reply_id = secrets.token_hex(6)
+        has_voice = tts.name != "none"
         if save:
             async with SessionLocal() as db:
                 db.add(Comment(nickname=settings.host_name, text=text, is_host=True))
                 await db.commit()
         await manager.broadcast({
             "type": "host_reply",
+            "id": reply_id,
             "nickname": settings.host_name,
             "text": text,
             "product_id": product_id,
             "emotion": emotion,
-            "audio_url": audio_url,
+            "audio_url": None,              # 旧クライアント向けに項目は残す(音声は host_audio で届く)
+            "audio_pending": has_voice,     # このあと音声が届く見込みか(口パクの出し方を決めるのに使う)
         })
+        if not has_voice:
+            return
+        audio_url = await tts.synthesize(text, emotion)   # 失敗時は None(文字だけで続行)
+        if audio_url:
+            await manager.broadcast({"type": "host_audio", "id": reply_id, "audio_url": audio_url})
 
     async def _generate(self, nickname: str, question: str) -> "tuple[str, Optional[int], str]":
         products = await self._load_products()

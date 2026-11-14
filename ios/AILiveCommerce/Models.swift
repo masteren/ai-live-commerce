@@ -71,6 +71,7 @@ struct PurchaseItem: Codable, Hashable {
 }
 
 struct HostReply {
+    let id: String?            // あとから届く音声(hostAudio)と対応づける番号
     let nickname: String
     let text: String
     let productId: Int?
@@ -82,6 +83,8 @@ enum LiveEvent {
     case viewers(Int)
     case comment(nickname: String, text: String)
     case hostReply(HostReply)
+    /// 発言の音声。文字(hostReply)より後に、合成が終わってから届く
+    case hostAudio(id: String, audioUrl: String)
     case purchase(nickname: String, items: [PurchaseItem], stocks: [String: Int])
     case productsChanged
     case error(String)
@@ -89,6 +92,7 @@ enum LiveEvent {
     /// {"type": ...} を見て種類を判定する
     private struct Raw: Decodable {
         let type: String
+        let id: String?
         let count: Int?
         let nickname: String?
         let text: String?
@@ -108,8 +112,11 @@ enum LiveEvent {
         case "viewers": return .viewers(r.count ?? 0)
         case "comment": return .comment(nickname: r.nickname ?? "", text: r.text ?? "")
         case "host_reply":
-            return .hostReply(HostReply(nickname: r.nickname ?? "", text: r.text ?? "", productId: r.productId,
+            return .hostReply(HostReply(id: r.id, nickname: r.nickname ?? "", text: r.text ?? "", productId: r.productId,
                                         emotion: r.emotion ?? "normal", audioUrl: r.audioUrl))
+        case "host_audio":
+            guard let id = r.id, let url = r.audioUrl else { return nil }
+            return .hostAudio(id: id, audioUrl: url)
         case "purchase": return .purchase(nickname: r.nickname ?? "", items: r.items ?? [], stocks: r.stocks ?? [:])
         case "products_changed": return .productsChanged
         case "error": return .error(r.message ?? "エラーが発生しました")

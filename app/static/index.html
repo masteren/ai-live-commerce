@@ -525,7 +525,7 @@ async function checkSession(){
 }
 
 // ================= アシスタント:感情 + 発話 =================
-let emoTimer=null, talkTimer=null;
+let emoTimer=null, talkTimer=null, lastReplyId=null;
 function setEmotion(emo){
   const box = $('avatarBox');
   box.classList.remove('happy','excited','troubled','shy');
@@ -534,17 +534,26 @@ function setEmotion(emo){
   clearTimeout(emoTimer);
   emoTimer = setTimeout(()=>{ box.classList.remove('happy','excited','troubled','shy'); window.HANA && window.HANA.setEmotion('normal'); }, 8000);
 }
-function hostSpeak(text, audioUrl, emotion){
+// 文字は host_reply で先に届き、音声は合成が終わってから host_audio で届く
+function hostSpeak(text, emotion, audioPending){
   $('bubbleText').textContent = text;
   setEmotion(emotion);
   $('avatarBox').classList.add('talking');
   clearTimeout(talkTimer);
-  if (soundOn && audioUrl){ audioQueue.push(audioUrl); playNext(); }
-  else {
+  if (soundOn && audioPending){
+    // 音声がまもなく届く:口パクは音声に合わせるので、ここでは始めない。届かなかったとき(合成の失敗)に備えて時間で解除
+    talkTimer = setTimeout(()=>$('avatarBox').classList.remove('talking'), 8000);
+  } else {
     const dur = Math.min(text.length*150, 10000);
     window.HANA && window.HANA.talkFor(dur);   // 无音频:按文本长度做口型
     talkTimer = setTimeout(()=>$('avatarBox').classList.remove('talking'), dur);
   }
+}
+function hostAudio(audioUrl){
+  if (!soundOn) return;
+  clearTimeout(talkTimer);
+  $('avatarBox').classList.add('talking');
+  audioQueue.push(audioUrl); playNext();
 }
 function playNext(){
   if (playing || !audioQueue.length) return;
@@ -768,7 +777,11 @@ function connect(){
       case 'host_reply':
         addComment('花奈', m.text, 'host');   // 表示名は字幕と揃える(m.nickname は読み上げ用のカタカナ表記)
         if (m.product_id) setFeaturedById(m.product_id);
-        hostSpeak(m.text, m.audio_url, m.emotion);
+        lastReplyId = m.id;
+        hostSpeak(m.text, m.emotion, m.audio_pending);
+        break;
+      case 'host_audio':
+        if (m.id === lastReplyId) hostAudio(m.audio_url);   // すでに次の発言に移っていたら、古い音声は流さない
         break;
       case 'purchase': {
         addComment('お知らせ', `${m.nickname}さんが ${m.items.map(i=>`${i.name}×${i.quantity}`).join('、')} を購入しました`, 'sys');

@@ -27,12 +27,15 @@ sequenceDiagram
   alt API キーなし / エラー
     H->>H: ルール応答に縮退(形式不正の返答も同様)
   end
-  H->>T: 感情に応じた速度・音高で合成
-  alt VOICEVOX 停止
-    T-->>H: 失敗 → audio_url = null(文字のみ)
-  end
   H->>DB: ホストの発言を保存
-  H->>All: {"type":"host_reply","text","emotion","audio_url","product_id"}
+  H->>All: {"type":"host_reply","id","text","emotion","product_id","audio_pending"}(文字を先に配信)
+  H->>T: 感情に応じた速度・音高で合成(1〜2.5 秒)
+  alt 合成に成功
+    T-->>H: 音声ファイル
+    H->>All: {"type":"host_audio","id","audio_url"}(同じ id の発言の音声)
+  else VOICEVOX 停止
+    T-->>H: 失敗 → 音声は送らない(文字のみ)
+  end
 ```
 
 ## 2. 購入(売り越し防止)

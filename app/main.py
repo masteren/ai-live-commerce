@@ -173,7 +173,8 @@ async def live_ws(ws: WebSocket):
     服务端 → 客户端:
       {"type":"viewers","count":N}                                   在线人数
       {"type":"comment","nickname","text"}                           观众/机器人弹幕
-      {"type":"host_reply","nickname","text","product_id","emotion","audio_url"}  AI主播
+      {"type":"host_reply","id","nickname","text","product_id","emotion","audio_pending"}  AI主播(文字。先に届く)
+      {"type":"host_audio","id","audio_url"}                         上の id の発言の音声(合成が終わってから届く)
       {"type":"purchase","nickname","items","stocks"}                购买播报
       {"type":"products_changed"}                                    商品变更
       {"type":"error","message"}                                     仅发给当前连接

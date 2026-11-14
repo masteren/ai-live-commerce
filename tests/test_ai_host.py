@@ -91,3 +91,57 @@ async def test_idle_talk_skips_sold_out_products():
         await db.execute(update(Product).values(stock=0))
         await db.commit()
     assert {(await host._idle_line(i))[1] for i in range(1, 12, 2)} == {None}
+
+
+# ---------- 発言の配信:文字を先に、音声はあとから ----------
+async def test_speak_sends_text_before_audio_is_ready(monkeypatch):
+    """文字(host_reply)は音声の合成を待たずに配信され、音声(host_audio)は同じ id であとから届く"""
+    import asyncio
+    sent, synth_started, release = [], asyncio.Event(), asyncio.Event()
+
+    class SlowTTS:
+        name = "voicevox"
+        credit = ""
+
+        async def synthesize(self, text, emotion="normal"):
+            synth_started.set()
+            await release.wait()                 # 合成に時間がかかっている状態
+            return "/static/audio/x.wav"
+
+    async def capture(message):
+        sent.append(message)
+
+    monkeypatch.setattr(ai_host, "tts", SlowTTS())
+    monkeypatch.setattr(ai_host.manager, "broadcast", capture)
+    task = asyncio.create_task(host._speak("こんにちは", 1, "happy", save=False))
+    await asyncio.wait_for(synth_started.wait(), 2)
+    assert [m["type"] for m in sent] == ["host_reply"]          # 合成中でも文字はもう届いている
+    assert sent[0]["text"] == "こんにちは" and sent[0]["audio_pending"] is True and sent[0]["audio_url"] is None
+    release.set()
+    await asyncio.wait_for(task, 2)
+    assert [m["type"] for m in sent] == ["host_reply", "host_audio"]
+    assert sent[1] == {"type": "host_audio", "id": sent[0]["id"], "audio_url": "/static/audio/x.wav"}
+
+
+async def test_speak_without_voice_sends_text_only(monkeypatch):
+    """音声なしの設定、または合成に失敗したときは、文字だけを配信する"""
+    sent = []
+
+    async def capture(message):
+        sent.append(message)
+
+    monkeypatch.setattr(ai_host.manager, "broadcast", capture)
+    await host._speak("文字だけ", None, "normal", save=False)      # テストの既定は TTS_PROVIDER=none
+    assert [m["type"] for m in sent] == ["host_reply"] and sent[0]["audio_pending"] is False
+
+    class FailingTTS:
+        name = "voicevox"
+        credit = ""
+
+        async def synthesize(self, text, emotion="normal"):
+            return None                          # VOICEVOX が落ちているとき
+
+    sent.clear()
+    monkeypatch.setattr(ai_host, "tts", FailingTTS())
+    await host._speak("合成に失敗", None, "normal", save=False)
+    assert [m["type"] for m in sent] == ["host_reply"] and sent[0]["audio_pending"] is True

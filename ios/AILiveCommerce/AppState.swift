@@ -36,6 +36,7 @@ final class AppState: ObservableObject {
     /// 最後まで再生できた音声の数(動作確認・UI テスト用。音声ボタンの accessibilityValue に出す)
     @Published var audioPlayedCount = 0
     private var pendingComment: String?
+    private var lastReplyId: String?
     /// 保存済みトークンをサーバに確認できたか(起動時にサーバへ届かなかった場合は、つながった時点で確認する)
     private var sessionVerified = false
     /// 前回ログインしていたユーザー名(接続先ごと)。秘密ではないので UserDefaults に置く。
@@ -197,9 +198,13 @@ final class AppState: ObservableObject {
             hostText = r.text
             hostEmotion = r.emotion
             if let pid = r.productId { featuredId = pid }
+            lastReplyId = r.id
             if soundOn, let path = r.audioUrl, let url = AppConfig.absolute(path) {
-                play(url)
+                play(url)                         // 旧サーバ(文字と音声を一緒に送る)向け
             }
+        case .hostAudio(let id, let path):
+            // 文字は先に表示済み。すでに次の発言に移っていたら、古い音声は流さない
+            if soundOn, id == lastReplyId, let url = AppConfig.absolute(path) { play(url) }
         case .purchase(let nick, let items, let stocks):
             let desc = items.map { "\($0.name)×\($0.quantity)" }.joined(separator: "、")
             append(ChatLine(nickname: "お知らせ", text: "\(nick)さんが \(desc) を購入しました", kind: .system))
