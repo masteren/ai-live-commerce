@@ -41,6 +41,16 @@ final class LiveCommerceFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["featuredAddToCart"].waitForExistence(timeout: 5), "キーボードを閉じても商品カードが戻らない")
     }
 
+    /// 入力欄をタップして文字を打つ。実機ではタップしてもすぐにはフォーカスが移らないことがあるので、移るまで待ち、だめならもう一度タップする
+    private func type(_ string: String, into element: XCUIElement) {
+        for _ in 0..<3 {
+            element.tap()
+            let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: element)
+            if XCTWaiter().wait(for: [focused], timeout: 2) == .completed { break }
+        }
+        element.typeText(string)
+    }
+
     private func text(containing s: String) -> XCUIElement {
         app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", s)).firstMatch
     }
@@ -75,19 +85,16 @@ final class LiveCommerceFlowUITests: XCTestCase {
 
         // 2. 未ログインでコメント → ログインシートが開く
         let field = app.textFields["commentField"]
-        field.tap()
-        field.typeText(question)
+        type(question, into: field)
         app.buttons["sendButton"].tap()
         let username = app.textFields["usernameField"]
         XCTAssertTrue(username.waitForExistence(timeout: 5), "ログインシートが開かない")
 
         // 3. 新規登録
         app.buttons["新規登録"].firstMatch.tap()
-        username.tap()
-        username.typeText(user)
+        type(user, into: username)
         let password = app.secureTextFields["passwordField"]
-        password.tap()
-        password.typeText("pass1234")
+        type("pass1234", into: password)
         snap("02_register")
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(app.textFields["usernameField"].waitForNonExistence(timeout: 10), "登録に失敗(シートが閉じない)")
@@ -160,15 +167,14 @@ final class LiveCommerceFlowUITests: XCTestCase {
 
         let user = "bg_\(Int(Date().timeIntervalSince1970) % 1_000_000)"
         let field = app.textFields["commentField"]
-        field.tap()
-        field.typeText("戻ってきました。送料は?")
+        type("戻ってきました。送料は?", into: field)
         app.buttons["sendButton"].tap()
         let username = app.textFields["usernameField"]
         XCTAssertTrue(username.waitForExistence(timeout: 5))
         app.buttons["新規登録"].firstMatch.tap()
-        username.tap(); username.typeText(user)
+        type(user, into: username)
         let password = app.secureTextFields["passwordField"]
-        password.tap(); password.typeText("pass1234")
+        type("pass1234", into: password)
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "戻ったあとコメントが送れない(ホストの回答がない)")
         dismissKeyboard()
@@ -184,27 +190,25 @@ final class LiveCommerceFlowUITests: XCTestCase {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["EXPIRE_SESSION_TEST"] == "1", "セッション失効の操作が必要なため通常は実行しない")
         let user = "exp_\(Int(Date().timeIntervalSince1970) % 1_000_000)"
         let field = app.textFields["commentField"]
-        field.tap()
-        field.typeText("1つ目の質問です")
+        type("1つ目の質問です", into: field)
         app.buttons["sendButton"].tap()
         let username = app.textFields["usernameField"]
         XCTAssertTrue(username.waitForExistence(timeout: 5))
         app.buttons["新規登録"].firstMatch.tap()
-        username.tap(); username.typeText(user)
+        type(user, into: username)
         let password = app.secureTextFields["passwordField"]
-        password.tap(); password.typeText("pass1234")
+        type("pass1234", into: password)
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(text(containing: "1つ目の質問です").waitForExistence(timeout: 15), "登録後のコメントが出ない")
 
         sleep(12)                                          // この間にサーバ側でセッションを失効させる
 
-        field.tap()
-        field.typeText("2つ目は届きますか?")
+        type("2つ目は届きますか?", into: field)
         app.buttons["sendButton"].tap()
         XCTAssertTrue(username.waitForExistence(timeout: 15), "セッション切れなのにログイン画面が出ない")
         snap("08_session_expired")
-        username.tap(); username.typeText(user)
-        password.tap(); password.typeText("pass1234")
+        type(user, into: username)
+        type("pass1234", into: password)
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(text(containing: "2つ目は届きますか?").waitForExistence(timeout: 15), "再ログイン後にコメントが送り直されない")
         snap("09_resent_after_login")
