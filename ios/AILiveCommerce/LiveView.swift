@@ -10,7 +10,8 @@ struct LiveView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 hostArea
-                if let p = state.featured { featuredCard(p) }
+                // 入力中は商品カードを隠す。小さい画面+背の高いキーボードだと、コメントが1行しか見えなくなるため(実機で確認)
+                if let p = state.featured, !inputFocused { featuredCard(p) }
                 commentList
                 inputBar
             }

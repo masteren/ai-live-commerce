@@ -32,6 +32,15 @@ final class LiveCommerceFlowUITests: XCTestCase {
         }
     }
 
+    /// キーボードが出ていれば、ホスト部分をタップして閉じる(キーボードはタブバーや一覧の一部を隠す)
+    private func dismissKeyboard() {
+        // 他社製のキーボードはアプリの外にあり app.keyboards では見えないので、出ているかどうかに関わらずタップする
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "キーボードが閉じない")
+        // 入力中は隠れている商品カードが戻るまで待つ
+        XCTAssertTrue(app.buttons["featuredAddToCart"].waitForExistence(timeout: 5), "キーボードを閉じても商品カードが戻らない")
+    }
+
     private func text(containing s: String) -> XCUIElement {
         app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", s)).firstMatch
     }
@@ -82,9 +91,11 @@ final class LiveCommerceFlowUITests: XCTestCase {
         XCTAssertTrue(app.textFields["usernameField"].waitForNonExistence(timeout: 10), "登録に失敗(シートが閉じない)")
 
         // 4. ログイン後、保留していたコメントが送信され、AI ホストが回答する
+        XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "ホストの回答がない")
+        // キーボードを閉じてから自分のコメントを確認する(画面が小さい端末では、キーボード表示中は一覧の上の行が画面外になる)
+        dismissKeyboard()
         if !text(containing: question).waitForExistence(timeout: 10) { snap("zz_comment_debug"); dumpTree("zz_comment_tree") }
         XCTAssertTrue(text(containing: question).exists, "自分のコメントが表示されない")
-        XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "ホストの回答がない")
         // 音声(VOICEVOX)が最後まで再生される。サーバ側で VOICEVOX が動いていない場合はこの確認を飛ばす
         if ProcessInfo.processInfo.environment["EXPECT_AUDIO"] == "1" {
             let sound = app.buttons["soundButton"]
@@ -98,11 +109,8 @@ final class LiveCommerceFlowUITests: XCTestCase {
         app.buttons["featuredAddToCart"].tap()
         XCTAssertTrue(text(containing: "カートに追加しました").waitForExistence(timeout: 5))
 
-        // 6. カート → 注文確定(キーボードがタブバーを隠しているので、ホスト部分をタップして閉じる)
-        if app.keyboards.count > 0 {
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
-            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "キーボードが閉じない")
-        }
+        // 6. カート → 注文確定
+        dismissKeyboard()
         tab("カート")
         let checkout = app.buttons["checkoutButton"]
         if !checkout.waitForExistence(timeout: 8) { snap("zz_cart_debug"); dumpTree("zz_cart_tree") }
@@ -127,6 +135,35 @@ final class LiveCommerceFlowUITests: XCTestCase {
         snap("07_account")
         app.buttons["logoutButton"].tap()
         XCTAssertTrue(app.buttons["openLogin"].waitForExistence(timeout: 10), "ログアウトできない")
+    }
+
+    /// ホーム画面に出てから戻っても、接続が回復してコメントを送れる
+    func testReturnFromBackgroundKeepsWorking() throws {
+        let viewers = app.staticTexts["viewers"]
+        XCTAssertTrue(viewers.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.wait(for: viewers, labelContains: "1人", timeout: 15), "視聴者数: \(viewers.label)")
+
+        XCUIDevice.shared.press(.home)
+        sleep(40)                                          // バックグラウンドに置く(この間に接続が切れることがある)
+        app.activate()
+        XCTAssertTrue(app.wait(for: viewers, labelContains: "1人", timeout: 20), "戻ったあと再接続されない: \(viewers.label)")
+
+        let user = "bg_\(Int(Date().timeIntervalSince1970) % 1_000_000)"
+        let field = app.textFields["commentField"]
+        field.tap()
+        field.typeText("戻ってきました。送料は?")
+        app.buttons["sendButton"].tap()
+        let username = app.textFields["usernameField"]
+        XCTAssertTrue(username.waitForExistence(timeout: 5))
+        app.buttons["新規登録"].firstMatch.tap()
+        username.tap(); username.typeText(user)
+        let password = app.secureTextFields["passwordField"]
+        password.tap(); password.typeText("pass1234")
+        app.buttons["authSubmit"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["hostComment"].firstMatch.waitForExistence(timeout: 20), "戻ったあとコメントが送れない(ホストの回答がない)")
+        dismissKeyboard()
+        XCTAssertTrue(text(containing: "戻ってきました").waitForExistence(timeout: 10), "自分のコメントが表示されない")
+        snap("10_after_background")
     }
 
     /// 利用中にセッションが切れた場合:ログイン画面が出て、ログインし直すと直前のコメントが送り直される
