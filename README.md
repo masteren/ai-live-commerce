@@ -92,7 +92,7 @@ LLM のキー(`OPENAI_API_KEY` または `ANTHROPIC_API_KEY`)がなくても全�
 ### データベースについて
 - 開発:MySQL 8.4(`docker compose up -d db`。`.env.example` の既定)
 - 単体テスト:一時ファイルの SQLite(サーバや Docker がなくても数秒で回る)
-- CI:同じ単体テストを SQLite と MySQL 8.4 の両方で実行し、DB による違いがないことを確認(MySQL でだけ起きるデッドロックをここで見つけて直した)
+- CI:同じ単体テストを SQLite と MySQL 8.4 の両方で実行し、DB による違いがないことを確認(ローカルの MySQL で見つけたデッドロックを直したあと、再発しないように CI でも MySQL を回している)
 
 ## テスト
 ```bash
