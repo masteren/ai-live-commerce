@@ -26,7 +26,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | 層 | 技術 |
 |---|---|
 | バックエンド | Python 3.12+ / FastAPI(非同期)/ SQLAlchemy 2.0(async)/ Alembic / Pydantic |
-| DB | SQLite(開発)・MySQL 8.4(docker-compose)、`DATABASE_URL` で切り替え |
+| DB | MySQL 8.4(開発。docker-compose)・SQLite(単体テスト)、`DATABASE_URL` で切り替え。CI では同じテストを両方の DB で実行 |
 | リアルタイム | WebSocket(FastAPI)+ asyncio のキューとバックグラウンドタスク |
 | AI・音声 | LLM は Provider 構造で切替(Anthropic Claude API / OpenAI 互換 API)、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
@@ -78,7 +78,8 @@ flowchart LR
 # Python 3.12 以上が必要(例:uv python install 3.12 && uv venv venv --python 3.12 --seed)
 python3.12 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env            # 必要に応じて ANTHROPIC_API_KEY・ADMIN_TOKEN などを設定
+cp .env.example .env            # 必要に応じて OPENAI_API_KEY・ADMIN_TOKEN などを設定
+docker compose up -d db         # 開発用の MySQL を起動(Docker なしで試すなら .env の DATABASE_URL を SQLite の行に)
 uvicorn app.main:app --reload   # 起動時に DB マイグレーション(Alembic)を自動実行
 ```
 - 視聴者ページ:http://127.0.0.1:8000/(ブラウザを 2 つ開くと複数人のコメントを体験できます)
@@ -88,11 +89,10 @@ uvicorn app.main:app --reload   # 起動時に DB マイグレーション(Alemb
 LLM のキー(`OPENAI_API_KEY` または `ANTHROPIC_API_KEY`)がなくても全機能が動きます(AI ホストはルール応答で回答)。
 音声を出すには [VOICEVOX](https://voicevox.hiroshiba.jp/) を起動し、画面右上の 🔊 を押してください。
 
-### MySQL を使う場合(Docker が必要)
-```bash
-docker compose up -d db
-# .env: DATABASE_URL=mysql+aiomysql://liveuser:livepass@127.0.0.1:3306/livecommerce?charset=utf8mb4
-```
+### データベースについて
+- 開発:MySQL 8.4(`docker compose up -d db`。`.env.example` の既定)
+- 単体テスト:一時ファイルの SQLite(サーバや Docker がなくても数秒で回る)
+- CI:同じ単体テストを SQLite と MySQL 8.4 の両方で実行し、DB による違いがないことを確認(MySQL でだけ起きるデッドロックをここで見つけて直した)
 
 ## テスト
 ```bash
@@ -110,7 +110,7 @@ E2E_BASE=http://127.0.0.1:8001 python test_e2e.py
 app/
 ├── main.py         # エントリポイント:ルーター登録・WebSocket・起動処理(マイグレーション・初期データ)
 ├── config.py       # 設定(.env / 環境変数で上書き)
-├── database.py     # 非同期エンジン(SQLite / MySQL / PostgreSQL)
+├── database.py     # 非同期エンジン(MySQL / SQLite)
 ├── migrate.py      # 起動時の Alembic マイグレーション
 ├── models.py       # User / AuthSession / Product / CartItem / Order / OrderItem / Comment
 ├── queries.py      # 複数箇所で使う問い合わせ(販売中の商品一覧)

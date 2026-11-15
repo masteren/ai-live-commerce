@@ -8,11 +8,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # ---- データベース ----
-    # 既定は SQLite。PostgreSQL を使う場合:
-    #   postgresql+asyncpg://liveuser:password@localhost:5432/livecommerce
-    database_url: str = "sqlite+aiosqlite:///./live.db"
-    # MySQL(docker-compose.yml の db サービス)を使う場合:
+    # 開発は MySQL(docker-compose.yml の db サービス。.env.example に設定例):
     #   mysql+aiomysql://liveuser:livepass@127.0.0.1:3306/livecommerce?charset=utf8mb4
+    # .env がなくても起動できるよう、既定値は SQLite(単体テストも SQLite の一時ファイルを使う)
+    database_url: str = "sqlite+aiosqlite:///./live.db"
     auto_migrate: bool = True            # 起動時に alembic upgrade head を自動実行
 
     # ---- AI 主播の LLM ----

@@ -1,4 +1,6 @@
-"""非同期 SQLAlchemy:SQLite(開発)/ MySQL・PostgreSQL(本番)を DATABASE_URL で切り替え
+"""非同期 SQLAlchemy:MySQL(開発・本番想定)/ SQLite(単体テスト・Docker なしで試すとき)を DATABASE_URL で切り替え
+
+CI では同じ単体テストを SQLite と MySQL 8.4 の両方で実行し、DB による違いがないことを確認している。
 
 テーブル構造は Alembic(migrations/)で管理する。モデルを変更したら:
     alembic revision --autogenerate -m "変更内容"
