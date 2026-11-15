@@ -1,6 +1,6 @@
 # 学习笔记 09:去掉「AI 感」——页面设计、商品图片、主播的说话方式
 
-修改前后对比:`docs/images/web_live_before.png` → `docs/images/web_live.png`
+修改前后对比:`docs/images/web_live_before.png`(最初的样子)→ `docs/images/web_live.png`(之后又改成了现在的苹果风格,所以这张已是最新画面)
 
 ## 1. 「AI 感」来自哪里,怎么改的
 | 原因 | 修改 |

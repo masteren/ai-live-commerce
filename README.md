@@ -9,7 +9,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 <p>
   <img src="docs/images/web_live.png" alt="Web版ライブ画面(3Dアバター・コメント・商品カード)" width="62%">
   <img src="docs/images/ios_live.png" alt="iOS版ライブ画面(購入告知とホストのお礼)" width="18%">
-  <img src="docs/images/ios_account.png" alt="iOS版アカウント画面(注文履歴)" width="18%">
+  <img src="docs/images/ios_products.png" alt="iOS版商品一覧" width="18%">
 </p>
 
 ## 主な機能
