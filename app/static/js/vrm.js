@@ -10,12 +10,13 @@ import { VRMLoaderPlugin, VRMUtils, VRMExpressionPresetName } from '@pixiv/three
 const MODEL_URLS = ['/static/models/custom/host.vrm', '/static/models/hana.vrm'];
 
 // 感情 → VRM の標準表情の強さ(モデルにない表情は自動で飛ばす)
+// 喜びは relaxed(ほほえみ)に happy(目を細めて笑う)を半分ほど足す。happy を強くすると目が閉じ、話しながらだと不自然
 const EMOTION_EXPR = {
   normal:   {},
-  happy:    { happy: 0.9 },
-  excited:  { happy: 1.0, surprised: 0.15 },
+  happy:    { relaxed: 1.0, happy: 0.45 },
+  excited:  { relaxed: 1.0, happy: 0.55, surprised: 0.1 },
   troubled: { sad: 0.85 },
-  shy:      { relaxed: 0.6, happy: 0.3 },
+  shy:      { relaxed: 0.8, happy: 0.25 },
 };
 const EXPR_KEYS = ['happy', 'sad', 'angry', 'relaxed', 'surprised'];
 
@@ -68,6 +69,17 @@ function boot() {
   let flip = 1;                        // VRM 0.x のモデルでは -1(x・z 軸の回転を逆向きに)
   // 待機中のしぐさ:数秒おきにどれか1つ(首をかしげる・横を見る・うなずく)
   const idle = { next: 3 + Math.random() * 3, kind: null, start: 0, dur: 0, side: 1, smile: 0 };
+  // 視線:マウス(指)のほうを見る。しばらく動かなければ視聴者(カメラ)に戻る
+  const lookTarget = new THREE.Object3D();
+  scene.add(lookTarget);
+  const gaze = { x: 0, y: 0, tx: 0, ty: 0, last: -1e9 };
+  window.addEventListener('pointermove', (e) => {
+    const r = canvas.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height * 0.3;   // 顔のあたりを中心に
+    gaze.tx = Math.max(-1, Math.min(1, (e.clientX - cx) / (innerWidth / 2)));
+    gaze.ty = Math.max(-1, Math.min(1, (e.clientY - cy) / (innerHeight / 2)));
+    gaze.last = performance.now();
+  }, { passive: true });
 
   // ---- 音声から口の動きを解析 ----
   let actx = null, analyser = null, buf = null;
@@ -149,7 +161,7 @@ function boot() {
       foreR = H.getNormalizedBoneNode('rightLowerArm');
       for (const n of ['hips', 'spine', 'chest', 'neck', 'head', 'leftHand', 'rightHand']) bone[n] = H.getNormalizedBoneNode(n);
       // 目線はカメラ(=視聴者)に向ける
-      if (vrm.lookAt) vrm.lookAt.target = camera;
+      if (vrm.lookAt) vrm.lookAt.target = lookTarget;
 
       // 头骨位置を基準に「上半身」を構図:頭の上に少し余白を残し(頭頂が切れない)、目線よりわずかに上から撮る
       const head = vrm.humanoid.getNormalizedBoneNode('head');
@@ -199,9 +211,9 @@ function boot() {
       mouth += (m - mouth) * Math.min(1, dt * 20);
       setExpr(VRMExpressionPresetName.Aa, mouth);
 
-      // まばたき(happy/excited のときは目を細めているので、ぶつからないよう飛ばす)
+      // まばたき(happy を強く入れて目を閉じているときは飛ばす)
       blinkT -= dt;
-      if (blinkT <= 0 && cur.happy < 0.4) { blinking = 0.001; blinkT = 2.5 + Math.random() * 3.5; }
+      if (blinkT <= 0 && cur.happy < 0.7) { blinking = 0.001; blinkT = 2.5 + Math.random() * 3.5; }
       if (blinking > 0) {
         blinking += dt;
         const b = blinking < 0.07 ? blinking / 0.07 : Math.max(0, 1 - (blinking - 0.07) / 0.1);
@@ -245,12 +257,19 @@ function boot() {
           if (idle.kind === 'smile') { idle.smile = 0.55 * e; roll += 0.06 * e * idle.side; }
         }
       }
+      // 視線:マウスのほうへ。目が先に動き、頭は少しだけついていく
+      if (performance.now() - gaze.last > 2500) { gaze.tx = 0; gaze.ty = 0; }
+      gaze.x += (gaze.tx - gaze.x) * Math.min(1, dt * 6);
+      gaze.y += (gaze.ty - gaze.y) * Math.min(1, dt * 6);
+      lookTarget.position.set(camera.position.x + gaze.x * 0.9, camera.position.y - gaze.y * 0.6, camera.position.z);
+      yaw += gaze.x * 0.22;
+      pitch += gaze.y * 0.1;
       // 話しているとき:声の大きさに合わせて小さくうなずく
       pitch += mouth * 0.04 * Math.sin(t * 5.5);
       if (bone.neck) { bone.neck.rotation.y = yaw * 0.4; bone.neck.rotation.x = flip * pitch * 0.4; }
       if (bone.head) { bone.head.rotation.y = yaw * 0.6; bone.head.rotation.x = flip * pitch * 0.6; bone.head.rotation.z = flip * roll; }
       // 感情が excited のときは、体ごと小さく弾む
-      vrm.scene.position.y = cur.surprised > 0.05 ? Math.abs(Math.sin(t * 6)) * 0.006 * cur.happy : 0;
+      vrm.scene.position.y = cur.surprised > 0.05 ? Math.abs(Math.sin(t * 6)) * 0.006 * cur.relaxed : 0;
 
       vrm.update(dt);
     }
