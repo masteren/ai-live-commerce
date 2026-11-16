@@ -33,5 +33,6 @@ DerivedData/
 # 旧 venv のバックアップ
 venv-*.bak/
 
-# 個人で確認するためのモデル(再配布禁止のため Git に入れない)
-/DS.vrm
+# 再配布禁止のモデル(Git に入れない。サーバへは deploy/deploy.sh が別に送る)
+/*.vrm
+app/static/models/custom/

@@ -148,7 +148,8 @@ test_e2e.py         # E2E テスト
 - 3D:three.js、@pixiv/three-vrm(MIT)
 
 ## 使用した素材
-- 3D モデル:pixiv Inc. の VRM サンプルモデル「VRM1_Constraint_Twist_Sample」(© 2022 pixiv Inc.、[VRM Public License 1.0](https://vrm.dev/licenses/1.0/)。再配布・改変・商用利用可)。ホスト「花奈」としての表情・動き・ポーズはこのアプリ側で付けている
+- 3D モデル(公開版):「[DeepSeek蓝色大肥鱼](https://www.aplaybox.com/details/model/PIuLwHuG6mKr)」(作者 [喜欢看雨OvO](https://space.bilibili.com/135840826)、模之屋で配布)。配布条件(改変可・**再配布禁止**・商用は作者の同意が必要)に従い、**モデルのファイルは Git に入れていない**(`app/static/models/custom/host.vrm` に置き、サーバへは `deploy/deploy.sh` が別に送る)。表情の一部(sad・relaxed・surprised)は、モデルにある形状(困る・にこり・びっくり)を割り当てて補った。表情ごとの立ち絵(`app/static/host/`、iOS の `Resources/`)はこのモデルから書き出したもの
+- 3D モデル(上のファイルがないとき・アプリのアイコン):pixiv Inc. の VRM サンプルモデル「VRM1_Constraint_Twist_Sample」(© 2022 pixiv Inc.、[VRM Public License 1.0](https://vrm.dev/licenses/1.0/)。再配布・改変・商用利用可。`app/static/models/hana.vrm`)
 - 音声:[VOICEVOX](https://voicevox.hiroshiba.jp/)(VOICEVOX:ずんだもん)
 - three.js / three-vrm(MIT License。`app/static/vendor/`)
 - 商品画像・アイコン:このプロジェクト用に SVG で作成

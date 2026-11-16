@@ -19,5 +19,14 @@ git archive --format=tar --prefix=src.new/ HEAD | ssh "$HOST" 'set -e
   if [ -d src.old ]; then rm -r src.old; fi
   if [ -d src ]; then mv src src.old; fi
   mv src.new src'
+# Git に入れていない 3D モデルを別に送る(手元にあり、サーバと違うときだけ)
+MODEL=app/static/models/custom/host.vrm
+ssh "$HOST" 'mkdir -p /opt/ai-live-commerce/models'
+if [ -f "$MODEL" ]; then
+  if [ "$(shasum -a 256 < "$MODEL" | cut -d' ' -f1)" != "$(ssh "$HOST" 'sha256sum /opt/ai-live-commerce/models/host.vrm 2>/dev/null | cut -d" " -f1')" ]; then
+    echo "== 3D モデルを送信"
+    scp -q "$MODEL" "$HOST:/opt/ai-live-commerce/models/host.vrm"
+  fi
+fi
 echo "== 起動"
 ssh "$HOST" 'cd /opt/ai-live-commerce/src/deploy && docker compose --env-file ../../.env -f compose.yml up -d --build --remove-orphans && docker compose --env-file ../../.env -f compose.yml ps'

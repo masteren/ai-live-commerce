@@ -5,7 +5,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils, VRMExpressionPresetName } from '@pixiv/three-vrm';
 
-const MODEL_URL = '/static/models/hana.vrm';
+// 使うモデル:custom/host.vrm があればそれ(再配布禁止のモデルなので Git に入れず、サーバへは deploy.sh が別に送る)。
+// なければ Git に入っている pixiv のサンプルモデル
+const MODEL_URLS = ['/static/models/custom/host.vrm', '/static/models/hana.vrm'];
 
 // 感情 → VRM の標準表情の強さ(モデルにない表情は自動で飛ばす)
 const EMOTION_EXPR = {
@@ -124,7 +126,7 @@ function boot() {
   loader.register(p => new VRMLoaderPlugin(p));
   const bar = document.getElementById('vrmLoadBar');
   const loadDone = () => { const b = document.getElementById('vrmLoad'); if (b) b.classList.add('done'); };
-  loader.load(MODEL_URL, (gltf) => {
+  const load = (i) => loader.load(MODEL_URLS[i], (gltf) => {
     try {
       vrm = gltf.userData.vrm;
       // バージョンによってある最適化。あるときだけ呼ぶ
@@ -169,9 +171,11 @@ function boot() {
   }, (ev) => {
     if (bar && ev.total) bar.style.width = Math.round(ev.loaded / ev.total * 100) + '%';
   }, (err) => {
+    if (i + 1 < MODEL_URLS.length) { load(i + 1); return; }
     console.warn('[vrm] モデルを読み込めなかったため、立ち絵のまま表示します:', err);
     loadDone();
   });
+  load(0);
 
   // ---- 描画のループ ----
   const clock = new THREE.Clock();
