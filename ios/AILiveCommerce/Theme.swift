@@ -69,18 +69,17 @@ struct ProductThumb: View {
 /// ホストの立ち絵(感情ごとの画像を切り替える)
 struct HostPortrait: View {
     let emotion: String
-    /// true のとき(キーボード表示中):全身を縮めるのではなく、顔のあたりだけを大きめに切り出して見せる
+    /// true のとき(キーボード表示中):顔のあたりだけを切り出して見せる
     var compact = false
 
     var body: some View {
         let image = UIImage(named: "hana_\(emotion)") ?? UIImage(named: "hana_normal")
         Group {
-            if let image, compact {
+            if let image {
+                // 上半身を大きめに見せる(下は字幕に隠れるので切ってよい)。キーボード表示中は顔のあたりだけ
                 Color.clear.overlay(alignment: .top) {
-                    Image(uiImage: image).resizable().scaledToFit().frame(height: 190)
+                    Image(uiImage: image).resizable().scaledToFit().frame(height: compact ? 190 : 340)
                 }
-            } else if let image {
-                Image(uiImage: image).resizable().scaledToFit()   // 枠の高さに収める(はみ出さない)
             } else {
                 Image(systemName: "person.fill").resizable().scaledToFit().foregroundStyle(.secondary).padding(40)
             }

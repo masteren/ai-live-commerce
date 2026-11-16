@@ -1,12 +1,12 @@
 # アプリアイコン
 
-ホスト「花奈」(公開版の 3D モデル「DeepSeek蓝色大肥鱼」、作者 喜欢看雨OvO。`app/static/models/custom/host.vrm`、Git には入れていない)が親指を立てている(サムズアップ)絵に、淡い青の背景と下部の「LIVE」の帯を重ねたもの。
+ホスト「花奈」(公開版の 3D モデル「DeepSeek蓝色大肥鱼」、作者 喜欢看雨OvO。`app/static/models/custom/host.vrm`、Git には入れていない)の胸から上(首を少しかしげてほほえむ)の絵に、淡い青の背景と下部の「LIVE」の帯を重ねたもの。
 
 | ファイル | 内容 |
 |---|---|
 | `pose.mjs` | VRM モデルにポーズ(骨の回転)と表情を付けて、透過 PNG に書き出す |
-| `pose_thumbsup.json` | 親指を立てるポーズ(骨ごとの回転・表情・カメラ位置)。現在のアイコン |
-| `hana_thumbsup.png` | 上の2つで書き出した絵 |
+| `pose_bust.json` | 胸から上・首をかしげるポーズ(骨ごとの回転・表情・カメラ位置)。現在のアイコン |
+| `hana_bust.png` | 上の2つで書き出した絵 |
 | `appicon.html` | アイコンの構図(背景・絵の位置・LIVE の帯) |
 | `render_icon.mjs` | `appicon.html` を 1024×1024 の PNG に書き出す |
 
@@ -14,10 +14,10 @@
 `playwright-core` が入っているフォルダで実行する(このフォルダには入れていない)。サーバを 8000 番で起動しておく(モデルと three.js をそこから読む)。`pose.mjs` が読むのは `/static/models/hana.vrm` なので、公開版のモデルで書き出すときは一時的に `custom/host.vrm` をそこへ置き換えてから実行し、終わったら戻す。
 
 ```bash
-# 1. ポーズを付けた絵を書き出す(ポーズを変えるときは pose_thumbsup.json を編集)
-node pose.mjs pose_thumbsup.json hana_thumbsup.png
+# 1. ポーズを付けた絵を書き出す(ポーズを変えるときは pose_bust.json を編集)
+node pose.mjs pose_bust.json hana_bust.png
 # 2. アイコンにする。最後の2つは絵の幅(px)と上端の位置(px)
-node render_icon.mjs appicon.html ../AILiveCommerce/Assets.xcassets/AppIcon.appiconset/AppIcon.png hana_thumbsup.png 1040 64
+node render_icon.mjs appicon.html ../AILiveCommerce/Assets.xcassets/AppIcon.appiconset/AppIcon.png hana_bust.png 1150 -20
 ```
 
 ## ポーズの付け方のメモ

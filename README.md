@@ -1,5 +1,7 @@
 # AI Live Commerce
 
+日本語 | [中文](docs/README.zh-CN.md)
+
 AI ホスト「花奈」がライブ配信のコメントに音声と表情で答え、そのまま購入まで完結する、日本向けライブコマースの Web アプリと iOS アプリ。
 
 **デモ:** https://live.masteren.cloud
