@@ -144,3 +144,9 @@ test_e2e.py         # E2E テスト
 ## クレジット
 - 音声:VOICEVOX(キャラクターの利用規約に従いクレジットを画面に表示)
 - 3D:three.js、@pixiv/three-vrm(MIT)
+
+## 使用した素材
+- 3D モデル:pixiv Inc. の VRM サンプルモデル「VRM1_Constraint_Twist_Sample」(© 2022 pixiv Inc.、[VRM Public License 1.0](https://vrm.dev/licenses/1.0/)。再配布・改変・商用利用可)。ホスト「花奈」としての表情・動き・ポーズはこのアプリ側で付けている
+- 音声:[VOICEVOX](https://voicevox.hiroshiba.jp/)(VOICEVOX:ずんだもん)
+- three.js / three-vrm(MIT License。`app/static/vendor/`)
+- 商品画像・アイコン:このプロジェクト用に SVG で作成

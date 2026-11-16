@@ -303,6 +303,11 @@ $('footCart').onclick = openDrawer;
 $('footLogin').onclick = ()=>$('userBtn').click();
 $('heroAsk').onclick = focusAsk;
 $('askBubble').onclick = focusAsk;
+// 「花奈に質問する」の丸いボタンは、ライブ欄(入力欄)が画面に見えている間は隠す(送信ボタンに重なるため。見えているなら不要)
+if ('IntersectionObserver' in window){
+  new IntersectionObserver(([e])=>{ $('askBubble').classList.toggle('away', e.isIntersecting); }, { threshold: 0.25 })
+    .observe(document.querySelector('.livegrid'));
+}
 $('drawerClose').onclick = ()=>$('drawerMask').classList.remove('open');
 [['drawerMask'],['payMask'],['authMask']].forEach(([id])=>{
   $(id).addEventListener('click', (e)=>{ if (e.target===$(id)) $(id).classList.remove('open'); });

@@ -186,8 +186,9 @@
 
   /* ---------- 右下の質問ボタン ---------- */
   .askbubble{ position:fixed; right:28px; bottom:28px; z-index:30; width:64px; height:64px; border-radius:50%; border:none; cursor:pointer; overflow:hidden; padding:0;
-    background:#DCE6F5 url(/static/host/hana.png) 50% 27% / 240% auto no-repeat; box-shadow:0 4px 16px rgba(0,0,0,.2); }
+    background:#DCE6F5 url(/static/host/hana.png) 50% 27% / 240% auto no-repeat; box-shadow:0 4px 16px rgba(0,0,0,.2); transition:opacity .25s ease, transform .25s ease; }
   .askbubble:hover{ transform:scale(1.06); }
+  .askbubble.away{ opacity:0; transform:scale(.6); pointer-events:none; }
   @media (max-width:880px){ .askbubble{ right:16px; bottom:16px; width:56px; height:56px; } }
 
   /* ---------- モーダル ---------- */
