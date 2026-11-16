@@ -12,6 +12,8 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
   <img src="docs/images/ios_products.png" alt="iOS版商品一覧" width="18%">
 </p>
 
+
+**公開中:** https://live.masteren.online (サーバの構成は [deploy/README.md](deploy/README.md))
 ## 主な機能
 | 分類 | 内容 |
 |---|---|
@@ -137,8 +139,7 @@ test_e2e.py         # E2E テスト
 ```
 
 ## 今後の予定
-- iOS アプリの 3D アバター表示(現在は絵文字の表情で代替)
-- サーバへのデプロイ(Docker + Nginx + HTTPS)
+- iOS アプリの 3D アバター表示(現在は表情ごとの立ち絵で代替)
 
 ## クレジット
 - 音声:VOICEVOX(キャラクターの利用規約に従いクレジットを画面に表示)
