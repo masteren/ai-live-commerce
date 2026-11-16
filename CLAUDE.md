@@ -41,6 +41,6 @@ TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test -project ios/AILiveCo
 - (済)OpenAI の実キー(gpt-4o-mini)でホストの応答を確認。作り話・数字の誤り・感情の偏りを、プロンプト修正とコード側の検証(`facts_are_consistent` など)で対処。Anthropic 側は実キー未確認
 - LLM を実際に呼ぶ確認は作者の了承を得てから(費用が発生する)
 - VOICEVOX を起動しての音声・口パクの確認
-- (済)サーバへのデプロイ:https://live.masteren.online(2026-11-16)。Docker(アプリ・MySQL・VOICEVOX)+ サーバの Nginx + Let's Encrypt。手順は deploy/README.md、更新は `./deploy/deploy.sh`。公開版は OpenAI を使う(プリペイド残高が上限。2027-02-01 に失効)
+- (済)サーバへのデプロイ:https://live.masteren.cloud(2026-11-16。最初は masteren.online で公開し、同日に masteren.cloud へ移った)。Docker(アプリ・MySQL・VOICEVOX)+ サーバの Nginx + Let's Encrypt。手順は deploy/README.md、更新は `./deploy/deploy.sh`。公開版は OpenAI を使う(プリペイド残高が上限。2027-02-01 に失効)
 - (済)プロンプトインジェクション対策(コメントを引用として渡す)、管理 API・新規登録の試行回数制限、PBKDF2 60万回。実 LLM(gpt-4o-mini)で確認済み(2026-11-14:指示の上書き5種類をすべて拒否、通常の質問5件も正常)
 - Nginx の後ろに置くときは uvicorn に `--proxy-headers`(付けないとレート制限が全員共通の IP になる)

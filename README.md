@@ -13,7 +13,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 </p>
 
 
-**公開中:** https://live.masteren.online (サーバの構成は [deploy/README.md](deploy/README.md))
+**公開中:** https://live.masteren.cloud (サーバの構成は [deploy/README.md](deploy/README.md))
 ## 主な機能
 | 分類 | 内容 |
 |---|---|

@@ -1,4 +1,4 @@
-# サーバへの配置(https://live.masteren.online)
+# サーバへの配置(https://live.masteren.cloud)
 
 ## 構成
 ```
@@ -20,14 +20,16 @@
 | `../Dockerfile` | アプリのイメージ |
 | `compose.yml` | アプリ・MySQL・VOICEVOX をまとめて起動 |
 | `env.example` | サーバの `.env` の見本 |
-| `nginx/live.masteren.online.conf` | Nginx のサイト設定(WebSocket を通す) |
+| `nginx/live.masteren.cloud.conf` | Nginx のサイト設定(WebSocket を通す) |
 | `deploy.sh` | Mac からサーバへ送って起動し直す |
 
 ## 初回だけ
 1. DNS に `live` の A レコード(サーバの IP)を追加する
 2. サーバに `/opt/ai-live-commerce/.env` を作る(`env.example` を見本に。パスワードは `openssl rand -hex 24`)
-3. 証明書を取る:`sudo certbot certonly --nginx -d live.masteren.online`
-4. `nginx/live.masteren.online.conf` を `/etc/nginx/sites-available/` に置き、`sites-enabled/` にリンク → `sudo nginx -t && sudo systemctl reload nginx`
+3. 証明書を取る:サーバ全体で1枚(`masteren.cloud`。主ドメイン・www・fridge・tavern・live を含む)
+   `sudo certbot certonly --nginx --cert-name masteren.cloud -d masteren.cloud -d www.masteren.cloud -d fridge.masteren.cloud -d tavern.masteren.cloud -d live.masteren.cloud`
+   (サブドメインを増やすときは、同じコマンドに `-d` を足して実行し直す)
+4. `nginx/live.masteren.cloud.conf` を `/etc/nginx/sites-available/` に置き、`sites-enabled/` にリンク → `sudo nginx -t && sudo systemctl reload nginx`
 
 ## 更新するとき(毎回)
 ```bash
@@ -44,6 +46,7 @@ docker stats --no-stream                                         # メモリ・C
 ```
 
 ## 注意
+- 2026-11-16 に masteren.online から masteren.cloud へ移った。旧ドメインは停止(Nginx の設定のバックアップはサーバの /etc/nginx.bak.2026-11-16)。
 - `name: ai-live-commerce-server` は開発用の docker-compose.yml と分けるため。同じ名前にすると、ローカルで試したときに開発用の DB とボリュームを共有してしまう(実際に一度起きた)。
 - `docker compose down -v` はデータ(DB・音声)を消すので使わない。
 - 公開版は OpenAI を使うので、OpenAI の管理画面で月ごとの利用上限を設定しておく。
