@@ -1,6 +1,6 @@
 # アプリアイコン
 
-ホスト「花奈」(`app/static/models/hana.vrm`。pixiv が公開している VRM のサンプルモデルにポーズを付けたもの)が親指を立てている(サムズアップ)絵に、明るい背景と下部の「LIVE」の帯を重ねたもの。
+ホスト「花奈」(公開版の 3D モデル「DeepSeek蓝色大肥鱼」、作者 喜欢看雨OvO。`app/static/models/custom/host.vrm`、Git には入れていない)が親指を立てている(サムズアップ)絵に、淡い青の背景と下部の「LIVE」の帯を重ねたもの。
 
 | ファイル | 内容 |
 |---|---|
@@ -11,13 +11,13 @@
 | `render_icon.mjs` | `appicon.html` を 1024×1024 の PNG に書き出す |
 
 ## 作り直すとき
-`playwright-core` が入っているフォルダで実行する(このフォルダには入れていない)。サーバを 8000 番で起動しておく(モデルと three.js をそこから読む)。
+`playwright-core` が入っているフォルダで実行する(このフォルダには入れていない)。サーバを 8000 番で起動しておく(モデルと three.js をそこから読む)。`pose.mjs` が読むのは `/static/models/hana.vrm` なので、公開版のモデルで書き出すときは一時的に `custom/host.vrm` をそこへ置き換えてから実行し、終わったら戻す。
 
 ```bash
 # 1. ポーズを付けた絵を書き出す(ポーズを変えるときは pose_thumbsup.json を編集)
 node pose.mjs pose_thumbsup.json hana_thumbsup.png
 # 2. アイコンにする。最後の2つは絵の幅(px)と上端の位置(px)
-node render_icon.mjs appicon.html ../AILiveCommerce/Assets.xcassets/AppIcon.appiconset/AppIcon.png hana_thumbsup.png 1300 -10
+node render_icon.mjs appicon.html ../AILiveCommerce/Assets.xcassets/AppIcon.appiconset/AppIcon.png hana_thumbsup.png 1040 64
 ```
 
 ## ポーズの付け方のメモ
