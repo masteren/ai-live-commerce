@@ -63,6 +63,7 @@ function boot() {
   let blinkT = 1 + Math.random() * 3, blinking = 0;
   let armL = null, armR = null, foreL = null, foreR = null;  // 腕の骨(T ポーズから腕を下ろすため)
   const bone = {};                     // 待機中の動きに使う骨(頭・首・胸・腰・手)
+  let flip = 1;                        // VRM 0.x のモデルでは -1(x・z 軸の回転を逆向きに)
   // 待機中のしぐさ:数秒おきにどれか1つ(首をかしげる・横を見る・うなずく)
   const idle = { next: 3 + Math.random() * 3, kind: null, start: 0, dur: 0, side: 1, smile: 0 };
 
@@ -132,6 +133,8 @@ function boot() {
       if (typeof VRMUtils.combineSkeletons === 'function') VRMUtils.combineSkeletons(gltf.scene);
       if (vrm.meta && (vrm.meta.metaVersion === '0' || vrm.meta.metaVersion === 0)) {
         VRMUtils.rotateVRM0(vrm);
+        // VRM 0.x はモデルの向きが逆(rotateVRM0 で 180° 回している)ので、x・z 軸まわりの回転の向きも逆になる
+        flip = -1;
       }
       vrm.scene.traverse(o => { o.frustumCulled = false; });
       scene.add(vrm.scene);
@@ -205,16 +208,16 @@ function boot() {
       // ---- 体の動き(毎フレーム設定し直す。update に上書きされないように) ----
       // 呼吸:胸がゆっくり上下し、肩もわずかに動く
       const breath = Math.sin(t * 1.25);
-      if (armL) armL.rotation.z = -1.2 + breath * 0.015;
-      if (armR) armR.rotation.z = 1.2 - breath * 0.015;
+      if (armL) armL.rotation.z = flip * (-1.2 + breath * 0.015);
+      if (armR) armR.rotation.z = flip * (1.2 - breath * 0.015);
       // ひじを少し曲げ、手を体の少し前に(まっすぐ下ろしたままだと棒立ちに見える)
-      if (foreL) { foreL.rotation.z = -0.1; foreL.rotation.y = -0.22; }
-      if (foreR) { foreR.rotation.z = 0.1; foreR.rotation.y = 0.22; }
-      if (bone.chest) bone.chest.rotation.x = breath * 0.012;
+      if (foreL) { foreL.rotation.z = flip * -0.1; foreL.rotation.y = -0.22; }
+      if (foreR) { foreR.rotation.z = flip * 0.1; foreR.rotation.y = 0.22; }
+      if (bone.chest) bone.chest.rotation.x = flip * breath * 0.012;
       // 重心の移動:腰がゆっくり左右に傾き、背骨で打ち消してまっすぐ立つ
       const sway = Math.sin(t * 0.45);
-      if (bone.hips) bone.hips.rotation.z = sway * 0.022;
-      if (bone.spine) { bone.spine.rotation.z = -sway * 0.018; bone.spine.rotation.x = breath * 0.006; }
+      if (bone.hips) bone.hips.rotation.z = flip * sway * 0.022;
+      if (bone.spine) { bone.spine.rotation.z = flip * -sway * 0.018; bone.spine.rotation.x = flip * breath * 0.006; }
 
       // 頭:いくつかの遅い揺れを重ねて、規則的に見えないようにする
       let yaw = 0.06 * Math.sin(t * 0.37) + 0.03 * Math.sin(t * 0.83 + 1.3);
@@ -240,8 +243,8 @@ function boot() {
       }
       // 話しているとき:声の大きさに合わせて小さくうなずく
       pitch += mouth * 0.04 * Math.sin(t * 5.5);
-      if (bone.neck) { bone.neck.rotation.y = yaw * 0.4; bone.neck.rotation.x = pitch * 0.4; }
-      if (bone.head) { bone.head.rotation.y = yaw * 0.6; bone.head.rotation.x = pitch * 0.6; bone.head.rotation.z = roll; }
+      if (bone.neck) { bone.neck.rotation.y = yaw * 0.4; bone.neck.rotation.x = flip * pitch * 0.4; }
+      if (bone.head) { bone.head.rotation.y = yaw * 0.6; bone.head.rotation.x = flip * pitch * 0.6; bone.head.rotation.z = flip * roll; }
       // 感情が excited のときは、体ごと小さく弾む
       vrm.scene.position.y = cur.surprised > 0.05 ? Math.abs(Math.sin(t * 6)) * 0.006 * cur.happy : 0;
 
