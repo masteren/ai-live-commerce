@@ -7,8 +7,8 @@ AI 主播「花奈」在直播中用语音和表情回答评论，观众可以�
 **演示:** https://live.masteren.cloud
 
 <p>
-  <img src="images/web_live.png" alt="Web 版直播画面" width="62%">
-  <img src="images/ios_live.png" alt="iOS 版直播画面" width="18%">
+  <img src="images/web_live_2.png" alt="Web 版直播画面" width="62%">
+  <img src="images/ios_live_2.png" alt="iOS 版直播画面" width="18%">
   <img src="images/ios_products.png" alt="iOS 版商品列表" width="18%">
 </p>
 

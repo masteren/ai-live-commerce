@@ -7,8 +7,8 @@ AI ホスト「花奈」がライブ配信のコメントに音声と表情で�
 **デモ:** https://live.masteren.cloud
 
 <p>
-  <img src="docs/images/web_live.png" alt="Web版ライブ画面" width="62%">
-  <img src="docs/images/ios_live.png" alt="iOS版ライブ画面" width="18%">
+  <img src="docs/images/web_live_2.png" alt="Web版ライブ画面" width="62%">
+  <img src="docs/images/ios_live_2.png" alt="iOS版ライブ画面" width="18%">
   <img src="docs/images/ios_products.png" alt="iOS版商品一覧" width="18%">
 </p>
 
