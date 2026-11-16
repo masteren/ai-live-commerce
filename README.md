@@ -33,7 +33,7 @@ AI 販売アシスタント「花奈(ハナ)」がライブ配信でコメント
 | AI・音声 | LLM は Provider 構造で切替(Anthropic Claude API / OpenAI 互換 API)、VOICEVOX ENGINE |
 | フロントエンド | HTML / CSS / JavaScript(ビルドなし)、three.js + three-vrm |
 | iOS | SwiftUI / URLSession(REST・WebSocket)/ Keychain(同じ API を Bearer 認証で利用、[ios/README.md](ios/README.md)) |
-| テスト・CI | pytest(125件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
+| テスト・CI | pytest(123件)、E2E(41件)、iOS UI テスト(XCUITest:登録〜注文〜ログアウト)、GitHub Actions(SQLite と MySQL の両方で実行) |
 
 ## アーキテクチャ
 ```mermaid
@@ -86,7 +86,7 @@ uvicorn app.main:app --reload   # 起動時に DB マイグレーション(Alemb
 ```
 - 視聴者ページ:http://127.0.0.1:8000/(ブラウザを 2 つ開くと複数人のコメントを体験できます)
 - 管理画面:http://127.0.0.1:8000/admin(`.env` の ADMIN_TOKEN でログイン)
-- API ドキュメント:http://127.0.0.1:8000/docs(オフライン版は `openapi.json`)
+- API ドキュメント:http://127.0.0.1:8000/docs(FastAPI がコードから自動生成)
 
 LLM のキー(`OPENAI_API_KEY` または `ANTHROPIC_API_KEY`)がなくても全機能が動きます(AI ホストはルール応答で回答)。
 音声を出すには [VOICEVOX](https://voicevox.hiroshiba.jp/) を起動し、画面右上の 🔊 を押してください。
@@ -114,6 +114,8 @@ app/
 ├── config.py       # 設定(.env / 環境変数で上書き)
 ├── database.py     # 非同期エンジン(MySQL / SQLite)
 ├── migrate.py      # 起動時の Alembic マイグレーション
+├── seed.py         # 見本の商品(初回起動時に登録)
+├── security.py     # 入力エラーの日本語化・Content-Security-Policy・応答ヘッダ
 ├── models.py       # User / AuthSession / Product / CartItem / Order / OrderItem / Comment
 ├── queries.py      # 複数箇所で使う問い合わせ(販売中の商品一覧)
 ├── schemas.py      # Pydantic の入出力モデル

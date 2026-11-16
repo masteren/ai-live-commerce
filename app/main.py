@@ -6,28 +6,25 @@
 API ドキュメント: http://127.0.0.1:8000/docs
 """
 import asyncio
-import base64
-import hashlib
 import json
 import logging
 import os
-import re
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select, func
 
 from .ai_host import host
 from .bot import bot, bot_http
 from .config import settings
 from .database import SessionLocal
 from .migrate import run_migrations
-from .models import Comment, Product
+from .models import Comment
 from .ratelimit import SlidingWindowLimiter
+from . import security
+from .seed import seed_products
 from .routers import admin, auth, cart, orders, products
 from .routers.auth import extract_token, resolve_session
 from .tts import tts
@@ -41,21 +38,6 @@ logger = logging.getLogger("app")
 
 comment_limiter = SlidingWindowLimiter(settings.comment_rate_limit, settings.comment_rate_window)
 
-SEED_PRODUCTS = [
-    dict(name="ワイヤレスイヤホン Pro", emoji="🎧", image_url="/static/products/earphones.png", price=4980, original_price=7980, stock=30,
-         tag="タイムセール", description="ノイズキャンセリング搭載、最大32時間再生、IPX5防水"),
-    dict(name="ステンレス保温マグ 480ml", emoji="🥤", image_url="/static/products/mug.png", price=1880, original_price=2480, stock=60,
-         tag="人気No.1", description="12時間保温・保冷、ワンタッチ開閉、食洗機OK"),
-    dict(name="ヒアルロン酸美容液 30ml", emoji="✨", image_url="/static/products/serum.png", price=2680, original_price=3980, stock=15,
-         tag="残りわずか", description="高濃度ヒアルロン酸配合、無香料・無着色、敏感肌OK"),
-    # ↓ あとから追加した3点。運用中の DB にはマイグレーション d4e8a2b91c07 が同じ内容を追加する
-    dict(name="モバイルバッテリー 10000mAh", emoji="🔋", image_url="/static/products/battery.png", price=2980, original_price=3980, stock=40,
-         tag="新着", description="薄型・軽量180g、2台同時充電、残量ランプつき"),
-    dict(name="アロマディフューザー", emoji="💧", image_url="/static/products/diffuser.png", price=3480, original_price=4980, stock=25,
-         tag="ギフトに人気", description="超音波式で静か、やさしい灯りつき、最大8時間の連続運転"),
-    dict(name="コットンフェイスタオル 2枚組", emoji="🧺", image_url="/static/products/towels.png", price=1480, original_price=1980, stock=80,
-         tag="まとめ買い", description="オーガニックコットン100%、ふんわり厚手、生成りとセージの2色"),
-]
 
 
 @asynccontextmanager
@@ -64,12 +46,7 @@ async def lifespan(app: FastAPI):
     if settings.auto_migrate:
         await run_migrations()
     async with SessionLocal() as db:
-        count = (await db.execute(select(func.count(Product.id)))).scalar()
-        if not count:
-            for p in SEED_PRODUCTS:
-                db.add(Product(**p))
-            await db.commit()
-            logger.info("見本の商品を登録しました(初回起動)")
+        await seed_products(db)
     os.makedirs(settings.audio_dir, exist_ok=True)
     await host.refresh_products()
     logger.info("TTS: %s / LLM: %s", tts.name,
@@ -92,67 +69,7 @@ if _cors:   # 既定は空 = CORS ヘッダを出さない(同一オリジンの
     app.add_middleware(CORSMiddleware, allow_origins=_cors, allow_methods=["*"], allow_headers=["*"])
 
 
-# 入力チェック(Pydantic)のエラーは、既定では英語の文と内部の項目名が配列で返る。
-# 画面にそのまま出てしまうので、利用者向けの日本語1文にして返す(Web・iOS 共通)
-_FIELD_MESSAGES = {
-    "username": "ユーザー名は2〜20文字で入力してください(英数字・ひらがな・カタカナ・漢字・_・- が使えます)",
-    "password": "パスワードは6〜64文字で入力してください",
-    "quantity": "数量は1〜99で指定してください",
-}
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_error(request: Request, exc: RequestValidationError):
-    fields = [str(e["loc"][-1]) for e in exc.errors() if e.get("loc")]
-    message = next((_FIELD_MESSAGES[f] for f in fields if f in _FIELD_MESSAGES), "入力内容を確認してください")
-    return JSONResponse(status_code=422, content={"detail": message})
-
-
-def _content_security_policy(html_file: str) -> str:
-    """画面(HTML)に付ける Content-Security-Policy を作る
-
-    スクリプトは自分のサーバのファイル(/static/js/...)だけを実行させ、ページに埋め込まれたスクリプトは実行させない。
-    → 万一 XSS でスクリプトが差し込まれても、ブラウザが実行を拒否する(エスケープに加えた二重の守り)。
-    例外は importmap(3D アバターのモジュールの読み込み先)。仕様上ページに埋め込むしかないので、
-    中身の SHA-256 を許可リストに入れる。中身が変われば起動時に計算し直すので、手で更新する必要はない。
-    """
-    html = open(os.path.join(os.path.dirname(__file__), "static", html_file), encoding="utf-8").read()
-    hashes = [
-        "'sha256-" + base64.b64encode(hashlib.sha256(m.encode("utf-8")).digest()).decode() + "'"
-        for m in re.findall(r'<script type="importmap">(.*?)</script>', html, re.S)
-    ]
-    return "; ".join([
-        "default-src 'self'",
-        "script-src 'self' " + " ".join(hashes) if hashes else "script-src 'self'",
-        "style-src 'self' 'unsafe-inline'",          # style 属性は画面のあちこちで使っているので許可(スクリプトほど危険ではない)
-        "img-src 'self' data: blob:",                # data: はファビコン、blob: は 3D モデルのテクスチャ
-        "media-src 'self' blob:",
-        "connect-src 'self' blob:",                  # 'self' には同じホストの WebSocket(ws/wss)も含まれる
-        "object-src 'none'",
-        "base-uri 'self'",
-        "form-action 'self'",
-        "frame-ancestors 'none'",
-    ])
-
-
-# 画面の URL → その画面に付ける CSP(起動時に一度だけ作る)
-_PAGE_CSP = {}
-for _path, _file in (("/", "index.html"), ("/static/index.html", "index.html"),
-                     ("/admin", "admin.html"), ("/static/admin.html", "admin.html")):
-    _PAGE_CSP[_path] = _content_security_policy(_file)
-
-
-@app.middleware("http")
-async def security_headers(request, call_next):
-    """全レスポンスに基本的なセキュリティヘッダを付ける。画面(HTML)には CSP も付ける"""
-    response = await call_next(request)
-    csp = _PAGE_CSP.get(request.url.path)
-    if csp:
-        response.headers.setdefault("Content-Security-Policy", csp)
-    response.headers.setdefault("X-Frame-Options", "DENY")               # 他サイトの iframe に埋め込ませない(クリックジャッキング対策)
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")     # Content-Type を無視した解釈をさせない
-    response.headers.setdefault("Referrer-Policy", "same-origin")
-    return response
+security.install(app)
 
 app.include_router(auth.router)
 app.include_router(products.router)

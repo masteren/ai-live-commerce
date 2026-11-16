@@ -76,7 +76,6 @@ struct HostReply {
     let text: String
     let productId: Int?
     let emotion: String
-    let audioUrl: String?
 }
 
 enum LiveEvent {
@@ -113,7 +112,7 @@ enum LiveEvent {
         case "comment": return .comment(nickname: r.nickname ?? "", text: r.text ?? "")
         case "host_reply":
             return .hostReply(HostReply(id: r.id, nickname: r.nickname ?? "", text: r.text ?? "", productId: r.productId,
-                                        emotion: r.emotion ?? "normal", audioUrl: r.audioUrl))
+                                        emotion: r.emotion ?? "normal"))
         case "host_audio":
             guard let id = r.id, let url = r.audioUrl else { return nil }
             return .hostAudio(id: id, audioUrl: url)

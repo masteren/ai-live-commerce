@@ -26,15 +26,7 @@ enum Keychain {
         SecItemAdd(q as CFDictionary, nil)
     }
 
-    static func load() -> String? {
-        if let token = read(baseQuery) { return token }
-        // 旧版は接続先を区別せず "accessToken" の名前で保存していた。残っていれば今の接続先のものとして引き継ぐ(1回だけ)
-        let legacy = query("accessToken")
-        guard let token = read(legacy) else { return nil }
-        SecItemDelete(legacy as CFDictionary)
-        save(token)
-        return token
-    }
+    static func load() -> String? { read(baseQuery) }
 
     private static func read(_ base: [String: Any]) -> String? {
         var q = base

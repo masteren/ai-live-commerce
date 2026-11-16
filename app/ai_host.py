@@ -256,7 +256,6 @@ class AIHost:
             "text": text,
             "product_id": product_id,
             "emotion": emotion,
-            "audio_url": None,              # 旧クライアント向けに項目は残す(音声は host_audio で届く)
             "audio_pending": has_voice,     # このあと音声が届く見込みか(口パクの出し方を決めるのに使う)
         })
         if not has_voice:

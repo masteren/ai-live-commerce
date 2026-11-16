@@ -113,23 +113,19 @@ def test_default_iterations_follow_owasp_recommendation():
     assert Settings.model_fields["password_iterations"].default >= 600_000
 
 
-async def test_legacy_hash_still_verifies_and_is_upgraded_on_login(client):
-    """旧形式(salt$hash・12万回)のユーザーもログインでき、成功時に現在の形式へ自動で更新される"""
-    import hashlib
-    import secrets as pysecrets
+async def test_weaker_hash_is_upgraded_on_login(client):
+    """反復回数の少ないハッシュ(設定を上げる前に作られたもの)は、ログイン成功時に現在の回数で作り直される"""
     from sqlalchemy import select
+    from app.config import settings
     from app.models import User
-    from app.routers.auth import LEGACY_ITERATIONS
-    salt = pysecrets.token_bytes(16)
-    legacy = f"{salt.hex()}${hashlib.pbkdf2_hmac('sha256', PW.encode(), salt, LEGACY_ITERATIONS).hex()}"
+    weak = hash_password(PW, iterations=settings.password_iterations // 2)
     async with SessionLocal() as db:
-        db.add(User(username="olduser", password_hash=legacy))
+        db.add(User(username="olduser", password_hash=weak))
         await db.commit()
-    assert verify_password(PW, legacy) and not verify_password("wrong", legacy)
     assert (await client.post("/api/auth/login", json={"username": "olduser", "password": PW})).status_code == 200
     async with SessionLocal() as db:
         stored = (await db.execute(select(User.password_hash).where(User.username == "olduser"))).scalar_one()
-    assert stored.startswith("pbkdf2_sha256$") and stored != legacy
+    assert stored != weak and stored.split("$")[1] == str(settings.password_iterations)
     assert verify_password(PW, stored)
 
 

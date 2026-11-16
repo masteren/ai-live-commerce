@@ -7,10 +7,8 @@
 | `pose.mjs` | VRM モデルにポーズ(骨の回転)と表情を付けて、透過 PNG に書き出す |
 | `pose_thumbsup.json` | 親指を立てるポーズ(骨ごとの回転・表情・カメラ位置)。現在のアイコン |
 | `hana_thumbsup.png` | 上の2つで書き出した絵 |
-| `pose_peace.json` / `hana_peace.png` | 旧案:ピースサイン |
 | `appicon.html` | アイコンの構図(背景・絵の位置・LIVE の帯) |
 | `render_icon.mjs` | `appicon.html` を 1024×1024 の PNG に書き出す |
-| `variants/` | 表情違い・旧案の見比べ用 |
 
 ## 作り直すとき
 `playwright-core` が入っているフォルダで実行する(このフォルダには入れていない)。サーバを 8000 番で起動しておく(モデルと three.js をそこから読む)。

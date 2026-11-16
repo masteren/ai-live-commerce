@@ -1,7 +1,7 @@
 """add sample products
 
 見本の商品を3点追加する(トップページの商品一覧が3点だけで寂しかったため)。
-すでに運用中の DB にだけ追加する。空の DB は、起動時の初期データ投入(app/main.py の SEED_PRODUCTS)が6点まとめて入れる。
+すでに運用中の DB にだけ追加する。空の DB は、起動時の初期データ投入(app/seed.py の SEED_PRODUCTS)が6点まとめて入れる。
 
 Revision ID: d4e8a2b91c07
 Revises: c3a1f0d27b10

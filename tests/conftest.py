@@ -25,7 +25,7 @@ os.environ.update(
 import httpx  # noqa: E402
 import pytest  # noqa: E402
 
-from app import main  # noqa: E402
+from app import main, seed  # noqa: E402
 from app.ai_host import host  # noqa: E402
 from app.database import Base, SessionLocal, engine  # noqa: E402
 from app.models import Product  # noqa: E402
@@ -42,7 +42,7 @@ async def fresh_db():
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     async with SessionLocal() as db:
-        for p in main.SEED_PRODUCTS:
+        for p in seed.SEED_PRODUCTS:
             db.add(Product(**p))
         await db.commit()
     auth.login_limiter._hits.clear()

@@ -35,7 +35,6 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 COOKIE_NAME = "lc_session"
 CSRF_HEADER = "x-csrf-token"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-LEGACY_ITERATIONS = 120_000      # 旧形式(salt$hash)のハッシュに使っていた回数
 
 login_limiter = SlidingWindowLimiter(settings.login_fail_limit, settings.login_fail_window)
 register_limiter = SlidingWindowLimiter(settings.register_limit, settings.register_window)
@@ -52,12 +51,10 @@ def hash_password(password: str, iterations: Optional[int] = None) -> str:
 
 
 def _parse_hash(stored: str) -> Tuple[int, bytes, str]:
-    parts = stored.split("$")
-    if len(parts) == 4 and parts[0] == "pbkdf2_sha256":
-        return int(parts[1]), bytes.fromhex(parts[2]), parts[3]
-    if len(parts) == 2:                       # 旧形式(salt$hash、12万回固定)
-        return LEGACY_ITERATIONS, bytes.fromhex(parts[0]), parts[1]
-    raise ValueError("unknown password hash format")
+    algo, n, salt, dk_hex = stored.split("$")          # 形が違えば ValueError
+    if algo != "pbkdf2_sha256":
+        raise ValueError("unknown password hash format")
+    return int(n), bytes.fromhex(salt), dk_hex
 
 
 def verify_password(password: str, stored: str) -> bool:
@@ -70,9 +67,7 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def needs_rehash(stored: str) -> bool:
-    """保存されているハッシュが、現在の設定より弱い(旧形式・反復回数が少ない)か"""
-    if not stored.startswith("pbkdf2_sha256$"):
-        return True                       # 旧形式は、回数に関係なく新形式へ移行する
+    """保存されているハッシュの反復回数が、現在の設定より少ないか(回数を上げたあと、ログイン時に作り直す)"""
     try:
         return _parse_hash(stored)[0] < settings.password_iterations
     except ValueError:

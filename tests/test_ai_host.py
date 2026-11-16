@@ -116,7 +116,7 @@ async def test_speak_sends_text_before_audio_is_ready(monkeypatch):
     task = asyncio.create_task(host._speak("こんにちは", 1, "happy", save=False))
     await asyncio.wait_for(synth_started.wait(), 2)
     assert [m["type"] for m in sent] == ["host_reply"]          # 合成中でも文字はもう届いている
-    assert sent[0]["text"] == "こんにちは" and sent[0]["audio_pending"] is True and sent[0]["audio_url"] is None
+    assert sent[0]["text"] == "こんにちは" and sent[0]["audio_pending"] is True and "audio_url" not in sent[0]
     release.set()
     await asyncio.wait_for(task, 2)
     assert [m["type"] for m in sent] == ["host_reply", "host_audio"]

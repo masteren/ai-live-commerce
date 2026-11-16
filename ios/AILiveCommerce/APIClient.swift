@@ -91,11 +91,10 @@ final class APIClient {
         return data
     }
 
-    /// FastAPI のエラー形式:{"detail": "文字列"} または {"detail": [{"msg": ...}]}(入力チェック)
+    /// サーバのエラー形式:{"detail": "日本語のメッセージ"}(入力チェックのエラーもサーバ側で1文にしている)
     private static func errorMessage(from data: Data, status: Int) -> String {
         if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             if let s = obj["detail"] as? String { return s }
-            if obj["detail"] is [Any] { return "入力内容を確認してください" }   // 古いサーバ(英語の配列を返す)向け
         }
         return "通信エラー(\(status))"
     }

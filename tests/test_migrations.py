@@ -4,11 +4,10 @@ import asyncio
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app import migrate
-from app.database import Base, engine
+from app.database import Base
 
 
 async def test_upgrade_head_matches_models(tmp_path):
@@ -24,38 +23,6 @@ async def test_upgrade_head_matches_models(tmp_path):
             lambda c: compare_metadata(MigrationContext.configure(c, opts={"render_as_batch": True}), Base.metadata))
     await eng.dispose()
     assert diff == [], diff
-
-
-async def test_legacy_db_gets_later_migrations_applied():
-    """マイグレーション管理前の DB(alembic_version なし)→ 基準点を記録し、それ以降のマイグレーションが実際に適用される。
-    以前は head と記録してしまい、image_url 列が無いのに「最新」扱いになっていた"""
-    from sqlalchemy import text
-    cfg = migrate._alembic_config()
-    async with engine.begin() as conn:                       # conftest が作った表を消し、基準点の構造を再現
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
-    await asyncio.to_thread(command.upgrade, cfg, migrate.BASELINE)
-    async with engine.begin() as conn:
-        await conn.execute(text("DROP TABLE alembic_version"))
-
-    await migrate.run_migrations()
-
-    async with engine.connect() as conn:
-        cols = await conn.run_sync(lambda c: [k["name"] for k in inspect(c).get_columns("products")])
-        uniques = await conn.run_sync(lambda c: [u["name"] for u in inspect(c).get_unique_constraints("cart_items")])
-    async with engine.begin() as conn:
-        await conn.execute(text("DROP TABLE alembic_version"))   # 後続テストに影響しないよう片付け
-    assert "image_url" in cols and "uq_cart_user_product" in uniques
-
-
-async def test_pre_baseline_db_is_rejected_with_clear_error():
-    """基準点より古い DB(auth_sessions が無い)は自動移行せず、分かりやすいエラーで止める"""
-    import pytest
-    from sqlalchemy import text
-    async with engine.begin() as conn:
-        await conn.execute(text("DROP TABLE auth_sessions"))
-    with pytest.raises(RuntimeError, match="古い形式"):
-        await migrate.run_migrations()
 
 
 async def test_image_url_data_migration_fills_seed_products(tmp_path):

@@ -199,9 +199,6 @@ final class AppState: ObservableObject {
             hostEmotion = r.emotion
             if let pid = r.productId { featuredId = pid }
             lastReplyId = r.id
-            if soundOn, let path = r.audioUrl, let url = AppConfig.absolute(path) {
-                play(url)                         // 旧サーバ(文字と音声を一緒に送る)向け
-            }
         case .hostAudio(let id, let path):
             // 文字は先に表示済み。すでに次の発言に移っていたら、古い音声は流さない
             if soundOn, id == lastReplyId, let url = AppConfig.absolute(path) { play(url) }
