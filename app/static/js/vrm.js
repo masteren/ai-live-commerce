@@ -62,6 +62,9 @@ function boot() {
   let fakeTalkUntil = 0;             // 音声がないとき、口を動かし続ける終了時刻
   let blinkT = 1 + Math.random() * 3, blinking = 0;
   let armL = null, armR = null, foreL = null, foreR = null;  // 腕の骨(T ポーズから腕を下ろすため)
+  const bone = {};                     // 待機中の動きに使う骨(頭・首・胸・腰・手)
+  // 待機中のしぐさ:数秒おきにどれか1つ(首をかしげる・横を見る・うなずく)
+  const idle = { next: 3 + Math.random() * 3, kind: null, start: 0, dur: 0, side: 1, smile: 0 };
 
   // ---- 音声から口の動きを解析 ----
   let actx = null, analyser = null, buf = null;
@@ -118,6 +121,8 @@ function boot() {
   // ---- モデルの読み込み ----
   const loader = new GLTFLoader();
   loader.register(p => new VRMLoaderPlugin(p));
+  const bar = document.getElementById('vrmLoadBar');
+  const loadDone = () => { const b = document.getElementById('vrmLoad'); if (b) b.classList.add('done'); };
   loader.load(MODEL_URL, (gltf) => {
     try {
       vrm = gltf.userData.vrm;
@@ -137,6 +142,9 @@ function boot() {
       armR = H.getNormalizedBoneNode('rightUpperArm');
       foreL = H.getNormalizedBoneNode('leftLowerArm');
       foreR = H.getNormalizedBoneNode('rightLowerArm');
+      for (const n of ['hips', 'spine', 'chest', 'neck', 'head', 'leftHand', 'rightHand']) bone[n] = H.getNormalizedBoneNode(n);
+      // 目線はカメラ(=視聴者)に向ける
+      if (vrm.lookAt) vrm.lookAt.target = camera;
 
       // 头骨位置を基準に「上半身」を構図:頭の上に少し余白を残し(頭頂が切れない)、目線よりわずかに上から撮る
       const head = vrm.humanoid.getNormalizedBoneNode('head');
@@ -148,13 +156,18 @@ function boot() {
 
       window.HANA.ready = true;
       stage.classList.add('vrm-on');
+      loadDone();
       console.log('[vrm] 花奈の準備ができました');
     } catch (e) {
       vrm = null;
-      console.warn('[vrm] 初期化に失敗したため、イラストのまま表示します:', e);
+      console.warn('[vrm] 初期化に失敗したため、立ち絵のまま表示します:', e);
+      loadDone();
     }
-  }, undefined, (err) => {
-    console.warn('[vrm] モデルを読み込めなかったため、イラストのまま表示します:', err);
+  }, (ev) => {
+    if (bar && ev.total) bar.style.width = Math.round(ev.loaded / ev.total * 100) + '%';
+  }, (err) => {
+    console.warn('[vrm] モデルを読み込めなかったため、立ち絵のまま表示します:', err);
+    loadDone();
   });
 
   // ---- 描画のループ ----
@@ -168,7 +181,8 @@ function boot() {
       // 表情をなめらかに切り替える
       EXPR_KEYS.forEach(k => {
         cur[k] += (tgt[k] - cur[k]) * Math.min(1, dt * 8);
-        setExpr(k, cur[k]);
+        // 待機中のほほえみ(しぐさの1つ)は、感情の表情に少し足す
+        setExpr(k, k === 'relaxed' ? Math.min(1, cur[k] + idle.smile) : cur[k]);
       });
 
       // 口:実際の音声 → なければ時間で動かす → どちらもなければ閉じる
@@ -188,16 +202,48 @@ function boot() {
         if (blinking > 0.17) { blinking = 0; setExpr(VRMExpressionPresetName.Blink, 0); }
       }
 
-      // 腕を下ろす(毎フレーム設定し直す。update に上書きされないように)+ 呼吸に合わせたわずかな動き
-      const breathe = Math.sin(t * 1.4) * 0.02;
-      if (armL) armL.rotation.z = -1.22 + breathe;
-      if (armR) armR.rotation.z = 1.22 - breathe;
-      if (foreL) foreL.rotation.z = -0.14;
-      if (foreR) foreR.rotation.z = 0.14;
+      // ---- 体の動き(毎フレーム設定し直す。update に上書きされないように) ----
+      // 呼吸:胸がゆっくり上下し、肩もわずかに動く
+      const breath = Math.sin(t * 1.25);
+      if (armL) armL.rotation.z = -1.2 + breath * 0.015;
+      if (armR) armR.rotation.z = 1.2 - breath * 0.015;
+      // ひじを少し曲げ、手を体の少し前に(まっすぐ下ろしたままだと棒立ちに見える)
+      if (foreL) { foreL.rotation.z = -0.1; foreL.rotation.y = -0.22; }
+      if (foreR) { foreR.rotation.z = 0.1; foreR.rotation.y = 0.22; }
+      if (bone.chest) bone.chest.rotation.x = breath * 0.012;
+      // 重心の移動:腰がゆっくり左右に傾き、背骨で打ち消してまっすぐ立つ
+      const sway = Math.sin(t * 0.45);
+      if (bone.hips) bone.hips.rotation.z = sway * 0.022;
+      if (bone.spine) { bone.spine.rotation.z = -sway * 0.018; bone.spine.rotation.x = breath * 0.006; }
 
-      // 待機中:わずかな揺れと呼吸
-      vrm.scene.rotation.y = Math.sin(t * 0.7) * 0.03;
-      vrm.scene.position.y = Math.sin(t * 1.6) * 0.004;
+      // 頭:いくつかの遅い揺れを重ねて、規則的に見えないようにする
+      let yaw = 0.06 * Math.sin(t * 0.37) + 0.03 * Math.sin(t * 0.83 + 1.3);
+      let pitch = 0.025 * Math.sin(t * 0.51 + 0.7);
+      let roll = 0.02 * Math.sin(t * 0.29 + 2.0);
+      // 待機中のしぐさ(話している最中は始めない)
+      idle.next -= dt;
+      if (!idle.kind && idle.next <= 0 && mouth < 0.05) {
+        const kinds = ['tilt', 'glance', 'nod', 'smile', 'tilt', 'smile'];
+        idle.kind = kinds[Math.floor(Math.random() * kinds.length)];
+        idle.start = t; idle.dur = idle.kind === 'nod' ? 1.1 : idle.kind === 'smile' ? 2.8 : 2.2; idle.side = Math.random() < 0.5 ? -1 : 1;
+      }
+      if (idle.kind) {
+        const p = (t - idle.start) / idle.dur;
+        if (p >= 1) { idle.kind = null; idle.smile = 0; idle.next = 3.5 + Math.random() * 4.5; }
+        else {
+          const e = Math.sin(Math.PI * p);                       // 0 → 1 → 0 となめらかに
+          if (idle.kind === 'tilt') roll += 0.11 * e * idle.side;
+          if (idle.kind === 'glance') yaw += 0.16 * e * idle.side;
+          if (idle.kind === 'nod') pitch += 0.09 * Math.sin(Math.PI * 2 * p) * (1 - p);
+          if (idle.kind === 'smile') { idle.smile = 0.55 * e; roll += 0.06 * e * idle.side; }
+        }
+      }
+      // 話しているとき:声の大きさに合わせて小さくうなずく
+      pitch += mouth * 0.04 * Math.sin(t * 5.5);
+      if (bone.neck) { bone.neck.rotation.y = yaw * 0.4; bone.neck.rotation.x = pitch * 0.4; }
+      if (bone.head) { bone.head.rotation.y = yaw * 0.6; bone.head.rotation.x = pitch * 0.6; bone.head.rotation.z = roll; }
+      // 感情が excited のときは、体ごと小さく弾む
+      vrm.scene.position.y = cur.surprised > 0.05 ? Math.abs(Math.sin(t * 6)) * 0.006 * cur.happy : 0;
 
       vrm.update(dt);
     }

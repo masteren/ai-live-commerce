@@ -48,50 +48,10 @@
       <div class="card">
         <div class="stage">
           <canvas id="vrmCanvas"></canvas>
+          <div class="vrmload" id="vrmLoad" aria-hidden="true"><i id="vrmLoadBar"></i></div>
       <div class="avatarbox" id="avatarBox">
-        <svg viewBox="0 0 200 230" class="presenter p-sway" aria-label="AIアシスタント 花奈">
-          <!-- 髪(後ろ) -->
-          <path d="M52 82 Q44 128 52 152 L66 148 Q58 116 62 86 Z" fill="#4A3728"/>
-          <path d="M148 82 Q156 128 148 152 L134 148 Q142 116 138 86 Z" fill="#4A3728"/>
-          <!-- 体:ネイビージャケット+白シャツ -->
-          <path d="M46 230 Q50 178 78 166 L100 176 L122 166 Q150 178 154 230 Z" fill="#233A5C"/>
-          <path d="M88 168 L100 186 L112 168 L106 164 L100 172 L94 164 Z" fill="#FFFFFF"/>
-          <path d="M97 176 L103 176 L101 196 L99 196 Z" fill="#D7263D"/>
-          <path d="M78 166 L100 176 L88 196 Q78 184 78 166 Z" fill="#2C4568"/>
-          <path d="M122 166 L100 176 L112 196 Q122 184 122 166 Z" fill="#2C4568"/>
-          <!-- 首 -->
-          <rect x="92" y="148" width="16" height="20" rx="7" fill="#F2D6C4"/>
-          <!-- 顔 -->
-          <ellipse cx="100" cy="100" rx="44" ry="46" fill="#F7DFCE"/>
-          <!-- 前髪:きれいめボブ -->
-          <path d="M56 96 Q52 46 100 42 Q148 46 144 96 Q142 70 124 62 Q128 76 116 70 Q108 56 100 58 Q92 56 84 70 Q72 76 76 62 Q58 70 56 96 Z" fill="#4A3728"/>
-          <!-- 目(通常) -->
-          <g id="eyesNormal" class="p-blink">
-            <ellipse cx="82" cy="102" rx="6.5" ry="8.5" fill="#2A2028"/>
-            <ellipse cx="118" cy="102" rx="6.5" ry="8.5" fill="#2A2028"/>
-            <circle cx="84" cy="99" r="2.2" fill="#FFF"/>
-            <circle cx="120" cy="99" r="2.2" fill="#FFF"/>
-          </g>
-          <!-- 目(にこやか) -->
-          <g id="eyesHappy">
-            <path d="M75 102 Q82 95 89 102" stroke="#2A2028" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-            <path d="M111 102 Q118 95 125 102" stroke="#2A2028" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-          </g>
-          <!-- 眉(困り) -->
-          <g id="browTroubled">
-            <path d="M73 90 Q82 87 90 92" stroke="#5B4634" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-            <path d="M127 90 Q118 87 110 92" stroke="#5B4634" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          </g>
-          <!-- 頬 -->
-          <ellipse class="blush" cx="72" cy="116" rx="7" ry="3.6" fill="#F3B8B0"/>
-          <ellipse class="blush" cx="128" cy="116" rx="7" ry="3.6" fill="#F3B8B0"/>
-          <!-- 口 -->
-          <path id="mouthIdle" d="M93 122 Q100 127 107 122" stroke="#C4685E" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          <ellipse id="mouthTalk" cx="100" cy="123" rx="6.5" ry="5.5" fill="#B85A50"/>
-          <!-- イヤリング(小) -->
-          <circle cx="57" cy="112" r="2.6" fill="#C9A44C"/>
-          <circle cx="143" cy="112" r="2.6" fill="#C9A44C"/>
-        </svg>
+        <!-- 3D モデル(約 11MB)を読み込むまでの間と、WebGL が使えないときに見せる立ち絵(同じモデルから書き出した画像) -->
+        <img id="hostStill" class="presenter" src="/static/host/hana_normal.png" width="664" height="900" alt="AIアシスタント 花奈">
       </div>
           <div class="lower-third">
             <div class="lt-name"><b>花奈</b><small>AIアシスタント</small></div>

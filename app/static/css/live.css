@@ -73,23 +73,18 @@
   .card{ background:var(--paper); border-radius:var(--r-lg); overflow:hidden; box-shadow:2px 4px 12px rgba(0,0,0,.08); }
   .stage{ position:relative; overflow:hidden; background:linear-gradient(180deg,#FBFBFD 0%,#E8E8ED 100%); aspect-ratio:16/10; display:flex; align-items:flex-end; justify-content:center; }
   @media (max-width:880px){ .stage{ aspect-ratio:4/3; } }
-  .avatarbox{ position:relative; z-index:1; width:min(46%,300px); }
-  .presenter{ width:100%; display:block; }
-  #vrmCanvas{ position:absolute; inset:0; width:100%; height:100%; z-index:1; display:none; }
-  .stage.vrm-on #avatarBox{ display:none; }
-  .stage.vrm-on #vrmCanvas{ display:block; }
-  .p-sway{ animation:sway 4s ease-in-out infinite; transform-origin:50% 100%; }
-  @keyframes sway{ 0%,100%{transform:rotate(0)} 50%{transform:rotate(.6deg)} }
-  .p-blink{ animation:blink 5s infinite; transform-origin:100px 96px; }
-  @keyframes blink{ 0%,95%,100%{transform:scaleY(1)} 97%{transform:scaleY(.06)} }
-  #mouthTalk{ display:none; animation:mouth .3s ease-in-out infinite alternate; transform-origin:100px 121px; }
-  @keyframes mouth{ from{transform:scaleY(.4)} to{transform:scaleY(1)} }
-  .talking #mouthTalk{ display:block; } .talking #mouthIdle{ display:none; }
-  #eyesHappy,#browTroubled{ display:none; }
-  .happy #eyesNormal,.excited #eyesNormal{ display:none; }
-  .happy #eyesHappy,.excited #eyesHappy{ display:block; }
-  .troubled #browTroubled{ display:block; }
-  .blush{ opacity:0; transition:opacity .3s; }
+  /* 立ち絵:3D モデルの読み込みが終わるまで表示し、終わったら 3D に入れ替える(フェード) */
+  .avatarbox{ position:absolute; inset:0; z-index:1; display:flex; justify-content:center; align-items:flex-start; transition:opacity .5s ease; }
+  .presenter{ height:132%; width:auto; max-width:none; display:block; margin-top:3%; }
+  #vrmCanvas{ position:absolute; inset:0; width:100%; height:100%; z-index:2; opacity:0; transition:opacity .6s ease; }
+  .stage.vrm-on #vrmCanvas{ opacity:1; }
+  .stage.vrm-on #avatarBox{ opacity:0; pointer-events:none; }
+  .talking .presenter{ animation:stillTalk .9s ease-in-out infinite; transform-origin:50% 20%; }
+  @keyframes stillTalk{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-.6%)} }
+  /* 読み込みの進み具合(ステージの一番下の細い線) */
+  .vrmload{ position:absolute; left:0; right:0; bottom:0; height:3px; z-index:3; background:rgba(0,0,0,.06); transition:opacity .4s ease; }
+  .vrmload i{ display:block; height:100%; width:0; background:var(--blue); transition:width .2s linear; }
+  .vrmload.done{ opacity:0; }
   .shy .blush,.happy .blush{ opacity:.55; }
   .lower-third{ position:absolute; z-index:2; left:20px; right:20px; bottom:20px; display:flex; align-items:stretch; border-radius:16px; overflow:hidden;
     background:rgba(255,255,255,.72); -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px); box-shadow:0 4px 16px rgba(0,0,0,.08); }
@@ -246,4 +241,4 @@
     .modal{ padding:28px 22px 24px; } .modal h3{ font-size:24px; }
     .gcard{ padding:24px; }
   }
-  @media (prefers-reduced-motion: reduce){ .p-sway,#mouthTalk,.nav .live i{ animation:none } html{ scroll-behavior:auto; } }
+  @media (prefers-reduced-motion: reduce){ .talking .presenter,.nav .live i{ animation:none } html{ scroll-behavior:auto; } }

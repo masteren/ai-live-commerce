@@ -71,8 +71,14 @@ function setEmotion(emo){
   box.classList.remove('happy','excited','troubled','shy');
   if (emo && emo!=='normal') box.classList.add(emo);
   window.HANA && window.HANA.setEmotion(emo || 'normal');
+  setStill(emo);
   clearTimeout(emoTimer);
-  emoTimer = setTimeout(()=>{ box.classList.remove('happy','excited','troubled','shy'); window.HANA && window.HANA.setEmotion('normal'); }, 8000);
+  emoTimer = setTimeout(()=>{ box.classList.remove('happy','excited','troubled','shy'); window.HANA && window.HANA.setEmotion('normal'); setStill('normal'); }, 8000);
+}
+// 3D がまだ・使えないときは、立ち絵の表情を切り替える(3D 表示中は画像を読み込まない)
+function setStill(emo){
+  if (window.HANA && window.HANA.ready) return;
+  $('hostStill').src = `/static/host/hana_${['happy','excited','troubled','shy'].includes(emo) ? emo : 'normal'}.png`;
 }
 // 文字は host_reply で先に届き、音声は合成が終わってから host_audio で届く
 function hostSpeak(text, emotion, audioPending){
