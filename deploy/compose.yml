@@ -1,0 +1,61 @@
+# サーバ(本番)用の構成:アプリ + MySQL + VOICEVOX
+#
+# 使い方は deploy/README.md。秘密情報はサーバの /opt/ai-live-commerce/.env に置き、Git には入れない。
+#   docker compose --env-file ../../.env -f compose.yml up -d --build
+# 開発用の docker-compose.yml(ルート)と名前を分ける。同じ名前だと、コンテナとデータの置き場所(ボリューム)を共有してしまう
+name: ai-live-commerce-server
+
+services:
+  app:
+    build: ..
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      DATABASE_URL: mysql+aiomysql://liveuser:${MYSQL_PASSWORD:?MYSQL_PASSWORD を .env に設定}@db:3306/livecommerce?charset=utf8mb4
+      VOICEVOX_URL: http://voicevox:50021
+      AUDIO_DIR: /data/audio
+      COOKIE_SECURE: "true"          # HTTPS でだけ Cookie を送る
+    ports:
+      - "127.0.0.1:${APP_PORT:-8010}:8000"   # サーバ上の Nginx からだけ届く(外には公開しない)
+    volumes:
+      - audio:/data/audio
+    depends_on:
+      db:
+        condition: service_healthy
+      voicevox:
+        condition: service_started
+    mem_limit: 512m
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: livecommerce
+      MYSQL_USER: liveuser
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD を .env に設定}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_bin
+      # メモリの少ないサーバ向け(既定のままだと 400MB 以上使う)
+      - --innodb-buffer-pool-size=128M
+      - --performance-schema=OFF
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    mem_limit: 512m
+
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-0.26.1   # 開発で確認したのと同じ版
+    restart: unless-stopped
+    # ポートは公開しない(アプリのコンテナからだけ使う)
+    mem_limit: 1800m
+    cpus: 1.5                        # ほかのサービスの分の CPU を残す
+
+volumes:
+  mysql-data:
+  audio:

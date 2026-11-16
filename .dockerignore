@@ -1,0 +1,18 @@
+# イメージに入れないもの(秘密情報・開発用・大きいもの)
+.env
+.env.*
+venv/
+venv-*/
+**/__pycache__/
+.pytest_cache/
+.mypy_cache/
+*.db
+*.bak*
+app/static/audio/*
+ios/
+docs/
+tests/
+deploy/
+.git/
+.github/
+*.md
