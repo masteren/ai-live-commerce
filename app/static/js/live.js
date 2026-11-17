@@ -22,7 +22,7 @@ function authHeaders(){ return { 'Content-Type':'application/json', 'X-CSRF-Toke
 function setSession(user, csrfToken){ username = user || ''; csrf = csrfToken || ''; renderWho(); }
 
 // ================= 認証 =================
-function openAuth(after){ pendingAfterAuth = after || null; $('authErr').textContent=''; $('authMask').classList.add('open'); }
+function openAuth(after){ $('input').blur(); pendingAfterAuth = after || null; $('authErr').textContent=''; $('authMask').classList.add('open'); }
 function setAuthMode(m){
   authMode = m;
   $('authTitle').textContent = m==='login' ? 'ログイン' : '新規登録';
@@ -360,7 +360,44 @@ function trySend(text){
   ws.send(JSON.stringify({ type:'comment', text }));   // トークンは送らない(Cookie で認証済み)
 }
 $('sendBtn').onclick = ()=>{ trySend($('input').value); $('input').value=''; };
-$('input').addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ trySend($('input').value); $('input').value=''; } });
+$('input').addEventListener('keydown', (e)=>{
+  // 日本語入力で変換を確定する Enter は送信にしない(isComposing。古い Safari は keyCode 229 で判定)
+  if (e.key==='Enter' && !e.isComposing && e.keyCode!==229){ e.preventDefault(); trySend($('input').value); $('input').value=''; }
+});
+
+// ================= スマホ:入力中の表示 =================
+// キーボードが出ると見える範囲が狭くなり、配信画面が画面外に押し出される。
+// 入力中だけ「配信画面(上)+コメント(下)」をキーボードの上に固定して表示する(見た目は live.css の body.chatting)
+const chatMQ = matchMedia('(max-width:600px)');
+const vv = window.visualViewport;
+function fitChat(){
+  const s = document.documentElement.style;
+  s.setProperty('--vv-top', (vv ? vv.offsetTop : 0) + 'px');
+  s.setProperty('--vv-h', (vv ? vv.height : innerHeight) + 'px');
+}
+let chatScrollY = 0;
+function setChatting(on){
+  on = on && chatMQ.matches;
+  if (on === document.body.classList.contains('chatting')) return;
+  // 配信画面とコメント欄が抜けてもページの高さが変わらないようにする
+  $('live').style.minHeight = on ? $('live').offsetHeight + 'px' : '';
+  document.body.classList.toggle('chatting', on);
+  if (on){
+    chatScrollY = scrollY;
+    fitChat();
+    const box = $('comments'); box.scrollTop = box.scrollHeight;
+  } else {
+    // キーボードを出すときに iOS がページを勝手にスクロールするので、入力前の位置に戻す
+    window.scrollTo({ top: chatScrollY, behavior: 'instant' });
+  }
+}
+$('input').addEventListener('focus', ()=>setChatting(true));
+$('input').addEventListener('blur', ()=>setChatting(false));
+if (vv){ vv.addEventListener('resize', fitChat); vv.addEventListener('scroll', fitChat); }
+chatMQ.addEventListener('change', ()=>{ if (!chatMQ.matches) setChatting(false); });
+// 送信ボタンを押しても入力欄からフォーカスを外さない(キーボードが閉じず、続けて入力できる)
+$('sendBtn').addEventListener('mousedown', (e)=>e.preventDefault());
+$('chatClose').onclick = ()=>$('input').blur();
 
 // ================= アクセシビリティ =================
 // href のない <a>(クリックで動作するもの)は、そのままだと Tab キーで選べず Enter でも押せない。

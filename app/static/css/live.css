@@ -240,5 +240,23 @@
     .askbubble{ display:none; }                 /* 入力欄がすぐ下にあるので不要(ボタンや字幕に重なるのを避ける) */
     .modal{ padding:28px 22px 24px; } .modal h3{ font-size:24px; }
     .gcard{ padding:24px; }
+
+    /* 入力中(body.chatting):キーボードの上に「配信画面(上)+コメント(下)」だけを出す。
+       --vv-top / --vv-h はキーボードを除いた見えている範囲(visualViewport)。live.js が入れる */
+    /* ほかの部分は隠す(覆いをかぶせる方法だと、iOS では見えている範囲の外=キーボードのツールバーの裏に
+       ページの中身が透けて見えるため、中身そのものを見えなくする) */
+    body.chatting{ overflow:hidden; background:var(--paper); }
+    body.chatting header, body.chatting .ribbon, body.chatting main, body.chatting footer{ visibility:hidden; }
+    body.chatting .stage, body.chatting .comments-card{ visibility:visible; }
+    body.chatting .stage{ position:fixed; z-index:41; left:0; right:0; top:var(--vv-top,0px); height:calc(var(--vv-h,100vh) * .4); aspect-ratio:auto; }
+    body.chatting .lower-third{ display:none; }       /* 花奈の発言はコメント欄に出るので、字幕で顔を隠さない */
+    body.chatting .comments-card{ position:fixed; z-index:41; left:0; right:0; top:calc(var(--vv-top,0px) + var(--vv-h,100vh) * .4); height:calc(var(--vv-h,100vh) * .6) !important;
+      border-radius:0; box-shadow:0 -6px 16px rgba(0,0,0,.06); }
+    body.chatting .c-head{ padding:10px 12px 4px 18px; font-size:15px; align-items:center; }
+    body.chatting .chatclose{ display:block; }
+    body.chatting .c-list{ padding:4px 14px 8px; overscroll-behavior:contain; }
+    body.chatting .c-input{ padding:8px 10px; }
   }
+  .chatclose{ display:none; margin-left:auto; border:none; background:none; color:var(--link); font-size:15px; padding:4px 6px; cursor:pointer; }
+  .c-head small{ margin-left:8px; }
   @media (prefers-reduced-motion: reduce){ .talking .presenter,.nav .live i{ animation:none } html{ scroll-behavior:auto; } }

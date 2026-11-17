@@ -76,10 +76,10 @@
       </div>
 
       <div class="card comments-card">
-        <div class="c-head">コメント <small id="connState">接続中…</small></div>
+        <div class="c-head">コメント <small id="connState">接続中…</small><button class="chatclose" id="chatClose">完了</button></div>
         <div class="c-list" id="comments"></div>
         <div class="c-input">
-          <input id="input" maxlength="200" placeholder="質問・コメントを入力">
+          <input id="input" maxlength="200" placeholder="質問・コメントを入力" enterkeyhint="send" autocomplete="off">
           <button class="sendbtn" id="sendBtn">送信</button>
         </div>
       </div>
