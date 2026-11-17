@@ -179,6 +179,7 @@ function boot() {
 
       window.HANA.ready = true;
       stage.classList.add('vrm-on');
+      announceIn = 3;   // 実際に数フレーム描いてから知らせる(下の tick)
       loadDone();
       console.log('[vrm] 花奈の準備ができました');
     } catch (e) {
@@ -197,6 +198,9 @@ function boot() {
 
   // ---- 描画のループ ----
   const clock = new THREE.Clock();
+  // 読み込み後、最初の描画ではシェーダーの準備に時間がかかる(遅い端末では数秒)。
+  // 準備中に立ち絵を消すと何も映らない時間ができるので、実際に描けてから hana-ready を送る(iOS アプリの stage.js が使う)
+  let announceIn = 0;
   function tick() {
     requestAnimationFrame(tick);
     const dt = clock.getDelta();
@@ -317,6 +321,7 @@ function boot() {
       vrm.update(dt);
     }
     renderer.render(scene, camera);
+    if (announceIn > 0 && --announceIn === 0) window.dispatchEvent(new Event('hana-ready'));
   }
   tick();
 }

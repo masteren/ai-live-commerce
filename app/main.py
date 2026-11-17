@@ -103,6 +103,12 @@ async def meta():
     }
 
 
+@app.get("/stage", include_in_schema=False)
+async def stage_page():
+    """iOS アプリに埋め込む 3D アバターだけのページ"""
+    return FileResponse(os.path.join(BASE_DIR, "static", "stage.html"))
+
+
 @app.get("/admin", include_in_schema=False)
 async def admin_page():
     return FileResponse(os.path.join(BASE_DIR, "static", "admin.html"))

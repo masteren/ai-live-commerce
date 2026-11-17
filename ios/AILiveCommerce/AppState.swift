@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
     @Published var comments: [ChatLine] = []
     @Published var hostText = "ご視聴ありがとうございます。ご質問はコメントでお気軽にどうぞ。"
     @Published var hostEmotion = "normal"
+    /// 花奈の回答が届いた回数(同じ文章が続いても、3D の口を動かすきっかけになるように)
+    @Published var hostReplyCount = 0
     @Published var featuredId: Int?
     /// 音声は最初からオン(Web 版はブラウザの自動再生制限のためクリックが必要だが、アプリにはその制限がない)。
     /// 利用者が切り替えた設定は保存して、次回の起動でも引き継ぐ
@@ -217,6 +219,7 @@ final class AppState: ObservableObject {
             append(ChatLine(nickname: Theme.hostDisplayName, text: r.text, kind: .host))
             hostText = r.text
             hostEmotion = r.emotion
+            hostReplyCount += 1
             if let pid = r.productId { featuredId = pid }
             lastReplyId = r.id
         case .hostAudio(let id, let path):

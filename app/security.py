@@ -58,6 +58,7 @@ def _content_security_policy(html_file: str) -> str:
 # 画面の URL → その画面に付ける CSP(起動時に一度だけ作る)
 _PAGE_CSP = {}
 for _path, _file in (("/", "index.html"), ("/static/index.html", "index.html"),
+                     ("/stage", "stage.html"), ("/static/stage.html", "stage.html"),
                      ("/admin", "admin.html"), ("/static/admin.html", "admin.html")):
     _PAGE_CSP[_path] = _content_security_policy(_file)
 

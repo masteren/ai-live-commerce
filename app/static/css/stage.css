@@ -1,0 +1,5 @@
+/* iOS アプリに埋め込む 3D アバターのページ(stage.html)。背景は透明にして、アプリ側の背景を見せる */
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; user-select: none; }
+.stage { position: fixed; inset: 0; }
+#vrmCanvas { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .6s ease; }
+.stage.vrm-on #vrmCanvas { opacity: 1; }

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HANA STAGE</title>
+<link rel="stylesheet" href="/static/css/stage.css">
+</head>
+<body>
+<!-- iOS アプリの中(WKWebView)で、3D アバターだけを表示するページ。
+     表情・口の動きはアプリが window.HANA を呼んで指示する(このページは WebSocket に接続しない=視聴者数に数えない)。
+     読み込みが終わったら stage.js がアプリに知らせ、アプリは立ち絵からこのページに切り替える -->
+<div class="stage"><canvas id="vrmCanvas"></canvas></div>
+<script src="/static/js/stage.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/static/vendor/three/build/three.module.min.js",
+    "three/addons/": "/static/vendor/three/examples/jsm/",
+    "@pixiv/three-vrm": "/static/vendor/three-vrm/three-vrm.module.min.js"
+  }
+}
+</script>
+<script type="module" src="/static/js/vrm.js"></script>
+</body>
+</html>

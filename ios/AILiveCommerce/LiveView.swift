@@ -6,6 +6,9 @@ struct LiveView: View {
     @EnvironmentObject var state: AppState
     @State private var input = ""
     @FocusState private var inputFocused: Bool   // キーボードの表示状態(閉じる操作に使う)
+    @StateObject private var host3D = HostStageController()
+    /// UI テストでは 3D を使わない(約 14MB のモデルの読み込みと WebGL の描画で、テストの時間と結果が安定しないため)
+    private let use3D = !AppConfig.isUITesting
 
     var body: some View {
         NavigationStack {
@@ -50,17 +53,31 @@ struct LiveView: View {
     private var stage: some View {
         ZStack(alignment: .bottom) {
             LinearGradient(colors: [.white, Theme.stageDeep], startPoint: .top, endPoint: .bottom)
+            // 3D アバター(Web 版と同じもの)。準備ができるまでは下の立ち絵を見せる
+            if use3D {
+                HostStageView(controller: host3D)
+                    .opacity(host3D.ready ? 1 : 0.01)        // 0 にすると描画が止まることがあるので、見えない程度に残す
+                    .allowsHitTesting(false)                 // タップはステージに渡す(キーボードを閉じる)
+            }
             // Web 版の 3D アバターを表情ごとに書き出した立ち絵(Resources/hana_*.png)
             // キーボード表示中は全身を縮めず、顔のあたりを切り出して見せる
-            HostPortrait(emotion: state.hostEmotion, compact: inputFocused)
-                .padding(.top, inputFocused ? 8 : 14)
-                .frame(maxHeight: .infinity, alignment: .top)
+            if !host3D.ready {
+                HostPortrait(emotion: state.hostEmotion, compact: inputFocused)
+                    .padding(.top, inputFocused ? 8 : 14)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .transition(.opacity)
+            }
             subtitle
         }
         .frame(height: inputFocused ? 156 : 264)
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture { inputFocused = false }       // ステージをタップするとキーボードを閉じる
+        .animation(.easeInOut(duration: 0.5), value: host3D.ready)
+        .onAppear { if use3D { host3D.loadIfNeeded() } }   // 接続先を変えたあと、ライブに戻ってきたときにも読み直す
+        .onChange(of: state.hostReplyCount) {
+            host3D.speak(emotion: state.hostEmotion, text: state.hostText)
+        }
     }
 
     private var subtitle: some View {

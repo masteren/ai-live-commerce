@@ -43,3 +43,4 @@ async def test_history_and_broadcast_carry_utc_timestamp(monkeypatch):
     await ws_mod.manager.broadcast({"type": "viewers", "count": 1})
     assert '"ts": "20' in sent[0] and "+00:00" in sent[0]
     assert "ts" not in sent[1]                      # コメント欄に出ないメッセージには付けない
+
