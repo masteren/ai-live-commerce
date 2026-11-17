@@ -5,6 +5,10 @@
 #   uvicorn app.main:app --reload        # 起動時に alembic upgrade head が自動実行される
 #
 # 注意:ここのパスワードはローカル開発専用。サーバに置くときは .env で別の値にすること。
+# プロジェクト名を固定する。省略するとフォルダ名が使われ、フォルダ名を変えたときに
+# 別のプロジェクト扱いになって、これまでのデータ(ボリューム ai-live-commerce_mysql-data)が見えなくなる
+name: ai-live-commerce
+
 services:
   db:
     image: mysql:8.4
