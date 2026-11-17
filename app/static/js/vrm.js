@@ -69,10 +69,10 @@ function boot() {
   let flip = 1;                        // VRM 0.x のモデルでは -1(x・z 軸の回転を逆向きに)
   // 待機中のしぐさ:数秒おきにどれか1つ(首をかしげる・横を見る・うなずく)
   const idle = { next: 3 + Math.random() * 3, kind: null, start: 0, dur: 0, side: 1, smile: 0 };
-  // 待機中のパフォーマンス:しばらく話していないとき、ときどき体全体で動く(ダンス・手を振る・鼻歌でゆれる)。
+  // 待機中のパフォーマンス:話していないとき、ほとんど休まず体全体で動く(ダンス・手を振る・鼻歌でゆれる)。
   // w は 0..1 の混ぜ具合。急に切り替えず、ふだんの姿勢となめらかに行き来する。話し始めたらすぐにやめる
   const PERF = { dance: 8, wave: 3.2, hum: 6 };            // それぞれの長さ(秒)。hum は鼻歌を歌うように、ゆっくり左右にゆれる
-  const perf = { kind: null, shown: null, start: 0, w: 0, quiet: 0, next: 10 + Math.random() * 8 };
+  const perf = { kind: null, shown: null, start: 0, w: 0, quiet: 0, next: 2 + Math.random() * 2 };
   // 視線:マウス(指)のほうを見る。しばらく動かなければ視聴者(カメラ)に戻る
   const lookTarget = new THREE.Object3D();
   scene.add(lookTarget);
@@ -211,14 +211,14 @@ function boot() {
       const talkingNow = lipActive || performance.now() < fakeTalkUntil || mouth > 0.05;
       perf.quiet = talkingNow ? 0 : perf.quiet + dt;
       perf.next -= dt;
-      if (!perf.kind && perf.w < 0.01 && perf.next <= 0 && perf.quiet > 6) {
+      if (!perf.kind && perf.w < 0.01 && perf.next <= 0 && perf.quiet > 1.5) {
         const kinds = ['dance', 'wave', 'hum', 'dance'];
         perf.kind = perf.shown = kinds[Math.floor(Math.random() * kinds.length)];
         perf.start = t;
       }
       if (perf.kind && (talkingNow || t - perf.start > PERF[perf.kind])) {
         perf.kind = null;
-        perf.next = 15 + Math.random() * 15;
+        perf.next = 1 + Math.random() * 2;                    // ほとんど休まず次の動きへ(にぎやかに見せる)
       }
       perf.w += ((perf.kind ? 1 : 0) - perf.w) * Math.min(1, dt * (perf.kind ? 2.5 : talkingNow ? 8 : 3));
       const P = perf.w > 0.001 ? perf.shown : null, W = perf.w, pt = t - perf.start;
@@ -295,7 +295,7 @@ function boot() {
       }
       if (idle.kind) {
         const p = (t - idle.start) / idle.dur;
-        if (p >= 1) { idle.kind = null; idle.smile = 0; idle.next = 3.5 + Math.random() * 4.5; }
+        if (p >= 1) { idle.kind = null; idle.smile = 0; idle.next = 1 + Math.random() * 1.5; }
         else {
           const e = Math.sin(Math.PI * p);                       // 0 → 1 → 0 となめらかに
           if (idle.kind === 'tilt') roll += 0.11 * e * idle.side;
