@@ -1,4 +1,4 @@
-"""AI ライブコマース — FastAPI のエントリポイント
+"""AIライブショップ — FastAPI のエントリポイント
 
 起動: uvicorn app.main:app --reload
 視聴者ページ: http://127.0.0.1:8000/
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     await bot_http.aclose()
 
 
-app = FastAPI(title="AI Live Commerce", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="AIライブショップ", version="1.0.0", lifespan=lifespan)
 _cors = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 if _cors:   # 既定は空 = CORS ヘッダを出さない(同一オリジンのみ)
     app.add_middleware(CORSMiddleware, allow_origins=_cors, allow_methods=["*"], allow_headers=["*"])

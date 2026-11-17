@@ -1,4 +1,4 @@
-# AI Live Commerce
+# AIライブショップ
 
 日本語 | [中文](docs/README.zh-CN.md)
 

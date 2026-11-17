@@ -1,4 +1,4 @@
-# AI Live Commerce — iOS アプリ(SwiftUI)
+# AIライブショップ — iOS アプリ(SwiftUI)
 
 Web 版と **同じ API** を使う iOS クライアントです(サーバ側の変更なし)。
 

@@ -1,4 +1,4 @@
-# AI Live Commerce
+# AIライブショップ(AI 直播商店)
 
 [日本語](../README.md) | 中文
 
