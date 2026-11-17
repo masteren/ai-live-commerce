@@ -5,6 +5,11 @@ from typing import Any
 
 from fastapi import WebSocket
 
+from .models import iso_utc, now_utc
+
+# コメント欄に1行として出るメッセージ。配信した時刻(ts)を付ける(画面で「12:34」のように表示する)
+TIMED_TYPES = {"comment", "host_reply", "purchase"}
+
 
 class ConnectionManager:
     def __init__(self) -> None:
@@ -34,6 +39,8 @@ class ConnectionManager:
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         """全員に同時に配信する。送れない・時間がかかりすぎる(固まった)接続は外し、ほかの人を待たせない"""
+        if message.get("type") in TIMED_TYPES and "ts" not in message:
+            message = {**message, "ts": iso_utc(now_utc())}
         data = json.dumps(message, ensure_ascii=False)
         conns = list(self.connections)
         if not conns:

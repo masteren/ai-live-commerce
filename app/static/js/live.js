@@ -35,6 +35,18 @@ $('authSubmit').onclick = async () => {
   const u = $('authUser').value.trim(), p = $('authPass').value;
   if (!u || !p){ $('authErr').textContent = 'ユーザー名とパスワードを入力してください'; return; }
   const res = await fetch(`/api/auth/${authMode}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
+  await afterAuth(res);
+};
+// 登録せずにゲストとして参加(「ゲスト1234」という名前が付く。コメントも購入もできる)
+$('guestBtn').onclick = async () => {
+  $('guestBtn').disabled = true;
+  const res = await fetch('/api/auth/guest', { method:'POST' }).catch(()=>null);
+  $('guestBtn').disabled = false;
+  if (!res){ $('authErr').textContent = '通信エラーが発生しました'; return; }
+  await afterAuth(res);
+};
+// ログイン・新規登録・ゲスト参加の共通の後処理
+async function afterAuth(res){
   const data = await res.json().catch(()=>({}));
   if (!res.ok){ $('authErr').textContent = data.detail?.[0]?.msg || data.detail || 'エラーが発生しました'; return; }
   setSession(data.username, data.csrf_token);
@@ -43,10 +55,14 @@ $('authSubmit').onclick = async () => {
   refreshCart();
   toast(`ようこそ、${username}さん`);
   if (pendingAfterAuth){ const f = pendingAfterAuth; pendingAfterAuth = null; f(); }
-};
+}
+const isGuest = () => username.startsWith('ゲスト');   // 新規登録では「ゲスト」で始まる名前を使えない
 $('userBtn').onclick = async () => {
   if (!username) return openAuth();
-  if (confirm(`${username} さん、ログアウトしますか?`)){
+  const msg = isGuest()
+    ? `${username} さん、ログアウトしますか?\nゲストはパスワードがないため、同じ名前には戻れません(注文履歴も見られなくなります)。`
+    : `${username} さん、ログアウトしますか?`;
+  if (confirm(msg)){
     await fetch('/api/auth/logout', { method:'POST', headers: authHeaders() }).catch(()=>{});
     setSession('', '');
     cart=[]; renderCartUI();
@@ -116,11 +132,13 @@ $('soundBtn').onclick = () => {
 };
 
 // ================= コメント =================
-function addComment(nick, text, cls=''){
+// サーバの時刻(ISO 8601、UTC)を、見ている人の地域の「12:34」にする。ないときは今の時刻
+const hhmm = (ts) => (ts ? new Date(ts) : new Date()).toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
+function addComment(nick, text, cls='', ts=null){
   const box = $('comments');
   const div = document.createElement('div');
   div.className = 'cm ' + cls;
-  div.innerHTML = `<b>${esc(nick)}</b>${esc(text)}`;
+  div.innerHTML = `<b>${esc(nick)}</b>${esc(text)}<time>${hhmm(ts)}</time>`;
   box.appendChild(div);
   while (box.children.length > 80) box.removeChild(box.firstChild);
   box.scrollTop = box.scrollHeight;
@@ -329,14 +347,14 @@ function connect(){
       case 'history':   // 接続直後に届く最近のコメント。再接続のときに二重にならないよう、一覧を作り直す
         $('comments').replaceChildren();
         m.items.forEach(c=>{
-          if (c.kind==='host') addComment('花奈', c.text, 'host');
-          else addComment(c.nickname, c.text, c.nickname===username ? 'me' : '');
+          if (c.kind==='host') addComment('花奈', c.text, 'host', c.ts);
+          else addComment(c.nickname, c.text, c.nickname===username ? 'me' : '', c.ts);
         });
         break;
       case 'viewers': $('viewers').textContent = m.count; break;
-      case 'comment': addComment(m.nickname, m.text, m.nickname===username?'me':''); break;
+      case 'comment': addComment(m.nickname, m.text, m.nickname===username?'me':'', m.ts); break;
       case 'host_reply':
-        addComment('花奈', m.text, 'host');   // 表示名は字幕と揃える(m.nickname は読み上げ用のカタカナ表記)
+        addComment('花奈', m.text, 'host', m.ts);   // 表示名は字幕と揃える(m.nickname は読み上げ用のカタカナ表記)
         if (m.product_id) setFeaturedById(m.product_id);
         lastReplyId = m.id;
         hostSpeak(m.text, m.emotion, m.audio_pending);
@@ -345,7 +363,7 @@ function connect(){
         if (m.id === lastReplyId) hostAudio(m.audio_url);   // すでに次の発言に移っていたら、古い音声は流さない
         break;
       case 'purchase': {
-        addComment('お知らせ', `${m.nickname}さんが ${m.items.map(i=>`${i.name}×${i.quantity}`).join('、')} を購入しました`, 'sys');
+        addComment('お知らせ', `${m.nickname}さんが ${m.items.map(i=>`${i.name}×${i.quantity}`).join('、')} を購入しました`, 'sys', m.ts);
         if (m.stocks){ products.forEach(p=>{ if (m.stocks[p.id]!==undefined) p.stock=m.stocks[p.id]; }); renderFeatured(); renderShelf(); }
         break;
       }

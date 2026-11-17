@@ -28,6 +28,28 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // ゲスト参加:登録よりも先に目に入るよう、いちばん上に置く
+                Section {
+                    Button {
+                        Task {
+                            busy = true
+                            error = await state.joinAsGuest()
+                            busy = false
+                        }
+                    } label: {
+                        Text("ゲストで参加(登録不要)").bold().frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+                    .tint(Theme.ink)
+                    .disabled(busy)
+                    .accessibilityIdentifier("guestButton")
+                } footer: {
+                    Text("登録しなくても、すぐにコメント・お買い物ができます。")
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
                 Picker("", selection: $isRegister) {
                     Text("ログイン").tag(false)
                     Text("新規登録").tag(true)
@@ -65,7 +87,7 @@ struct LoginView: View {
                 .disabled(busy || username.isEmpty || password.isEmpty)
                 .accessibilityIdentifier("authSubmit")
                 } footer: {
-                    Text("コメントの投稿とお買い物にはログインが必要です。")
+                    Text("アカウントがあれば、別の端末からも同じ名前・注文履歴で利用できます。")
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)

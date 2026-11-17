@@ -162,7 +162,7 @@ class DanmakuBot:
                 await manager.broadcast({"type": "comment", "nickname": nickname, "text": text})
                 # 質問の形なら AI ホストに渡す。雑談はキューに入れない(LLM を使わない)
                 if ask or looks_like_question(text):
-                    await host.on_comment(nickname, text)
+                    await host.on_comment(nickname, text, is_bot=True)
                 else:
                     host.last_activity_at = time.time()
             except Exception as e:

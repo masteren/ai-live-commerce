@@ -134,15 +134,19 @@ struct LiveView: View {
     }
 
     private var commentList: some View {
+        // List ではなく ScrollView + LazyVStack:List は画面外の行の高さを見積もりで扱うため、
+        // 履歴(長さのまちまちな 30 行)をまとめて入れたときに scrollTo が一番下まで届かないことがあった
         ScrollViewReader { proxy in
-            List(state.comments) { line in
-                commentRow(line).id(line.id)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                    ForEach(state.comments) { line in
+                        commentRow(line).id(line.id)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .overlay {
                 if state.comments.isEmpty {
                     Text("コメントはまだありません。\n気になることを花奈に質問してみましょう。")
@@ -152,26 +156,36 @@ struct LiveView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)      // コメント欄をスクロールするとキーボードが閉じる
-            .onChange(of: state.comments.count) {
-                if let last = state.comments.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
+            // 最初から一番下(新しいコメント)を表示し、行が増えても下に付いたままにする
+            .defaultScrollAnchor(.bottom)
+            // 件数ではなく「最後の行」が変わったら一番下へ。件数で見ると、履歴で一覧を作り直したとき(件数が同じ)や、
+            // 上限の 100 件に達したあと(古い行を消すので件数が変わらない)に新しいコメントまで送られない
+            .onChange(of: state.comments.last?.id) {
+                guard let last = state.comments.last else { return }
+                withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
             }
         }
+    }
+
+    /// 行の終わりに小さく付ける時刻(「12:34」)
+    private func time(_ line: ChatLine) -> Text {
+        Text("  " + line.timeText).font(.caption2).foregroundColor(.secondary)
     }
 
     @ViewBuilder
     private func commentRow(_ line: ChatLine) -> some View {
         switch line.kind {
         case .host:
-            (Text(line.nickname + " ").fontWeight(.semibold).foregroundColor(Theme.brand) + Text(line.text))
+            (Text(line.nickname + " ").fontWeight(.semibold).foregroundColor(Theme.brand) + Text(line.text) + time(line))
                 .font(.subheadline)
                 .padding(.leading, 10)
                 .overlay(alignment: .leading) { Capsule().fill(Theme.brand).frame(width: 2) }
                 .accessibilityIdentifier("hostComment")
         case .system:
-            Text(line.text).font(.caption).foregroundStyle(.secondary)
+            (Text(line.text) + time(line)).font(.caption).foregroundStyle(.secondary)
                 .accessibilityIdentifier("systemComment")
         case .mine, .user:
-            (Text(line.nickname + " ").bold().foregroundColor(line.kind == .mine ? Theme.blue : .secondary) + Text(line.text))
+            (Text(line.nickname + " ").bold().foregroundColor(line.kind == .mine ? Theme.blue : .secondary) + Text(line.text) + time(line))
                 .font(.subheadline)
         }
     }

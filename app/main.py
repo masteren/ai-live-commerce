@@ -134,7 +134,8 @@ async def live_ws(ws: WebSocket):
       アプリ   → 接続時のヘッダ Authorization: Bearer <token>
     クライアント → サーバ: {"type":"comment","text":"..."}
     サーバ → クライアント:
-      {"type":"history","items":[{"nickname","text","kind"}]}       接続直後に1回:最近のコメント(kind は user/host/bot)
+      {"type":"history","items":[{"nickname","text","kind","ts"}]}  接続直後に1回:最近のコメント(kind は user/host/bot)
+      ※ comment / host_reply / purchase と履歴には時刻 ts(ISO 8601、UTC)が付く
       {"type":"viewers","count":N}                                   視聴者数
       {"type":"comment","nickname","text"}                           視聴者・BOT のコメント
       {"type":"host_reply","id","nickname","text","product_id","emotion","audio_pending"}  AI主播(文字。先に届く)

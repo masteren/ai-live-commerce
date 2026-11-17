@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text, CheckConstraint, UniqueConstraint
+from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text, CheckConstraint, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -12,12 +12,21 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def iso_utc(dt: datetime) -> str:
+    """画面に渡す時刻の形(ISO 8601、UTC、秒まで)。SQLite から読んだ時刻はタイムゾーンを持たないので UTC として扱う"""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat(timespec="seconds")
+
+
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(20), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(200))   # 形式: pbkdf2_sha256$回数$ソルト$ハッシュ(旧形式 ソルト$ハッシュ も検証できる)
+    # ゲスト(登録せずに参加した人)。パスワードはなく(password_hash は検証できない値)、名前は「ゲスト1234」の形
+    is_guest: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 

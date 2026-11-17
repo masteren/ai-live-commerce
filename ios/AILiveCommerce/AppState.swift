@@ -102,9 +102,21 @@ final class AppState: ObservableObject {
 
     // MARK: 認証
     func login(username: String, password: String, register: Bool) async -> String? {
+        await authenticate {
+            register ? try await self.api.register(username: username, password: password)
+                     : try await self.api.login(username: username, password: password)
+        }
+    }
+
+    /// 登録せずにゲストとして参加する
+    func joinAsGuest() async -> String? {
+        await authenticate { try await self.api.guest() }
+    }
+
+    /// ログイン・新規登録・ゲスト参加の共通の流れ。失敗したらエラーの文言を返す
+    private func authenticate(_ call: () async throws -> TokenResponse) async -> String? {
         do {
-            let res = register ? try await api.register(username: username, password: password)
-                               : try await api.login(username: username, password: password)
+            let res = try await call()
             self.username = res.username
             rememberedUsername = res.username
             sessionVerified = true
@@ -192,8 +204,9 @@ final class AppState: ObservableObject {
             // 再接続のたびに届くので、二重にならないよう一覧を作り直す
             comments = items.map { c in
                 c.kind == "host"
-                    ? ChatLine(nickname: Theme.hostDisplayName, text: c.text, kind: .host)
-                    : ChatLine(nickname: c.nickname, text: c.text, kind: c.nickname == username ? .mine : .user)
+                    ? ChatLine(nickname: Theme.hostDisplayName, text: c.text, kind: .host, time: c.date ?? Date())
+                    : ChatLine(nickname: c.nickname, text: c.text, kind: c.nickname == username ? .mine : .user,
+                               time: c.date ?? Date())
             }
         case .viewers(let n):
             viewers = n

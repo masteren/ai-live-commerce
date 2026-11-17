@@ -235,6 +235,28 @@ final class LiveCommerceFlowUITests: XCTestCase {
         XCTAssertTrue(text(containing: "2つ目は届きますか?").waitForExistence(timeout: 15), "再ログイン後にコメントが送り直されない")
         snap("09_resent_after_login")
     }
+
+    /// 登録せずにゲストで参加 → 雑談でも(視聴者が少ないので)花奈が答える
+    func testGuestCanCommentWithoutRegistering() throws {
+        let chat = "ゲストです\(Int(Date().timeIntervalSince1970) % 100_000)"
+        type(chat, into: app.textFields["commentField"])
+        app.buttons["sendButton"].tap()
+        let guest = app.buttons["guestButton"]
+        XCTAssertTrue(guest.waitForExistence(timeout: 5), "ログインシートにゲストのボタンがない")
+        snap("11_guest_sheet")
+        guest.tap()
+        XCTAssertTrue(app.textFields["usernameField"].waitForNonExistence(timeout: 10), "ゲスト参加に失敗(シートが閉じない)")
+        dismissKeyboard()
+        XCTAssertTrue(text(containing: chat).waitForExistence(timeout: 10), "ゲストのコメントが表示されない")
+        // 履歴の中の古い回答ではなく、このコメントの「あと」に花奈の回答が来ること(一覧の最後が花奈の行になる)
+        let hostLast = NSPredicate { _, _ in
+            let rows = self.app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@ OR identifier == 'hostComment'", chat)).allElementsBoundByIndex
+            return rows.last?.identifier == "hostComment"
+        }
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: hostLast, object: nil)], timeout: 20), .completed,
+                       "雑談に花奈が答えない(視聴者が少ないときは必ず答える)")
+        snap("12_guest_reply")
+    }
 }
 
 extension XCUIApplication {

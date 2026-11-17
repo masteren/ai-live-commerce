@@ -110,6 +110,9 @@ enum LiveEvent {
         let nickname: String
         let text: String
         let kind: String      // user / host / bot
+        let ts: String?       // 発言の時刻(ISO 8601、UTC)
+
+        var date: Date? { ts.flatMap { ISO8601DateFormatter().date(from: $0) } }
     }
     /// history の items は購入のお知らせの items と形が違うので、別に読む
     private struct RawHistory: Decodable { let items: [HistoryItem] }
@@ -146,4 +149,9 @@ struct ChatLine: Identifiable {
     let nickname: String
     let text: String
     let kind: Kind
+    /// 発言の時刻。ライブ中に届いた行は届いた時刻(サーバの配信とほぼ同時)、履歴の行はサーバの記録
+    var time = Date()
+
+    /// 「12:34」(端末の地域の時刻)
+    var timeText: String { time.formatted(date: .omitted, time: .shortened) }
 }

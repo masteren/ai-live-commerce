@@ -69,6 +69,10 @@ function boot() {
   let flip = 1;                        // VRM 0.x のモデルでは -1(x・z 軸の回転を逆向きに)
   // 待機中のしぐさ:数秒おきにどれか1つ(首をかしげる・横を見る・うなずく)
   const idle = { next: 3 + Math.random() * 3, kind: null, start: 0, dur: 0, side: 1, smile: 0 };
+  // 待機中のパフォーマンス:しばらく話していないとき、ときどき体全体で動く(ダンス・手を振る・鼻歌でゆれる)。
+  // w は 0..1 の混ぜ具合。急に切り替えず、ふだんの姿勢となめらかに行き来する。話し始めたらすぐにやめる
+  const PERF = { dance: 8, wave: 3.2, hum: 6 };            // それぞれの長さ(秒)。hum は鼻歌を歌うように、ゆっくり左右にゆれる
+  const perf = { kind: null, shown: null, start: 0, w: 0, quiet: 0, next: 10 + Math.random() * 8 };
   // 視線:マウス(指)のほうを見る。しばらく動かなければ視聴者(カメラ)に戻る
   const lookTarget = new THREE.Object3D();
   scene.add(lookTarget);
@@ -114,6 +118,8 @@ function boot() {
       const map = EMOTION_EXPR[emo] || EMOTION_EXPR.normal;
       for (const k in map) tgt[k] = map[k];
     },
+    /** 待機中のパフォーマンスをすぐに始める(確認用。'dance' / 'wave' / 'hum') */
+    perform(kind) { if (PERF[kind]) { perf.kind = perf.shown = kind; perf.start = clock.elapsedTime; } },
     talkFor(ms) { fakeTalkUntil = performance.now() + Math.min(ms || 1500, 12000); },
     resumeAudio() { ensureCtx(); if (actx && actx.state === 'suspended') actx.resume(); },
     attachAudio(el) {
@@ -197,11 +203,47 @@ function boot() {
     const t = clock.elapsedTime;
 
     if (vrm) {
+      // ---- 待機中のパフォーマンスを始める・やめる ----
+      const talkingNow = lipActive || performance.now() < fakeTalkUntil || mouth > 0.05;
+      perf.quiet = talkingNow ? 0 : perf.quiet + dt;
+      perf.next -= dt;
+      if (!perf.kind && perf.w < 0.01 && perf.next <= 0 && perf.quiet > 6) {
+        const kinds = ['dance', 'wave', 'hum', 'dance'];
+        perf.kind = perf.shown = kinds[Math.floor(Math.random() * kinds.length)];
+        perf.start = t;
+      }
+      if (perf.kind && (talkingNow || t - perf.start > PERF[perf.kind])) {
+        perf.kind = null;
+        perf.next = 15 + Math.random() * 15;
+      }
+      perf.w += ((perf.kind ? 1 : 0) - perf.w) * Math.min(1, dt * (perf.kind ? 2.5 : talkingNow ? 8 : 3));
+      const P = perf.w > 0.001 ? perf.shown : null, W = perf.w, pt = t - perf.start;
+      // パフォーマンスの姿勢(ふだんの姿勢からの差)。下で W を掛けて足す
+      const d = { armL: 0, armR: 0, foreLy: 0, foreRy: 0, foreLz: 0, foreRz: 0, hipsZ: 0, hipsY: 0, spineZ: 0, bounce: 0, roll: 0, yaw: 0, smile: 0 };
+      if (P === 'dance') {
+        const s = Math.sin(pt * Math.PI * 2 * 0.9);           // 左右のステップ(約 108 BPM)
+        d.hipsZ = s * 0.07; d.spineZ = -s * 0.05; d.hipsY = Math.sin(pt * Math.PI * 0.9) * 0.08;
+        d.bounce = Math.abs(s) * 0.014;                         // ステップのたびに小さく弾む
+        // 両手を顔の横まで上げ(手を振るときと同じ形)、拍に合わせて左右交互に上下させる
+        d.armL = 0.6; d.armR = 0.6;
+        d.foreLz = 1.5 + 0.22 * s; d.foreRz = -(1.5 - 0.22 * s);
+        d.foreLy = -0.45; d.foreRy = 0.45;
+        d.roll = s * 0.07; d.smile = 0.7;
+      } else if (P === 'wave') {
+        d.armR = 0.75;                                         // 右手を横に上げ、ひじから先を立てて振る
+        d.foreRz = -1.6 + 0.32 * Math.sin(pt * Math.PI * 2 * 2.2);
+        d.foreRy = 0.45;
+        d.roll = 0.07; d.smile = 0.7;
+      } else if (P === 'hum') {
+        const s = Math.sin(pt * Math.PI * 2 * 0.45);          // ゆっくりゆれる
+        d.hipsZ = s * 0.04; d.spineZ = -s * 0.02; d.roll = s * 0.12; d.smile = 0.6;
+      }
+
       // 表情をなめらかに切り替える
       EXPR_KEYS.forEach(k => {
         cur[k] += (tgt[k] - cur[k]) * Math.min(1, dt * 8);
-        // 待機中のほほえみ(しぐさの1つ)は、感情の表情に少し足す
-        setExpr(k, k === 'relaxed' ? Math.min(1, cur[k] + idle.smile) : cur[k]);
+        // 待機中のほほえみ(しぐさ・パフォーマンス)は、感情の表情に少し足す
+        setExpr(k, k === 'relaxed' ? Math.min(1, cur[k] + Math.max(idle.smile, d.smile * W)) : cur[k]);
       });
 
       // 口:実際の音声 → なければ時間で動かす → どちらもなければ閉じる
@@ -224,21 +266,22 @@ function boot() {
       // ---- 体の動き(毎フレーム設定し直す。update に上書きされないように) ----
       // 呼吸:胸がゆっくり上下し、肩もわずかに動く
       const breath = Math.sin(t * 1.25);
-      if (armL) armL.rotation.z = flip * (-1.2 + breath * 0.015);
-      if (armR) armR.rotation.z = flip * (1.2 - breath * 0.015);
+      if (armL) armL.rotation.z = flip * (-1.2 + breath * 0.015 + d.armL * W);
+      if (armR) armR.rotation.z = flip * (1.2 - breath * 0.015 - d.armR * W);
       // ひじを少し曲げ、手を体の少し前に(まっすぐ下ろしたままだと棒立ちに見える)
-      if (foreL) { foreL.rotation.z = flip * -0.1; foreL.rotation.y = -0.22; }
-      if (foreR) { foreR.rotation.z = flip * 0.1; foreR.rotation.y = 0.22; }
+      if (foreL) { foreL.rotation.z = flip * (-0.1 + d.foreLz * W); foreL.rotation.y = -0.22 + d.foreLy * W; }
+      if (foreR) { foreR.rotation.z = flip * (0.1 + d.foreRz * W); foreR.rotation.y = 0.22 + d.foreRy * W; }
       if (bone.chest) bone.chest.rotation.x = flip * breath * 0.012;
       // 重心の移動:腰がゆっくり左右に傾き、背骨で打ち消してまっすぐ立つ
       const sway = Math.sin(t * 0.45);
-      if (bone.hips) bone.hips.rotation.z = flip * sway * 0.022;
-      if (bone.spine) { bone.spine.rotation.z = flip * -sway * 0.018; bone.spine.rotation.x = flip * breath * 0.006; }
+      if (bone.hips) { bone.hips.rotation.z = flip * (sway * 0.022 + d.hipsZ * W); bone.hips.rotation.y = d.hipsY * W; }
+      if (bone.spine) { bone.spine.rotation.z = flip * (-sway * 0.018 + d.spineZ * W); bone.spine.rotation.x = flip * breath * 0.006; }
 
       // 頭:いくつかの遅い揺れを重ねて、規則的に見えないようにする
       let yaw = 0.06 * Math.sin(t * 0.37) + 0.03 * Math.sin(t * 0.83 + 1.3);
       let pitch = 0.025 * Math.sin(t * 0.51 + 0.7);
-      let roll = 0.02 * Math.sin(t * 0.29 + 2.0);
+      let roll = 0.02 * Math.sin(t * 0.29 + 2.0) + d.roll * W;
+      yaw += d.yaw * W;
       // 待機中のしぐさ(話している最中は始めない)
       idle.next -= dt;
       if (!idle.kind && idle.next <= 0 && mouth < 0.05) {
@@ -269,7 +312,7 @@ function boot() {
       if (bone.neck) { bone.neck.rotation.y = yaw * 0.4; bone.neck.rotation.x = flip * pitch * 0.4; }
       if (bone.head) { bone.head.rotation.y = yaw * 0.6; bone.head.rotation.x = flip * pitch * 0.6; bone.head.rotation.z = flip * roll; }
       // 感情が excited のときは、体ごと小さく弾む
-      vrm.scene.position.y = cur.surprised > 0.05 ? Math.abs(Math.sin(t * 6)) * 0.006 * cur.relaxed : 0;
+      vrm.scene.position.y = (cur.surprised > 0.05 ? Math.abs(Math.sin(t * 6)) * 0.006 * cur.relaxed : 0) + d.bounce * W;
 
       vrm.update(dt);
     }

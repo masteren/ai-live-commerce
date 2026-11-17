@@ -37,6 +37,13 @@ final class APIClient {
         return res
     }
 
+    /// 登録せずにゲストとして参加する(「ゲスト1234」のような名前が付く)
+    func guest() async throws -> TokenResponse {
+        let res: TokenResponse = try await request("POST", "/api/auth/guest/token", body: nil, auth: false)
+        Keychain.save(res.accessToken)
+        return res
+    }
+
     func me() async throws -> MeResponse { try await request("GET", "/api/auth/me") }
 
     func logout() async {

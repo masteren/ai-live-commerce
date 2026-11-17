@@ -22,7 +22,13 @@ async def test_question_is_always_enqueued(monkeypatch):
     assert host.queue.qsize() == 1
 
 
+def _viewers(monkeypatch, n):
+    """視聴者数を n 人にする(接続の代わりにただのオブジェクトを入れる)"""
+    monkeypatch.setattr(ai_host.manager, "connections", {object() for _ in range(n)})
+
+
 async def test_chat_reply_depends_on_probability(monkeypatch):
+    _viewers(monkeypatch, 10)                                       # 人が多いときは確率で答える
     monkeypatch.setattr(ai_host.random, "random", lambda: 0.99)
     await host.on_comment("taro", "わーい")
     assert host.queue.qsize() == 0
@@ -145,3 +151,16 @@ async def test_speak_without_voice_sends_text_only(monkeypatch):
     monkeypatch.setattr(ai_host, "tts", FailingTTS())
     await host._speak("合成に失敗", None, "normal", save=False)
     assert [m["type"] for m in sent] == ["host_reply"] and sent[0]["audio_pending"] is True
+
+
+async def test_few_viewers_always_get_reply_but_bot_does_not(monkeypatch):
+    """視聴者が少ないときは雑談にも必ず答える。BOT のコメントはこの対象外(BOT だけで会話が回り続けないように)"""
+    monkeypatch.setattr(ai_host.random, "random", lambda: 0.99)    # 雑談なら答えない値
+    _viewers(monkeypatch, 3)
+    await host.on_comment("taro", "你好")
+    assert host.queue.qsize() == 1
+    await host.on_comment("さくら", "わーい", is_bot=True)
+    assert host.queue.qsize() == 1
+    _viewers(monkeypatch, 4)
+    await host.on_comment("taro", "わーい")
+    assert host.queue.qsize() == 1

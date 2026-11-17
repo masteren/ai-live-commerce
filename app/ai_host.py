@@ -158,10 +158,13 @@ class AIHost:
         self._products: list = []          # 販売中の商品(略称での言及判定に使う)
 
     # ---------- 外から呼ばれる入口 ----------
-    async def on_comment(self, nickname: str, text: str) -> None:
-        """応答の方針:質問、または商品への言及(「マグ」のような略称も含む)には必ず答え、雑談には確率で答える"""
+    async def on_comment(self, nickname: str, text: str, is_bot: bool = False) -> None:
+        """応答の方針:質問、または商品への言及(「マグ」のような略称も含む)には必ず答え、雑談には確率で答える。
+        ただし視聴者が少ないとき(always_reply_max_viewers 人以下)は、視聴者の雑談にも必ず答える(BOT のコメントは除く)"""
         self.last_activity_at = time.time()
-        must = looks_like_question(text) or host_rules.mentions_product(text, self._products)
+        few_viewers = not is_bot and manager.viewer_count <= settings.always_reply_max_viewers
+        must = (few_viewers or looks_like_question(text)
+                or host_rules.mentions_product(text, self._products))
         if not must and random.random() > settings.chat_reply_prob:
             return
         await self._enqueue({"kind": "reply", "nickname": nickname, "text": text})

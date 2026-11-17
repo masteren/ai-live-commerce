@@ -219,6 +219,15 @@ async def main():
             check("新连接先收到历史弹幕", first["type"] == "history"
                   and ("user", "iOSから参加しています") in texts and any(k == "host" for k, _ in texts),
                   f"{len(texts)}件")
+            check("历史弹幕带时间(UTC)", all(i.get("ts", "").endswith("+00:00") for i in first["items"]))
+
+            # 游客:不注册就能发弹幕,人少时闲聊也会得到回复
+            g = (await c.post("/api/auth/guest/token")).json()
+            async with websockets.connect(WS, additional_headers={"Authorization": f"Bearer {g['access_token']}"}) as wg:
+                await drain(wg)
+                await wg.send(json.dumps({"type": "comment", "text": "わーい"}))
+                m = await wait_for(wg, lambda m: m["type"] == "comment" and m["nickname"] == g["username"], 5)
+                check("游客发弹幕(名字是ゲスト+数字)", m is not None and g["username"].startswith("ゲスト") and "ts" in m)
 
             # ---- 购买 → 广播 + 主播道谢 ----
             await web.post("/api/cart", headers=W, json={"product_id": 2, "quantity": 1})

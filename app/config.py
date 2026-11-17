@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     reply_min_interval: float = 4.0      # AI の返答と返答の最小間隔(秒)。連続で話しすぎない・費用を抑える
     idle_interval: float = 45.0          # コメントがないとき、ホストが自動で話す間隔(秒)
     chat_reply_prob: float = 0.3         # 雑談コメントに答える確率(質問には必ず答える)
+    always_reply_max_viewers: int = 3    # 視聴者がこの人数以下なら、雑談にも必ず答える(人が少ないのに返事がないと寂しいため)
 
     # ---- OpenAI 互換 API(AI ホストと、BOT のコメント生成に使う) ----
     # キーが空なら BOT は組み込みの定型コメントだけを使う。互換 API を使う場合は base_url を変える

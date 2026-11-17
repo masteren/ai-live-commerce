@@ -12,6 +12,11 @@
     ログイン成功時に古い形式のハッシュを自動で更新する
   - トークン:secrets で作るランダムな値。DB には SHA-256 のハッシュだけを保存。有効期限あり。ログアウトでセッションを削除
   - ログイン失敗の回数制限:同じ IP+ユーザー名 で短時間に失敗が多すぎる → 429(総当たり対策)
+
+■ ゲスト(登録せずに参加)
+  「ゲスト1234」という名前のユーザーを作り、そのままログインした状態にする。コメントも購入もできる。
+  パスワードは持たない(password_hash に検証できない値を入れる)ので、ログアウトするとその名前には戻れない。
+  「ゲスト」で始まる名前は新規登録では使えない(ゲストのふりをさせない)。作成は新規登録と同じ回数制限を受ける
 """
 import asyncio
 import hashlib
@@ -35,6 +40,9 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 COOKIE_NAME = "lc_session"
 CSRF_HEADER = "x-csrf-token"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+GUEST_PREFIX = "ゲスト"
+NO_PASSWORD = "!"         # ゲストの password_hash。_parse_hash で形式エラーになるので、どんなパスワードとも一致しない
 
 login_limiter = SlidingWindowLimiter(settings.login_fail_limit, settings.login_fail_window)
 register_limiter = SlidingWindowLimiter(settings.register_limit, settings.register_window)
@@ -190,10 +198,46 @@ async def _authenticate(body: AuthIn, request: Request, db: AsyncSession) -> Use
     return user
 
 
+async def _create_guest(request: Request, db: AsyncSession) -> User:
+    if not register_limiter.hit(client_ip(request)):
+        raise HTTPException(429, "参加の回数が多すぎます。しばらくしてから再度お試しください")
+    # 番号はランダム。すでに使われていたら(一意制約に当たったら)別の番号で作り直す。
+    # 先に「使われているか」を調べる方法だと、同時に同じ番号を選んだときに重なるので、DB の一意制約で判定する
+    for digits in (4, 4, 4, 6, 6, 6):
+        name = GUEST_PREFIX + "".join(secrets.choice("0123456789") for _ in range(digits))
+        user = User(username=name, password_hash=NO_PASSWORD, is_guest=True)
+        db.add(user)
+        try:
+            await db.commit()
+            return user
+        except IntegrityError:
+            await db.rollback()
+    raise HTTPException(503, "ただいま混み合っています。もう一度お試しください")
+
+
 # ---------- エンドポイント ----------
+@router.post("/guest", response_model=WebAuthOut)
+async def guest(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    """Web 用:登録せずにゲストとして参加する(Cookie を設定)"""
+    user = await _create_guest(request, db)
+    raw, sess = await _create_session(db, user)
+    _set_session_cookie(response, raw)
+    return WebAuthOut(username=user.username, csrf_token=sess.csrf_token)
+
+
+@router.post("/guest/token", response_model=TokenOut)
+async def guest_token(request: Request, db: AsyncSession = Depends(get_db)):
+    """アプリ用:ゲストとして参加し、Bearer トークンを返す"""
+    user = await _create_guest(request, db)
+    raw, sess = await _create_session(db, user)
+    return TokenOut(username=user.username, access_token=raw, expires_at=sess.expires_at.isoformat())
+
+
 @router.post("/register", response_model=WebAuthOut)
 async def register(body: AuthIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     """Web 用:新規登録して、そのままログインする(Cookie を設定)"""
+    if body.username.startswith(GUEST_PREFIX):
+        raise HTTPException(400, f"「{GUEST_PREFIX}」で始まるユーザー名は使えません")
     if not register_limiter.hit(client_ip(request)):
         raise HTTPException(429, "登録の回数が多すぎます。しばらくしてから再度お試しください")
     exists = await db.execute(select(User).where(User.username == body.username))
