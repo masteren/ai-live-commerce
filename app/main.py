@@ -22,6 +22,7 @@ from .config import settings
 from .database import SessionLocal
 from .migrate import run_migrations
 from .models import Comment
+from .queries import recent_comments
 from .ratelimit import SlidingWindowLimiter
 from . import security
 from .seed import seed_products
@@ -133,6 +134,7 @@ async def live_ws(ws: WebSocket):
       アプリ   → 接続時のヘッダ Authorization: Bearer <token>
     クライアント → サーバ: {"type":"comment","text":"..."}
     サーバ → クライアント:
+      {"type":"history","items":[{"nickname","text","kind"}]}       接続直後に1回:最近のコメント(kind は user/host/bot)
       {"type":"viewers","count":N}                                   視聴者数
       {"type":"comment","nickname","text"}                           視聴者・BOT のコメント
       {"type":"host_reply","id","nickname","text","product_id","emotion","audio_pending"}  AI主播(文字。先に届く)
@@ -145,7 +147,9 @@ async def live_ws(ws: WebSocket):
         await ws.close(code=1008)   # 接続を受け付ける前に閉じる → クライアントには 403 が返る
         return
     raw_token, _ = extract_token(ws.headers, ws.cookies)
-    await manager.connect(ws)
+    async with SessionLocal() as db:
+        history = await recent_comments(db)
+    await manager.connect(ws, first={"type": "history", "items": history})
     try:
         while True:
             raw = await ws.receive_text()

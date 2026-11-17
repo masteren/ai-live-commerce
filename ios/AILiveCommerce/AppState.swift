@@ -188,6 +188,13 @@ final class AppState: ObservableObject {
 
     private func handle(_ ev: LiveEvent) {
         switch ev {
+        case .history(let items):
+            // 再接続のたびに届くので、二重にならないよう一覧を作り直す
+            comments = items.map { c in
+                c.kind == "host"
+                    ? ChatLine(nickname: Theme.hostDisplayName, text: c.text, kind: .host)
+                    : ChatLine(nickname: c.nickname, text: c.text, kind: c.nickname == username ? .mine : .user)
+            }
         case .viewers(let n):
             viewers = n
         case .comment(let nick, let text):

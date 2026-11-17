@@ -79,6 +79,8 @@ struct HostReply {
 }
 
 enum LiveEvent {
+    /// 接続直後に1回届く、最近のコメント(古い順)
+    case history([HistoryItem])
     case viewers(Int)
     case comment(nickname: String, text: String)
     case hostReply(HostReply)
@@ -89,6 +91,7 @@ enum LiveEvent {
     case error(String)
 
     /// {"type": ...} を見て種類を判定する
+    private struct RawType: Decodable { let type: String }
     private struct Raw: Decodable {
         let type: String
         let id: String?
@@ -103,10 +106,22 @@ enum LiveEvent {
         let message: String?
     }
 
+    struct HistoryItem: Decodable {
+        let nickname: String
+        let text: String
+        let kind: String      // user / host / bot
+    }
+    /// history の items は購入のお知らせの items と形が違うので、別に読む
+    private struct RawHistory: Decodable { let items: [HistoryItem] }
+
     static func decode(_ json: String) -> LiveEvent? {
         let d = JSONDecoder()
         d.keyDecodingStrategy = .convertFromSnakeCase
-        guard let data = json.data(using: .utf8), let r = try? d.decode(Raw.self, from: data) else { return nil }
+        guard let data = json.data(using: .utf8), let type = (try? d.decode(RawType.self, from: data))?.type else { return nil }
+        if type == "history" {
+            return (try? d.decode(RawHistory.self, from: data)).map { .history($0.items) }
+        }
+        guard let r = try? d.decode(Raw.self, from: data) else { return nil }
         switch r.type {
         case "viewers": return .viewers(r.count ?? 0)
         case "comment": return .comment(nickname: r.nickname ?? "", text: r.text ?? "")

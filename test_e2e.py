@@ -212,6 +212,14 @@ async def main():
             m = await wait_for(wb, lambda m: m["type"] == "comment" and m["text"] == "iOSから参加しています", 5)
             check("Bearer认证的WebSocket发言", m is not None and m["nickname"] == "taro")
 
+            # 后来进入的观众:连接后的第一条消息是历史弹幕(含视听者和主播的发言)
+            async with websockets.connect(WS) as wd:
+                first = json.loads(await asyncio.wait_for(wd.recv(), 5))
+            texts = [(i["kind"], i["text"]) for i in first.get("items", [])]
+            check("新连接先收到历史弹幕", first["type"] == "history"
+                  and ("user", "iOSから参加しています") in texts and any(k == "host" for k, _ in texts),
+                  f"{len(texts)}件")
+
             # ---- 购买 → 广播 + 主播道谢 ----
             await web.post("/api/cart", headers=W, json={"product_id": 2, "quantity": 1})
             await web.post("/api/orders/checkout", headers=W, json={"payment_method": "convenience_store"})

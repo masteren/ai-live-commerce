@@ -326,6 +326,13 @@ function connect(){
   ws.onmessage = (ev)=>{
     const m = JSON.parse(ev.data);
     switch (m.type){
+      case 'history':   // 接続直後に届く最近のコメント。再接続のときに二重にならないよう、一覧を作り直す
+        $('comments').replaceChildren();
+        m.items.forEach(c=>{
+          if (c.kind==='host') addComment('花奈', c.text, 'host');
+          else addComment(c.nickname, c.text, c.nickname===username ? 'me' : '');
+        });
+        break;
       case 'viewers': $('viewers').textContent = m.count; break;
       case 'comment': addComment(m.nickname, m.text, m.nickname===username?'me':''); break;
       case 'host_reply':
@@ -421,4 +428,5 @@ fetch('/api/meta').then(r=>r.json()).then(m=>{
   $('ttsCredit').textContent = m.tts_credit || 'なし(文字のみ)';
   $('llmCredit').textContent = m.llm;
 }).catch(()=>{});
-checkSession().then(refreshCart); loadProducts(); connect();
+// 接続はログイン状態が分かってから(履歴の中の自分のコメントを見分けるため)
+checkSession().catch(()=>{}).then(()=>{ refreshCart(); connect(); }); loadProducts();

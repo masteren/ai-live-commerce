@@ -16,8 +16,12 @@ class ConnectionManager:
     def viewer_count(self) -> int:
         return len(self.connections)
 
-    async def connect(self, ws: WebSocket) -> None:
+    async def connect(self, ws: WebSocket, first: dict[str, Any] | None = None) -> None:
+        """first:配信の対象に加える前に、この接続にだけ送るメッセージ(コメントの履歴)。
+        先に送ってから加えるので、履歴とその後のコメントの順番が入れ替わったり、二重に届いたりしない"""
         await ws.accept()
+        if first is not None:
+            await ws.send_text(json.dumps(first, ensure_ascii=False))
         async with self._lock:
             self.connections.add(ws)
             self.peak_viewers = max(self.peak_viewers, len(self.connections))
