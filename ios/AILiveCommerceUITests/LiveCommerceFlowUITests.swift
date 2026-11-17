@@ -17,9 +17,9 @@ final class LiveCommerceFlowUITests: XCTestCase {
         app.launchArguments = ["--reset-session", "--ui-testing"]
         // 接続先を変える:TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test ...
         // (開発サーバとは別の、空の DB で起動したテスト用サーバに向けるため。「-キー 値」の引数は UserDefaults を上書きする)
-        if let base = ProcessInfo.processInfo.environment["API_BASE"] {
-            app.launchArguments += ["-apiBaseURL", base]
-        }
+        // 指定がなくても必ず手元のサーバに向ける(アプリの既定は公開サーバなので、テストが本番に注文を作らないように)
+        let base = ProcessInfo.processInfo.environment["API_BASE"] ?? "http://127.0.0.1:8000"
+        app.launchArguments += ["-apiBaseURL", base]
         app.launch()
     }
 

@@ -1,11 +1,12 @@
 import Foundation
 
 /// 接続先サーバの設定(アカウント画面から変更可能、UserDefaults に保存)
-/// - シミュレータ: Mac 上のサーバに http://127.0.0.1:8000 で届く
-/// - 実機: Mac の LAN IP(例 http://192.168.0.10:8000)を指定し、サーバを --host 0.0.0.0 で起動する
+/// - 既定: 公開サーバ(インストールしてすぐ、どのネットワークからでも使える)
+/// - シミュレータで開発サーバを使う: http://127.0.0.1:8000
+/// - 実機で開発サーバを使う: Mac の LAN IP(例 http://192.168.0.10:8000)を指定し、サーバを --host 0.0.0.0 で起動する
 enum AppConfig {
     static let baseURLKey = "apiBaseURL"
-    static let defaultBaseURL = "http://127.0.0.1:8000"
+    static let defaultBaseURL = "https://live.masteren.cloud"
 
     /// UI テストから起動されたか。テスト中は iOS のパスワード自動入力(候補の表示・「保存しますか?」の確認)を止める。
     /// これらは OS が出す画面で、テストの操作を横取りして結果が不安定になるため

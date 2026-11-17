@@ -16,9 +16,9 @@ Web 版と **同じ API** を使う iOS クライアントです(サーバ側の
 - **iOS 17 以上**、外部ライブラリなし。
 
 ## 実行方法
-1. サーバを起動(リポジトリのルートで):`uvicorn app.main:app --reload`
-2. `ios/AILiveCommerce.xcodeproj` を Xcode で開き、iPhone シミュレータを選んで ▶︎(Run)
-3. シミュレータからは `http://127.0.0.1:8000` で Mac 上のサーバに接続できる
+1. `ios/AILiveCommerce.xcodeproj` を Xcode で開き、iPhone シミュレータ(または実機)を選んで ▶︎(Run)
+2. 既定の接続先は公開サーバ(https://live.masteren.cloud)。そのまま使える
+3. 手元のサーバで開発するとき:サーバを起動(`uvicorn app.main:app --reload`)し、アプリの「アカウント → 開発者向け設定」で接続先を `http://127.0.0.1:8000`(シミュレータ)/ Mac の LAN の IP(実機)に変える
 
 ### UI テスト(XCUITest)
 サーバを起動した状態で、Xcode の ⌘U、またはコマンドで実行:

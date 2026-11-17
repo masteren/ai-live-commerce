@@ -149,7 +149,7 @@ struct DeveloperSettingsView: View {
     var body: some View {
         List {
             Section {
-                TextField("http://127.0.0.1:8000", text: $baseURL)
+                TextField(AppConfig.defaultBaseURL, text: $baseURL)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -159,7 +159,7 @@ struct DeveloperSettingsView: View {
             } header: {
                 Text("接続先サーバ")
             } footer: {
-                Text("シミュレータは 127.0.0.1、実機は Mac の LAN の IP アドレスを指定します。ログインは接続先ごとに保存されます。")
+                Text("既定は公開サーバ(\(AppConfig.defaultBaseURL))。開発用の Mac に向けるときは、シミュレータは http://127.0.0.1:8000、実機は Mac の LAN の IP アドレスを指定します。ログインは接続先ごとに保存されます。")
             }
         }
         .scrollContentBackground(.hidden)
