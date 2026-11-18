@@ -4,7 +4,10 @@ from types import SimpleNamespace as P
 
 import pytest
 
-from app.host_rules import detect_intent, find_product, off_rate, product_keywords, rule_reply, spotlight
+from app.host_rules import (
+    FOREIGN_FALLBACK, comment_lang, detect_intent, find_product, is_japanese, off_rate, product_keywords,
+    rule_reply, spotlight,
+)
 
 PRODUCTS = [
     P(id=1, name="ワイヤレスイヤホン Pro", price=4980, original_price=7980, stock=30,
@@ -78,3 +81,39 @@ def test_replies_do_not_all_start_with_thanks():
 
 def test_spotlight_mentions_discount():
     assert "38%オフ" in spotlight(PRODUCTS[0]) and "4,980円" in spotlight(PRODUCTS[0])
+
+
+# ---------- 多言語:コメントの言語の判定と、LLM なしのときの案内 ----------
+@pytest.mark.parametrize("text,expected", [
+    ("在庫ありますか", "ja"),
+    ("在庫", "ja"),                        # 漢字だけの日本語
+    ("送料無料", "ja"),
+    ("OK", "ja"),                          # 短い英字は言語を決めない
+    ("www", "ja"),
+    ("👍", "ja"),
+    ("这个多少钱", "zh"),
+    ("這個多少錢嗎", "zh"),
+    ("How much is this?", "other"),
+    ("얼마예요", "other"),
+])
+def test_comment_lang(text, expected):
+    assert comment_lang(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("マグは1,880円です。", True),
+    ("PayPayが使えます。", True),
+    ("合成に失敗", True),
+    ("这款耳机现在是¥4,980。", False),
+    ("みほさん,这款还有货。", False),      # 中国語の文に日本語の名前
+    ("Hi みほさん, the price is ¥4,980.", False),   # 英語の文に日本語の名前
+    ("가격은 ¥4,980입니다.", False),
+    ("4,980", False),
+])
+def test_is_japanese(text, expected):
+    assert is_japanese(text) is expected
+
+
+def test_rule_reply_does_not_answer_foreign_comment_in_japanese():
+    assert rule_reply("a", "这个耳机多少钱?", PRODUCTS, RNG()) == (FOREIGN_FALLBACK["zh"], None, "troubled")
+    assert rule_reply("a", "How much is this?", PRODUCTS, RNG()) == (FOREIGN_FALLBACK["other"], None, "troubled")

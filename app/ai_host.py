@@ -92,7 +92,9 @@ def parse_llm_reply(raw: str, product_ids: "set[int]") -> "Optional[tuple[str, O
     if not isinstance(j, dict) or not isinstance(j.get("reply"), str) or not j["reply"].strip():
         return None
     reply = j["reply"].strip()
-    hard_limit = settings.reply_max_chars * 2
+    # 英語などは同じ内容でも日本語より文字数が多くなるので、上限を広げる(U+2E80 以降は漢字・かな・ハングル)
+    wide_script = any(ord(c) >= 0x2E80 for c in reply)
+    hard_limit = settings.reply_max_chars * (2 if wide_script else 4)
     if len(reply) > hard_limit:
         reply = reply[:hard_limit].rstrip() + "…"
     pid = j.get("product_id")
@@ -102,34 +104,66 @@ def parse_llm_reply(raw: str, product_ids: "set[int]") -> "Optional[tuple[str, O
 
 
 # 存在しない案内先(このデモには公式サイトも店舗も電話窓口もない)
-_FAKE_REFERRAL_RE = re.compile(r"公式サイト|公式ページ|ホームページ|店舗|お電話|電話|カスタマー|サポートセンター|メーカー")
+_FAKE_REFERRAL_RE = re.compile(
+    r"公式サイト|公式ページ|ホームページ|店舗|お電話|電話|カスタマー|サポートセンター|メーカー"
+    r"|官网|官網|官方网站|官方網站|门店|門市|实体店|實體店|电话|客服|厂家|厂商|廠商"
+    r"|(?i:official (?:web)?site|website|customer (?:service|support)|manufacturer|physical store"
+    r"|call us|(?:by|via|over the) phone|phone (?:number|support))"
+)
 
 
 def strip_fake_referrals(reply: str) -> str:
     """「詳しくは公式サイトで」のような、存在しない案内先に触れた文を取り除く"""
-    sentences = [x for x in re.split(r"(?<=[。!?!?])", reply) if x.strip()]
+    sentences = [x for x in re.split(r"(?<=[。!?!?])|(?<=\.)(?=\s)", reply) if x.strip()]
     kept = [x for x in sentences if not _FAKE_REFERRAL_RE.search(x)]
     return "".join(kept).strip() if kept else reply
+
+
+# 日本語以外の返答で使わせない表現:外貨への換算と「7折」(数字だけなら別の商品情報の値と偶然一致してしまう)
+_OTHER_CURRENCY_RE = re.compile(r"[$€£₩]\s?\d|\d\s*(?:美元|美金|欧元|歐元|韩元|韓元|ドル|달러|원|折|(?i:usd|dollars?|euros?)\b)")
+# 日本語以外の返答の在庫数:「还剩 3 件」「3 left」など
+_FOREIGN_STOCK_RE = re.compile(
+    r"(?:剩|库存|庫存|재고)\D{0,8}?(\d+)|(\d+)\s*(?:件|个|個|개|(?i:left|in stock|units?|items?)\b)"
+)
 
 
 def facts_are_consistent(reply: str, products) -> bool:
     """返答に出てくる数字(金額・割引率・在庫数)が、DB の値と一致しているか。
     LLM は数字を間違えることがある(実際に 38% を 36% と答えた)。プロンプトで頼むだけでは防げないので、
-    コードで照合し、合わなければその返答は使わない(呼び出し側でルール応答に切り替える)。"""
+    コードで照合し、合わなければその返答は使わない(呼び出し側でルール応答に切り替える)。
+
+    日本語以外の返答は、単位の書き方を言語ごとに網羅できないので、より厳しく確認する:
+    文中のすべての数字が、商品データか店舗情報に実在する値でなければ使わない。"""
     prices = {p.price for p in products} | {p.original_price for p in products}
     rates = {host_rules.off_rate(p.price, p.original_price) for p in products}
     stocks = {p.stock for p in products}
     text = reply.translate(str.maketrans("0123456789,%", "0123456789,%"))
-    for m in re.finditer(r"[¥¥]\s?([\d,]+)|([\d,]+)\s*円", text):
+    for m in re.finditer(r"[¥¥]\s?(\d[\d,]*)|(\d[\d,]*)\s*(?:円|日元|日圆|日圓|元|엔|(?i:yen|jpy))", text):
         if int((m.group(1) or m.group(2)).replace(",", "")) not in prices:
             return False
-    for m in re.finditer(r"(\d{1,3})\s*(?:%|パーセント)", text):
+    for m in re.finditer(r"(\d{1,3})\s*(?:%|パーセント|퍼센트|(?i:percent))", text):
         if int(m.group(1)) not in rates:
             return False
     for m in re.finditer(r"(?:在庫|残り)[^。]{0,8}?(\d+)\s*点", text):
         if int(m.group(1)) not in stocks:
             return False
-    return True
+    if host_rules.is_japanese(reply):
+        return True
+    if _OTHER_CURRENCY_RE.search(text):
+        return False
+    for m in _FOREIGN_STOCK_RE.finditer(text):
+        if int(m.group(1) or m.group(2)) not in stocks:
+            return False
+    known = {str(n) for n in prices | rates | stocks}
+    known.update(_numbers(host_rules.SHIPPING + " " + host_rules.RETURNS))
+    for p in products:
+        known.update(_numbers(f"{p.name} {p.description}"))
+    return all(n in known for n in _numbers(text))
+
+
+def _numbers(text: str) -> "list[str]":
+    """文中の数字を取り出す(「1,280」→「1280」)"""
+    return [m.replace(",", "") for m in re.findall(r"\d+(?:,\d{3})*(?:\.\d+)?", text)]
 
 
 def adjust_emotion(reply: str, product, emotion: str) -> str:
@@ -140,9 +174,9 @@ def adjust_emotion(reply: str, product, emotion: str) -> str:
     """
     if emotion != "normal" or product is None:
         return emotion
-    if re.search(r"在庫|残り", reply) and product.stock <= host_rules.LOW_STOCK:
+    if re.search(r"在庫|残り|库存|庫存|재고|(?i:\bstock\b|\bleft\b)", reply) and product.stock <= host_rules.LOW_STOCK:
         return "troubled"
-    if re.search(r"円|¥|¥|オフ|OFF|割引|お得", reply) and \
+    if re.search(r"円|¥|¥|オフ|OFF|割引|お得|%|%|日元|折扣|优惠|優惠|할인|(?i:\bdiscount\b|\boff\b|\byen\b)", reply) and \
             host_rules.off_rate(product.price, product.original_price) >= host_rules.BIG_DISCOUNT:
         return "excited"
     return emotion
@@ -160,10 +194,12 @@ class AIHost:
     # ---------- 外から呼ばれる入口 ----------
     async def on_comment(self, nickname: str, text: str, is_bot: bool = False) -> None:
         """応答の方針:質問、または商品への言及(「マグ」のような略称も含む)には必ず答え、雑談には確率で答える。
-        ただし視聴者が少ないとき(always_reply_max_viewers 人以下)は、視聴者の雑談にも必ず答える(BOT のコメントは除く)"""
+        ただし視聴者が少ないとき(always_reply_max_viewers 人以下)は、視聴者の雑談にも必ず答える(BOT のコメントは除く)。
+        質問の判定は日本語の言葉でしかできないので、日本語以外のコメントにも必ず答える"""
         self.last_activity_at = time.time()
         few_viewers = not is_bot and manager.viewer_count <= settings.always_reply_max_viewers
         must = (few_viewers or looks_like_question(text)
+                or host_rules.comment_lang(text) != "ja"
                 or host_rules.mentions_product(text, self._products))
         if not must and random.random() > settings.chat_reply_prob:
             return
@@ -247,7 +283,8 @@ class AIHost:
         音声は host_audio として後から届き、同じ id の host_reply に対応する。"""
         emotion = emotion if emotion in EMOTIONS else "normal"
         reply_id = secrets.token_hex(6)
-        has_voice = tts.name != "none"
+        # VOICEVOX は日本語しか読めないので、日本語以外の返答は文字だけにする
+        has_voice = tts.name != "none" and host_rules.is_japanese(text)
         if save:
             async with SessionLocal() as db:
                 db.add(Comment(nickname=settings.host_name, text=text, is_host=True))
@@ -328,14 +365,16 @@ class AIHost:
   販売アシスタントとして商品の案内を続ける
 
 # 話し方
-- ライブ配信で実際に話しているような、自然な話し言葉(です・ます)。1〜2文で短く
+- ライブ配信で実際に話しているような、自然な話し言葉(です・ます。日本語以外ではその言語の丁寧な話し方)。1〜2文で短く
 - 毎回「ありがとうございます」「ご質問ありがとうございます」から始めない。いきなり答えから話してよい
 - 視聴者の名前を呼ぶのはときどきでよい(毎回呼ぶと機械的になる)
 - 商品の話をするときは、価格・割引率・在庫・仕様のうち具体的な事実を1つ入れる
 - 決まり文句の繰り返しや大げさな表現は避ける
 
 # ルール
-- 回答は必ず日本語、{settings.reply_max_chars}文字以内、絵文字は使わない
+- 回答は、視聴者のコメントが書かれている言語で書く(中国語のコメントには中国語、英語のコメントには英語)。言語を判断できないときは日本語
+- 回答は{settings.reply_max_chars}文字以内(日本語以外は1〜2文)、絵文字は使わない
+- どの言語でも、数字は算用数字で書く。金額は ¥1,280、割引率は 30% の形のままにし、外貨への換算や「7折」のような言い換えはしない
 - 【最重要】商品について言ってよい事実は「販売中の商品」と「店舗情報」に書かれていることだけ。
   書かれていないこと(色・サイズ・素材・重さ・付属品・保証期間・対応機種・成分の詳細・発売日など)は、
   推測や一般常識で答えない。その情報は手元にないことを、自分の言葉で正直に伝える(毎回同じ言い回しにしない)。

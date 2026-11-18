@@ -34,6 +34,47 @@ INTENTS: List[Tuple[str, "re.Pattern[str]"]] = [
 
 _GENERIC_TOKENS = {"pro", "plus", "max", "mini"}
 
+# ---- 言語の判定(コメントと同じ言語で返答するために使う) ----
+_KANA_RE = re.compile(r"[ぁ-ゖァ-ヺ]")
+# 中国語にだけ出てくる字。「在庫」「送料」のような漢字だけの日本語コメントを中国語と誤判定しないよう、日本語で使う字は入れない
+_CHINESE_RE = re.compile(r"[吗嗎呢么麼这這们們您你没沒钱錢价價库货发哪谁为请还]")
+
+# 日本語以外のコメントに、LLM なしで答えるときの案内(ルール応答は日本語しか作れないため)
+FOREIGN_FALLBACK = {
+    "zh": "不好意思,现在暂时无法详细回答您的问题。价格和库存请查看画面上的商品卡片。",
+    "other": ("Sorry, I can't answer that in detail right now. "
+              "Please check the product cards on screen for prices and stock."),
+}
+
+
+def _is_han(c: str) -> bool:
+    return "一" <= c <= "鿿"
+
+
+def comment_lang(text: str) -> str:
+    """コメントの言語を "ja" / "zh" / "other" に分ける。
+    「OK」「www」や数字・絵文字だけのような、言語を決められない短いコメントは日本語として扱う"""
+    if _KANA_RE.search(text):
+        return "ja"
+    if _CHINESE_RE.search(text):
+        return "zh"
+    letters = [c for c in text if c.isalpha()]
+    if not letters or any(_is_han(c) for c in letters):
+        return "ja"
+    if all(c.isascii() for c in letters) and len(letters) < 5:
+        return "ja"
+    return "other"
+
+
+def is_japanese(text: str) -> bool:
+    """返答が日本語か。外国語の文に日本語の名前(「みほさん」)が混ざることがあるので、かながあるだけでは日本語としない"""
+    letters = [c for c in text if c.isalpha()]
+    if not letters or _CHINESE_RE.search(text):
+        return False
+    kana = len(_KANA_RE.findall(text))
+    other_script = sum(1 for c in letters if not _KANA_RE.match(c) and not _is_han(c))
+    return kana / len(letters) >= 0.2 and kana * 2 > other_script
+
 
 def yen(n: int) -> str:
     return f"{n:,}円"
@@ -104,6 +145,9 @@ def rule_reply(nickname: str, text: str, products: Sequence,
     rng = rng or random.Random()
     p = find_product(text, products)
     intent = detect_intent(text)
+    lang = comment_lang(text)
+    if lang == "zh" or (lang == "other" and not p and not intent):
+        return FOREIGN_FALLBACK[lang], None, "troubled"
     call = _maybe_call(nickname, rng)
     pid = p.id if p else None
 

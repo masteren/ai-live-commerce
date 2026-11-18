@@ -6,6 +6,7 @@ import pytest
 
 from app import llm as llm_mod
 from app.ai_host import host, parse_llm_reply
+from app.host_rules import FOREIGN_FALLBACK
 from app.llm import AnthropicLLM, OpenAILLM, build_llm
 
 GOOD = json.dumps({"reply": "マグは1,880円です。", "product_id": 2, "emotion": "happy"}, ensure_ascii=False)
@@ -228,3 +229,49 @@ async def test_llm_reuses_one_http_client_and_closes_on_shutdown():
     await llm.complete("sys", [{"role": "user", "content": "c"}])      # 閉じたあとでも使える
     assert llm.http.get() is not first
     await llm.aclose()
+
+
+# ---------- 多言語:日本語以外の返答も、数字と案内先を検証する ----------
+@pytest.mark.parametrize("reply,ok", [
+    ("现在 ¥4,980,优惠 38%。", True),
+    ("现在 ¥4,500。", False),
+    ("现在只要4500日元。", False),
+    ("现在打7折。", False),                                 # 割引率の言い換え
+    ("还剩 15 件。", True),
+    ("还剩 3 件。", False),                                 # 単位が日本語でなくても見つける
+    ("It's 4,980 yen, 38% off.", True),
+    ("It's 4,500 yen.", False),
+    ("It's about $33.", False),                             # 外貨への換算
+    ("It ships in 3 to 5 days.", True),                     # 店舗情報の数字
+    ("Returns are accepted within 7 days.", True),
+    ("Up to 32 hours of playback.", True),                  # 商品説明の数字
+    ("Up to 40 hours of playback.", False),
+    ("가격은 ¥4,980입니다.", True),
+    ("가격은 4,500엔입니다.", False),
+])
+def test_facts_are_consistent_in_other_languages(reply, ok):
+    from app.ai_host import facts_are_consistent
+    assert facts_are_consistent(reply, _products()) is ok
+
+
+def test_strip_fake_referrals_in_other_languages():
+    from app.ai_host import strip_fake_referrals
+    assert strip_fake_referrals("颜色信息暂时没有。详情请联系客服。") == "颜色信息暂时没有。"
+    assert strip_fake_referrals("I don't have color details. Please visit our official website.") \
+        == "I don't have color details."
+
+
+def test_parse_reply_allows_longer_text_for_alphabets():
+    """英語などは同じ内容でも文字数が多いので、日本語の上限で切らない"""
+    english = "word " * 60
+    assert parse_llm_reply(json.dumps({"reply": english}), set())[0] == english.strip()
+
+
+async def test_chinese_comment_gets_chinese_reply_or_chinese_fallback(use_llm):
+    good = json.dumps({"reply": "这款耳机现在是¥4,980。", "product_id": None, "emotion": "normal"}, ensure_ascii=False)
+    use_llm(OpenAILLM("k", "m", "https://api.openai.com/v1", openai_transport(good, [])))
+    assert (await host._generate("小明", "耳机多少钱?"))[0] == "这款耳机现在是¥4,980。"
+
+    wrong = json.dumps({"reply": "这款耳机现在是¥100。", "product_id": None, "emotion": "normal"}, ensure_ascii=False)
+    use_llm(OpenAILLM("k", "m", "https://api.openai.com/v1", openai_transport(wrong, [])))
+    assert (await host._generate("小明", "耳机多少钱?"))[0] == FOREIGN_FALLBACK["zh"]

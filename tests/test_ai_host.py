@@ -164,3 +164,41 @@ async def test_few_viewers_always_get_reply_but_bot_does_not(monkeypatch):
     _viewers(monkeypatch, 4)
     await host.on_comment("taro", "わーい")
     assert host.queue.qsize() == 1
+
+
+async def test_foreign_comment_is_always_answered(monkeypatch):
+    """質問の判定は日本語の言葉でしかできないので、日本語以外のコメントには視聴者が多くても必ず答える"""
+    monkeypatch.setattr(ai_host.random, "random", lambda: 0.99)    # 雑談なら答えない値
+    _viewers(monkeypatch, 10)
+    await host.on_comment("tom", "This looks really nice")
+    await host.on_comment("小明", "这个不错呢")
+    assert host.queue.qsize() == 2
+    await host.on_comment("taro", "わーい")                         # 日本語の雑談はこれまでどおり確率で
+    assert host.queue.qsize() == 2
+
+
+@pytest.mark.parametrize("text,voiced", [
+    ("マグは1,880円です。", True),
+    ("这款马克杯现在是¥1,880。", False),
+    ("The mug is ¥1,880 today.", False),
+])
+async def test_only_japanese_reply_is_voiced(monkeypatch, text, voiced):
+    """VOICEVOX は日本語しか読めないので、日本語以外の返答は文字だけにする"""
+    sent, spoken = [], []
+
+    class FakeTTS:
+        name = "voicevox"
+        credit = ""
+
+        async def synthesize(self, t, emotion="normal"):
+            spoken.append(t)
+            return "/static/audio/x.wav"
+
+    async def capture(message):
+        sent.append(message)
+
+    monkeypatch.setattr(ai_host.manager, "broadcast", capture)
+    monkeypatch.setattr(ai_host, "tts", FakeTTS())
+    await host._speak(text, None, "normal", save=False)
+    assert sent[0]["audio_pending"] is voiced
+    assert spoken == ([text] if voiced else [])
