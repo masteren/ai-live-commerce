@@ -37,11 +37,21 @@ _GENERIC_TOKENS = {"pro", "plus", "max", "mini"}
 # ---- 言語の判定(コメントと同じ言語で返答するために使う) ----
 _KANA_RE = re.compile(r"[ぁ-ゖァ-ヺ]")
 # 中国語にだけ出てくる字。「在庫」「送料」のような漢字だけの日本語コメントを中国語と誤判定しないよう、日本語で使う字は入れない
-_CHINESE_RE = re.compile(r"[吗嗎呢么麼这這们們您你没沒钱錢价價库货发哪谁为请还]")
+_CHINESE_RE = re.compile(r"[吗嗎呢么麼这這们們您你没沒钱錢价價库货发哪谁为请还机问时间题样买卖颜红绿单]")
+_TRADITIONAL_RE = re.compile(r"[嗎麼這們沒錢價]")
+_HANGUL_RE = re.compile(r"[가-힣]")
+
+# LLM に指定する返答の言語
+LANG_NAMES = {
+    "ja": "日本語",
+    "ko": "韓国語",
+    "other": "このコメントが書かれている言語(日本語以外)",
+}
 
 # 日本語以外のコメントに、LLM なしで答えるときの案内(ルール応答は日本語しか作れないため)
 FOREIGN_FALLBACK = {
     "zh": "不好意思,现在暂时无法详细回答您的问题。价格和库存请查看画面上的商品卡片。",
+    "ko": "죄송합니다. 지금은 자세히 답변해 드리기 어렵습니다. 가격과 재고는 화면의 상품 카드를 확인해 주세요.",
     "other": ("Sorry, I can't answer that in detail right now. "
               "Please check the product cards on screen for prices and stock."),
 }
@@ -51,11 +61,21 @@ def _is_han(c: str) -> bool:
     return "一" <= c <= "鿿"
 
 
+def reply_lang_name(text: str) -> str:
+    """LLM に指定する返答の言語。中国語は、コメントの字体(簡体字・繁体字)まで指定する"""
+    lang = comment_lang(text)
+    if lang == "zh":
+        return "中国語の繁体字" if _TRADITIONAL_RE.search(text) else "中国語の簡体字"
+    return LANG_NAMES[lang]
+
+
 def comment_lang(text: str) -> str:
-    """コメントの言語を "ja" / "zh" / "other" に分ける。
+    """コメントの言語を "ja" / "zh" / "ko" / "other" に分ける。
     「OK」「www」や数字・絵文字だけのような、言語を決められない短いコメントは日本語として扱う"""
     if _KANA_RE.search(text):
         return "ja"
+    if _HANGUL_RE.search(text):
+        return "ko"
     if _CHINESE_RE.search(text):
         return "zh"
     letters = [c for c in text if c.isalpha()]
@@ -74,6 +94,20 @@ def is_japanese(text: str) -> bool:
     kana = len(_KANA_RE.findall(text))
     other_script = sum(1 for c in letters if not _KANA_RE.match(c) and not _is_han(c))
     return kana / len(letters) >= 0.2 and kana * 2 > other_script
+
+
+def reply_matches_lang(reply: str, lang: str, nickname: str = "") -> bool:
+    """返答が指定した言語で書かれているか。視聴者の名前は日本語でもよいので、取り除いてから確認する"""
+    if lang == "ja":
+        return True
+    text = re.sub(re.escape(nickname) + r"(?:さん)?", "", reply) if nickname else reply
+    if _KANA_RE.search(text):
+        return False
+    if lang == "zh":
+        return any(_is_han(c) for c in text)
+    if lang == "ko":
+        return bool(_HANGUL_RE.search(text))
+    return not any(_is_han(c) for c in text)
 
 
 def yen(n: int) -> str:
@@ -146,7 +180,7 @@ def rule_reply(nickname: str, text: str, products: Sequence,
     p = find_product(text, products)
     intent = detect_intent(text)
     lang = comment_lang(text)
-    if lang == "zh" or (lang == "other" and not p and not intent):
+    if lang in ("zh", "ko") or (lang == "other" and not p and not intent):
         return FOREIGN_FALLBACK[lang], None, "troubled"
     call = _maybe_call(nickname, rng)
     pid = p.id if p else None

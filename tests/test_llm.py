@@ -254,6 +254,84 @@ def test_facts_are_consistent_in_other_languages(reply, ok):
     assert facts_are_consistent(reply, _products()) is ok
 
 
+def test_facts_are_checked_against_the_product_in_question():
+    """別の商品の割引率と同じ数字でも、話題の商品の値と違えば使わない(実 LLM の誤り:38% を 30% と回答)"""
+    from types import SimpleNamespace as P
+    from app.ai_host import facts_are_consistent
+    earphones = _products()[0]
+    other = P(id=9, name="ディフューザー", price=3500, original_price=5000, stock=25, description="静か")
+    products = [earphones, other]
+    assert facts_are_consistent("这款耳机有 30% 的折扣。", products) is True          # 商品が分からないと見分けられない
+    assert facts_are_consistent("这款耳机有 30% 的折扣。", products, earphones) is False
+    assert facts_are_consistent("这款耳机有 38% 的折扣。", products, earphones) is True
+    assert facts_are_consistent("イヤホンは30%オフです。", products, earphones) is False
+
+
+@pytest.mark.parametrize("reply,lang,ok", [
+    ("这款耳机现在是¥4,980。", "zh", True),
+    ("ワイヤレスイヤホンは¥4,980です。", "zh", False),
+    ("みほさん,这款耳机现在是¥4,980。", "zh", True),               # 視聴者の名前は日本語でもよい
+    ("이어폰은 ¥4,980입니다.", "ko", True),
+    ("The earphones are ¥4,980.", "ko", False),
+    ("La taza cuesta ¥1,880.", "other", True),
+    ("Je vous recommande le Stalneux保温マグ.", "other", False),    # 実 LLM の誤り:商品名が混ざった
+    ("マグは1,880円です。", "ja", True),
+])
+def test_reply_matches_lang(reply, lang, ok):
+    from app.host_rules import reply_matches_lang
+    assert reply_matches_lang(reply, lang, "みほ") is ok
+
+
+def _sequence_transport(replies, bodies):
+    """呼ばれるたびに replies を順番に返す OpenAI のモック"""
+    queue = list(replies)
+
+    def handler(request):
+        bodies.append(json.loads(request.content))
+        content = json.dumps({"reply": queue.pop(0), "product_id": 1, "emotion": "normal"}, ensure_ascii=False)
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    return httpx.MockTransport(handler)
+
+
+async def test_wrong_language_is_retried_once(use_llm):
+    bodies = []
+    transport = _sequence_transport(["イヤホンは¥4,980です。", "这款耳机现在是¥4,980。"], bodies)
+    use_llm(OpenAILLM("k", "m", "https://api.openai.com/v1", transport))
+    assert (await host._generate("小明", "耳机多少钱?"))[0] == "这款耳机现在是¥4,980。"
+    assert len(bodies) == 2
+    assert "[返答言語: 中国語の簡体字]" in bodies[0]["messages"][-1]["content"]
+    assert "[検証エラー]" in bodies[1]["messages"][-1]["content"]         # 何が違ったかを伝えて作り直す
+    assert all("検証エラー" not in m["content"] for m in host.history)     # 履歴には残さない
+
+
+async def test_traditional_chinese_comment_asks_for_traditional_reply(use_llm):
+    bodies = []
+    use_llm(OpenAILLM("k", "m", "https://api.openai.com/v1", _sequence_transport(["這款耳機是¥4,980。"], bodies)))
+    await host._generate("小明", "這款耳機多少錢?")
+    assert "[返答言語: 中国語の繁体字]" in bodies[0]["messages"][-1]["content"]
+
+
+def test_system_prompt_gives_the_discount_rate():
+    """割引率を渡さないと LLM が自分で計算して間違える(実 LLM の誤り:38% を 37% と回答)"""
+    assert "割引率38%" in host._build_system_prompt(_products())
+
+
+async def test_foreign_reply_falls_back_after_second_failure(use_llm):
+    bodies = []
+    transport = _sequence_transport(["イヤホンは¥4,980です。", "イヤホンは¥4,980です。"], bodies)
+    use_llm(OpenAILLM("k", "m", "https://api.openai.com/v1", transport))
+    assert (await host._generate("tom", "How much are the earphones?"))[0] == FOREIGN_FALLBACK["other"]
+    assert len(bodies) == 2
+
+
+async def test_japanese_comment_is_not_retried(use_llm):
+    bodies = []
+    use_llm(OpenAILLM("k", "m", "https://api.openai.com/v1", _sequence_transport(["イヤホンは¥100です。"], bodies)))
+    reply = (await host._generate("taro", "イヤホンはいくら?"))[0]
+    assert len(bodies) == 1 and "4,980円" in reply                 # ルール応答(実データ)に切り替わる
+
+
 def test_strip_fake_referrals_in_other_languages():
     from app.ai_host import strip_fake_referrals
     assert strip_fake_referrals("颜色信息暂时没有。详情请联系客服。") == "颜色信息暂时没有。"

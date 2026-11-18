@@ -123,17 +123,21 @@ def strip_fake_referrals(reply: str) -> str:
 _OTHER_CURRENCY_RE = re.compile(r"[$€£₩]\s?\d|\d\s*(?:美元|美金|欧元|歐元|韩元|韓元|ドル|달러|원|折|(?i:usd|dollars?|euros?)\b)")
 # 日本語以外の返答の在庫数:「还剩 3 件」「3 left」など
 _FOREIGN_STOCK_RE = re.compile(
-    r"(?:剩|库存|庫存|재고)\D{0,8}?(\d+)|(\d+)\s*(?:件|个|個|개|(?i:left|in stock|units?|items?)\b)"
+    r"(?:剩|库存|庫存|재고)\D{0,8}?(\d+)|(\d+)\s*(?:件|个|個|개|점|(?i:left|in stock|units?|items?)\b)"
 )
 
 
-def facts_are_consistent(reply: str, products) -> bool:
+def facts_are_consistent(reply: str, products, product=None) -> bool:
     """返答に出てくる数字(金額・割引率・在庫数)が、DB の値と一致しているか。
     LLM は数字を間違えることがある(実際に 38% を 36% と答えた)。プロンプトで頼むだけでは防げないので、
     コードで照合し、合わなければその返答は使わない(呼び出し側でルール応答に切り替える)。
 
     日本語以外の返答は、単位の書き方を言語ごとに網羅できないので、より厳しく確認する:
-    文中のすべての数字が、商品データか店舗情報に実在する値でなければ使わない。"""
+    文中のすべての数字が、商品データか店舗情報に実在する値でなければ使わない。
+
+    話題の商品(product)が分かっているときは、その商品の値とだけ照合する
+    (実際に、イヤホンの割引 38% を、別の商品の割引と同じ 30% と答えた例があった)。"""
+    products = [product] if product is not None else products
     prices = {p.price for p in products} | {p.original_price for p in products}
     rates = {host_rules.off_rate(p.price, p.original_price) for p in products}
     stocks = {p.stock for p in products}
@@ -312,34 +316,58 @@ class AIHost:
 
         system = self._build_system_prompt(products)
         self.history = self.history[-HISTORY_TURNS * 2:]
-        messages = self.history + [{"role": "user", "content": format_comment(nickname, question)}]
+        # 返答の言語はコードで判定して指定する(プロンプトの一般的な指示だけでは日本語で返ることが多かった)
+        lang = host_rules.comment_lang(question)
+        lang_name = host_rules.reply_lang_name(question)
+        content = f"{format_comment(nickname, question)}\n[返答言語: {lang_name}]"
+        messages = self.history + [{"role": "user", "content": content}]
+        attempt = messages
 
-        try:
-            raw = await self.llm.complete(system, messages)
-        except Exception as e:
-            # 縮退:タイムアウト・レート制限・通信障害 → ルール応答。配信は止めない
-            logger.warning("LLM の呼び出しに失敗したため、ルール応答に切り替えます: %s", e)
-            return host_rules.rule_reply(nickname, question, products)
+        def fallback() -> "tuple[str, Optional[int], str]":
+            if lang == "ja":
+                return host_rules.rule_reply(nickname, question, products)
+            return host_rules.FOREIGN_FALLBACK[lang], None, "troubled"
 
-        parsed = parse_llm_reply(raw, {p.id for p in products})
-        if parsed is None:
-            # 指示した JSON 形式で返ってこなかった → そのまま視聴者に見せず、ルール応答に切り替える
-            logger.warning("LLM の返答を解釈できないため、ルール応答に切り替えます: %.80r", raw)
-            return host_rules.rule_reply(nickname, question, products)
+        # 日本語にはルール応答があるので作り直さない。日本語以外は検証に落ちたら1回だけ作り直す
+        for _ in range(1 if lang == "ja" else 2):
+            try:
+                raw = await self.llm.complete(system, attempt)
+            except Exception as e:
+                # 縮退:タイムアウト・レート制限・通信障害 → ルール応答。配信は止めない
+                logger.warning("LLM の呼び出しに失敗したため、ルール応答に切り替えます: %s", e)
+                return fallback()
 
-        reply, product_id, emotion = parsed
-        if not facts_are_consistent(reply, products):
-            # 数字が DB と違う返答は視聴者に見せない(履歴にも残さない)
-            logger.warning("LLM の返答の数字が商品データと一致しないため、ルール応答に切り替えます: %.80r", reply)
-            return host_rules.rule_reply(nickname, question, products)
-        reply = strip_fake_referrals(reply)
-        self.history = messages + [{"role": "assistant", "content": raw}]
-        product = next((p for p in products if p.id == product_id), None)
-        return reply, product_id, adjust_emotion(reply, product, emotion)
+            parsed = parse_llm_reply(raw, {p.id for p in products})
+            if parsed is None:
+                # 指示した JSON 形式で返ってこなかった → そのまま視聴者に見せず、ルール応答に切り替える
+                logger.warning("LLM の返答を解釈できないため、ルール応答に切り替えます: %.80r", raw)
+                return fallback()
+
+            reply, product_id, emotion = parsed
+            product = next((p for p in products if p.id == product_id), None)
+            if not facts_are_consistent(reply, products, product):
+                # 数字が DB と違う返答は視聴者に見せない(履歴にも残さない)
+                logger.warning("LLM の返答の数字が商品データと一致しません: %.80r", reply)
+                problem = "数字が商品データと違います。価格・割引率・在庫数は「販売中の商品」の値をそのまま使ってください"
+            elif not host_rules.reply_matches_lang(reply, lang, nickname):
+                logger.warning("LLM の返答の言語が指定と違います(%s): %.80r", lang, reply)
+                problem = f"{lang_name}だけで書き直してください。商品名も翻訳し、日本語の文字を使わないでください"
+            else:
+                problem = ""
+            if problem:
+                # 同じ指示で作り直しても同じ誤りになりやすいので、何が違ったかを伝える
+                attempt = messages + [{"role": "assistant", "content": raw},
+                                      {"role": "user", "content": f"[検証エラー] {problem}"}]
+                continue
+            reply = strip_fake_referrals(reply)
+            self.history = messages + [{"role": "assistant", "content": raw}]
+            return reply, product_id, adjust_emotion(reply, product, emotion)
+        return fallback()
 
     def _build_system_prompt(self, products: list[Product]) -> str:
         lines = "\n".join(
-            f"id={p.id}: {p.name} ¥{p.price:,}(通常¥{p.original_price:,}) 在庫{p.stock}点 - {p.description}"
+            f"id={p.id}: {p.name} ¥{p.price:,}(通常¥{p.original_price:,}、"
+            f"割引率{host_rules.off_rate(p.price, p.original_price)}%) 在庫{p.stock}点 - {p.description}"
             for p in products
         )
         return f"""あなたは「{settings.host_name}(花奈)」、日本の公式オンラインストアのライブ配信を担当するAI販売アシスタントです。
@@ -372,7 +400,8 @@ class AIHost:
 - 決まり文句の繰り返しや大げさな表現は避ける
 
 # ルール
-- 回答は、視聴者のコメントが書かれている言語で書く(中国語のコメントには中国語、英語のコメントには英語)。言語を判断できないときは日本語
+- 【必須】回答は、コメントのあとの [返答言語: …] で指定された言語だけで書く。断るとき・情報がないと伝えるときも同じ言語で書く
+- 日本語以外で回答するときは、商品名もその言語に翻訳し、ひらがな・カタカナを混ぜない(Pro などの英字はそのまま)
 - 回答は{settings.reply_max_chars}文字以内(日本語以外は1〜2文)、絵文字は使わない
 - どの言語でも、数字は算用数字で書く。金額は ¥1,280、割引率は 30% の形のままにし、外貨への換算や「7折」のような言い換えはしない
 - 【最重要】商品について言ってよい事実は「販売中の商品」と「店舗情報」に書かれていることだけ。

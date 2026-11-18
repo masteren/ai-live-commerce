@@ -94,7 +94,9 @@ def test_spotlight_mentions_discount():
     ("这个多少钱", "zh"),
     ("這個多少錢嗎", "zh"),
     ("How much is this?", "other"),
-    ("얼마예요", "other"),
+    ("耳机", "zh"),
+    ("얼마예요", "ko"),
+    ("¿Cuánto cuesta la taza?", "other"),
 ])
 def test_comment_lang(text, expected):
     assert comment_lang(text) == expected
