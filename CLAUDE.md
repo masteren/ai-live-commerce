@@ -41,6 +41,7 @@ TEST_RUNNER_API_BASE=http://127.0.0.1:8011 xcodebuild test -project ios/AILiveCo
 ## 未着手・保留
 - (済)iOS 実機(iPhone 15)で確認:主要フロー・バックグラウンド復帰・音声(消音スイッチがオンでも再生)。実機での UI テストは `-destination 'id=<端末ID>'`、サーバは `--host 0.0.0.0`、接続先は Mac の LAN の IP。無料アカウントの署名は 7 日で切れる(Xcode から再インストール)
 - (済)OpenAI の実キー(gpt-4o-mini)でホストの応答を確認。作り話・数字の誤り・感情の偏りを、プロンプト修正とコード側の検証(`facts_are_consistent` など)で対処。Anthropic 側は実キー未確認
+- (済)OpenAI のモデルを gpt-6-luna に変更(2026-11-18)。gpt-4o-mini は 2027-01-14 に停止されるため。多言語 16 件×3 回の比較で、日本語以外の返答の正答は gpt-6-luna 42/42、gpt-4o-mini 37/42
 - LLM を実際に呼ぶ確認は作者の了承を得てから(費用が発生する)
 - VOICEVOX を起動しての音声・口パクの確認
 - (済)サーバへのデプロイ:https://live.masteren.cloud(2026-11-16。最初は masteren.online で公開し、同日に masteren.cloud へ移った)。Docker(アプリ・MySQL・VOICEVOX)+ サーバの Nginx + Let's Encrypt。手順は deploy/README.md、更新は `./deploy/deploy.sh`。公開版は OpenAI を使う(プリペイド残高が上限。2027-02-01 に失効)

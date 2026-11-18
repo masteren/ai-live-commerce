@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # キーが空なら BOT は組み込みの定型コメントだけを使う。互換 API を使う場合は base_url を変える
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-6-luna"
     bot_pool_batch: int = 60             # BOT 用のコメントを1回にまとめて作る件数(雑談+質問の合計)
 
     # ---- TTS ----
